@@ -1,0 +1,30 @@
+{
+  "name": "impactdiff",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Task-aware multimodal visual regression research lab",
+  "license": "Apache-2.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/omar07ibrahim/impactdiff.git"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "ajv": "8.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.1",
+    "json-schema-to-ts": "3.1.1",
+    "prettier": "3.9.5",
+    "typescript": "6.0.3"
+  }
+}
