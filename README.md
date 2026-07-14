@@ -6,9 +6,9 @@ damages accessibility, and which visible or structural evidence supports that
 conclusion.
 
 The planned input is a matched before/after capture containing screenshots,
-accessibility trees, bounded DOM/layout graphs, and short interaction traces. The
-planned output is a calibrated regression score, severity, the affected UI node and
-region, and an evidence trail back to the failed task step.
+accessibility trees, bounded DOM/layout graphs, and a fixed action plan. The planned
+output is a calibrated regression score, severity, the affected UI node and region, and
+an evidence trail back to the failed task step.
 
 ## Current status
 
@@ -35,9 +35,9 @@ Each benchmark item will contain:
 - fixed-environment before and after screenshots;
 - normalized accessibility snapshots;
 - a bounded graph of visible DOM nodes and layout relations;
-- a deterministic task trace and final-state oracle result;
+- a deterministic action plan shared by both captures;
 - content hashes and capture-environment provenance; and
-- sealed mutation provenance for localization and leakage audits.
+- separately sealed traces, oracle results, mutation provenance, and labels.
 
 The initial mutation set will cover both task-breaking faults—such as occluded controls,
 clipped content, broken focus order, misleading accessible names, and responsive
@@ -53,7 +53,8 @@ localization, severity, calibration, and false-positive rate on benign redesigns
 reported separately.
 
 See [the research charter](docs/charter.md) for hypotheses, metrics, falsification
-criteria, and non-goals.
+criteria, and non-goals. The [data-boundary contract](docs/data-boundary.md) explains
+how model-visible evidence is physically separated from outcomes and mutation metadata.
 
 ## Engineering constraints
 

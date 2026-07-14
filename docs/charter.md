@@ -19,9 +19,10 @@ One item is a matched pair derived from a single immutable source state:
 1. a baseline capture;
 2. a candidate capture produced by one declared intervention;
 3. a deterministic task specification;
-4. baseline and candidate task traces;
-5. final-state and accessibility oracle results; and
-6. sealed intervention provenance.
+4. a fixed action plan and symmetric observation checkpoints;
+5. sealed baseline and candidate task traces;
+6. sealed final-state and accessibility oracle results; and
+7. sealed intervention provenance.
 
 The intervention is the unit of labeling. A page is not globally labeled "broken". The
 label states whether this intervention changed the outcome of this task under the
@@ -77,6 +78,11 @@ changes to task-irrelevant content.
 Every operator must declare its preconditions, changed surface, expected task relation,
 inverse or cleanup behavior, and the evidence fields it is forbidden to leak into model
 inputs.
+
+Candidate outcome, missingness, retry count, duration, failed step, intervention
+identity, and grouping keys are label-side data. They are not model inputs. See
+[the data-boundary contract](data-boundary.md) for the physical separation and
+fail-closed manifest rules.
 
 ## Splits
 
