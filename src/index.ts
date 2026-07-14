@@ -16,3 +16,17 @@ export type {
   SplitAssignment,
   SplitAudit,
 } from "./contracts/schema.js";
+export {
+  ContractValidationError,
+  validateEvidenceManifest,
+  validateEvidenceRecordPair,
+  validateSealedRecord,
+  validateSplitAssignment,
+  validateSplitAudit,
+  validateSplitBundle,
+} from "./contracts/validate.js";
+export type {
+  ContractIssue,
+  EvidenceRecordPair,
+  SplitBundle,
+} from "./contracts/validate.js";
