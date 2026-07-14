@@ -12,10 +12,12 @@ an evidence trail back to the failed task step.
 
 ## Current status
 
-The repository currently contains the research contract, not a trained model or
-benchmark result. No accuracy claim is made yet. The first implementation milestone will
-produce deterministic captures and typed, replayable UI mutations before any learned
-baseline is introduced.
+The repository currently contains the executable v1 evidence contract, not a trained
+model or benchmark result. No accuracy claim is made yet. The implemented boundary
+includes four closed JSON Schemas, strict canonical JSON, content-derived identities,
+visible/sealed digest binding, semantic record checks, and dataset-level leakage and
+holdout validation. The next milestone is deterministic capture plus typed, replayable
+UI mutations; learned baselines come only after that pipeline is auditable.
 
 ## Research question
 
@@ -55,6 +57,8 @@ reported separately.
 See [the research charter](docs/charter.md) for hypotheses, metrics, falsification
 criteria, and non-goals. The [data-boundary contract](docs/data-boundary.md) explains
 how model-visible evidence is physically separated from outcomes and mutation metadata.
+The [contract invariants](docs/contract-invariants.md) document the implemented runtime
+checks and the boundary that still requires resolved artifact validation.
 
 ## Engineering constraints
 

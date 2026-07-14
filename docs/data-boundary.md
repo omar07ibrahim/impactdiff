@@ -5,6 +5,11 @@ convention. A model process must be able to read every byte in its mount without
 learning the intervention family, execution outcome, failed step, severity, or target
 localization.
 
+The current implementation validates manifests and their cross-record relationships. The
+filesystem materializer and resolved artifact validators described below are the next
+milestone; the project does not yet claim that arbitrary CAS payload bytes are safe
+model input.
+
 ## Storage roots
 
 The planned materializer creates independent content-addressed stores:
@@ -40,12 +45,22 @@ failed-step fields. Baseline and candidate captures must have the same checkpoin
 ordinals, counts, and modalities. An incomplete pair is invalid and is not made visible
 as a shorter candidate sequence.
 
+Every model-visible routing identity is derived with a domain-separated hash from its
+label-free canonical body. It cannot be chosen after observing a label. Feature code
+will consume ordered modality payloads, not routing IDs, content digests, or manifest
+filenames as learned features.
+
 ## Sealed record
 
 `impactdiff.sealed-record` binds to the exact evidence manifest digest. It contains
 grouping keys, intervention provenance, raw baseline and candidate outcomes, oracle
 results, execution traces, and labels. A scorer derives validity, task regression,
 severity, failed step, and localization from this record under a versioned label policy.
+
+The current record validator checks consistency among stored scalar outcomes and labels;
+the scorer that replays the versioned policy against resolved trace and oracle artifacts
+has not landed yet. Severity should therefore be read as contract data, not as a
+validated benchmark claim.
 
 If the baseline task fails, the sample is invalid. Its outcome remains useful for
 generator diagnostics, but it cannot become a negative benchmark item.
@@ -61,6 +76,23 @@ The audit code must recompute overlap. It does not trust a stored `passed` boole
 Joint holdouts require application and mutation-family disjointness; all protocols also
 keep source states, near duplicates, and transitive shared-asset components within one
 partition.
+
+Dataset validation also requires exact assignment/audit/record membership, a single
+feature and label policy, global visible-versus-sealed CAS separation, and partition
+ownership for every screenshot, accessibility, and layout digest. Reuse of the global
+action plan or capture specification is allowed; reuse of an observation across a
+partition boundary is not.
+
+## Canonical encoding and binding
+
+All four manifests are closed v1 schemas and canonical JSON documents. The decoder
+rejects duplicate keys, invalid UTF-8 or Unicode, non-NFC strings, unsafe or fractional
+numbers, hidden JavaScript state, and noncanonical serialization. Root identities bind
+canonical bodies, sealed records bind exact evidence-manifest digests, and split audits
+bind exact assignment digests.
+
+See [contract invariants](contract-invariants.md) for the implemented checks and the
+remaining resolved-artifact boundary.
 
 ## Versioning
 

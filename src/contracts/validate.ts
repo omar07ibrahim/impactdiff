@@ -1,6 +1,24 @@
 import { Ajv2020 } from "ajv/dist/2020.js";
-import type { ErrorObject, ValidateFunction } from "ajv";
 
+import { checkArtifactSet, sealedArtifacts, visibleArtifacts } from "./artifacts.js";
+import {
+  canonicalSha256,
+  computeCaptureId,
+  computeCheckpointId,
+  computeEnvironmentId,
+  computeEvidenceId,
+  computeFeatureProfileId,
+  computeMutationFamilyGroupId,
+  computeSealedRecordId,
+  computeSourceStateGroupId,
+  computeSourceStateId,
+  computeSplitAuditId,
+  computeSplitId,
+  computeTaskId,
+} from "./canonical.js";
+import { assertNoIssues, issue } from "./errors.js";
+import type { ContractIssue } from "./errors.js";
+import { normalizedSchemaValue } from "./input.js";
 import {
   evidenceManifestSchema,
   sealedRecordSchema,
@@ -14,158 +32,27 @@ import type {
   SplitAudit,
 } from "./schema.js";
 
-export interface ContractIssue {
-  readonly code: string;
-  readonly path: string;
-  readonly message: string;
-}
+export { ContractValidationError } from "./errors.js";
+export type { ContractIssue } from "./errors.js";
 
-export class ContractValidationError extends Error {
-  readonly contract: string;
-  readonly issues: readonly ContractIssue[];
-
-  constructor(contract: string, issues: readonly ContractIssue[]) {
-    super(`${contract} failed validation with ${issues.length} issue(s)`);
-    this.name = "ContractValidationError";
-    this.contract = contract;
-    this.issues = issues;
-  }
-}
-
-interface ArtifactRef {
-  readonly sha256: string;
-  readonly byte_length: number;
-  readonly media_type: string;
-  readonly format_version: 1;
-}
-
-const ajv = new Ajv2020({ allErrors: true, strict: true });
+const ajv = new Ajv2020({ allErrors: true, ownProperties: true, strict: true });
 const evidenceValidator = ajv.compile<EvidenceManifest>(evidenceManifestSchema);
 const sealedRecordValidator = ajv.compile<SealedRecord>(sealedRecordSchema);
 const splitAssignmentValidator = ajv.compile<SplitAssignment>(splitAssignmentSchema);
 const splitAuditValidator = ajv.compile<SplitAudit>(splitAuditSchema);
-
-const schemaIssues = (errors: ErrorObject[] | null | undefined): ContractIssue[] =>
-  (errors ?? []).map((error) => ({
-    code: `schema.${error.keyword}`,
-    path: error.instancePath || "/",
-    message: error.message ?? "schema constraint failed",
-  }));
-
-function assertSchema<T>(
-  contract: string,
-  validator: ValidateFunction<T>,
-  value: unknown,
-): asserts value is T {
-  if (!validator(value)) {
-    throw new ContractValidationError(contract, schemaIssues(validator.errors));
-  }
-}
-
-const issue = (code: string, path: string, message: string): ContractIssue => ({
-  code,
-  path,
-  message,
-});
-
-function assertNoIssues(contract: string, issues: ContractIssue[]): void {
-  if (issues.length > 0) {
-    throw new ContractValidationError(contract, issues);
-  }
-}
-
-function checkArtifactSet(
-  refs: readonly ArtifactRef[],
-  maximumUniqueBytes: number,
-  path: string,
-  issues: ContractIssue[],
-): Set<string> {
-  const seen = new Map<string, ArtifactRef>();
-  let uniqueBytes = 0;
-
-  for (const ref of refs) {
-    const prior = seen.get(ref.sha256);
-    if (prior === undefined) {
-      seen.set(ref.sha256, ref);
-      uniqueBytes += ref.byte_length;
-      continue;
-    }
-
-    if (
-      prior.byte_length !== ref.byte_length ||
-      prior.media_type !== ref.media_type ||
-      prior.format_version !== ref.format_version
-    ) {
-      issues.push(
-        issue(
-          "artifact.metadata_conflict",
-          path,
-          "one digest has conflicting artifact metadata",
-        ),
-      );
-    }
-  }
-
-  if (uniqueBytes > maximumUniqueBytes) {
-    issues.push(
-      issue(
-        "artifact.total_bytes",
-        path,
-        `unique artifact bytes exceed ${maximumUniqueBytes}`,
-      ),
-    );
-  }
-
-  return new Set(seen.keys());
-}
-
-function visibleArtifacts(manifest: EvidenceManifest): ArtifactRef[] {
-  const refs: ArtifactRef[] = [
-    manifest.task.action_plan,
-    manifest.environment.capture_spec,
-  ];
-
-  for (const capture of [manifest.pair.baseline, manifest.pair.candidate]) {
-    for (const checkpoint of capture.checkpoints) {
-      refs.push(
-        checkpoint.screenshot,
-        checkpoint.accessibility_tree,
-        checkpoint.layout_graph,
-      );
-    }
-  }
-
-  return refs;
-}
-
-function sealedArtifacts(record: SealedRecord): ArtifactRef[] {
-  const refs: ArtifactRef[] = [
-    record.intervention.parameters,
-    record.intervention.preconditions,
-    record.intervention.changed_surface,
-  ];
-
-  for (const outcome of [record.execution.baseline, record.execution.candidate]) {
-    refs.push(
-      outcome.final_state_oracle,
-      outcome.accessibility_oracle,
-      outcome.raw_trace,
-    );
-  }
-
-  if (record.labels.localization !== null) {
-    refs.push(record.labels.localization);
-  }
-
-  return refs;
-}
+const maximumVisibleUniqueBytes = 67_108_864;
+const maximumSealedUniqueBytes = 8_388_608;
 
 export function validateEvidenceManifest(value: unknown): EvidenceManifest {
-  assertSchema("impactdiff.evidence/v1", evidenceValidator, value);
+  const manifest = normalizedSchemaValue(
+    "impactdiff.evidence/v1",
+    evidenceValidator,
+    value,
+  );
 
   const issues: ContractIssue[] = [];
-  const baseline = value.pair.baseline;
-  const candidate = value.pair.candidate;
+  const baseline = manifest.pair.baseline;
+  const candidate = manifest.pair.candidate;
 
   if (baseline.capture_id === candidate.capture_id) {
     issues.push(
@@ -237,11 +124,91 @@ export function validateEvidenceManifest(value: unknown): EvidenceManifest {
       );
     }
     checkpointIds.add(baselineCheckpoint.checkpoint_id);
+
+    const expectedCheckpointId = computeCheckpointId(manifest.task.action_plan, index);
+    if (baselineCheckpoint.checkpoint_id !== expectedCheckpointId) {
+      issues.push(
+        issue(
+          "evidence.checkpoint_derivation",
+          `/pair/baseline/checkpoints/${index}/checkpoint_id`,
+          "checkpoint IDs must be derived from the action plan and ordinal",
+        ),
+      );
+    }
   }
 
-  checkArtifactSet(visibleArtifacts(value), 67_108_864, "/", issues);
+  checkArtifactSet(visibleArtifacts(manifest), maximumVisibleUniqueBytes, "/", issues);
+  if (manifest.task.task_id !== computeTaskId(manifest.task.action_plan)) {
+    issues.push(
+      issue(
+        "evidence.task_identity",
+        "/task/task_id",
+        "task_id must be derived from the action-plan reference",
+      ),
+    );
+  }
+  if (
+    manifest.feature_profile_id !==
+    computeFeatureProfileId(manifest.environment.capture_spec)
+  ) {
+    issues.push(
+      issue(
+        "evidence.feature_profile_identity",
+        "/feature_profile_id",
+        "feature_profile_id must be derived from the capture-spec reference",
+      ),
+    );
+  }
+  if (
+    manifest.environment.environment_id !==
+    computeEnvironmentId(manifest.environment.capture_spec)
+  ) {
+    issues.push(
+      issue(
+        "evidence.environment_identity",
+        "/environment/environment_id",
+        "environment_id must be derived from the capture-spec reference",
+      ),
+    );
+  }
+  if (baseline.capture_id !== computeCaptureId(baseline)) {
+    issues.push(
+      issue(
+        "evidence.baseline_capture_identity",
+        "/pair/baseline/capture_id",
+        "capture_id must be derived from the canonical baseline capture body",
+      ),
+    );
+  }
+  if (candidate.capture_id !== computeCaptureId(candidate)) {
+    issues.push(
+      issue(
+        "evidence.candidate_capture_identity",
+        "/pair/candidate/capture_id",
+        "capture_id must be derived from the canonical candidate capture body",
+      ),
+    );
+  }
+  if (manifest.source_state_id !== computeSourceStateId(manifest)) {
+    issues.push(
+      issue(
+        "evidence.source_state_identity",
+        "/source_state_id",
+        "source_state_id must be derived from label-free baseline state",
+      ),
+    );
+  }
+  if (manifest.evidence_id !== computeEvidenceId(manifest)) {
+    issues.push(
+      issue(
+        "evidence.identity",
+        "/evidence_id",
+        "evidence_id must be derived from the canonical manifest body",
+      ),
+    );
+  }
   assertNoIssues("impactdiff.evidence/v1", issues);
-  return value;
+  return manifest;
 }
 
 type Outcome = SealedRecord["execution"]["baseline"];
@@ -272,11 +239,15 @@ function checkOutcome(
 }
 
 export function validateSealedRecord(value: unknown): SealedRecord {
-  assertSchema("impactdiff.sealed-record/v1", sealedRecordValidator, value);
+  const record = normalizedSchemaValue(
+    "impactdiff.sealed-record/v1",
+    sealedRecordValidator,
+    value,
+  );
 
   const issues: ContractIssue[] = [];
-  const { baseline, candidate } = value.execution;
-  const labels = value.labels;
+  const { baseline, candidate } = record.execution;
+  const labels = record.labels;
   checkOutcome("baseline", baseline, issues);
   checkOutcome("candidate", candidate, issues);
 
@@ -310,6 +281,15 @@ export function validateSealedRecord(value: unknown): SealedRecord {
           "record.baseline_failure_reason",
           "/labels/invalid_reason",
           "a failed baseline must use the baseline_failed reason",
+        ),
+      );
+    }
+    if (baseline.task_success && labels.invalid_reason === "baseline_failed") {
+      issues.push(
+        issue(
+          "record.spurious_baseline_failure_reason",
+          "/labels/invalid_reason",
+          "baseline_failed is valid only when the baseline task failed",
         ),
       );
     }
@@ -390,9 +370,38 @@ export function validateSealedRecord(value: unknown): SealedRecord {
     }
   }
 
-  checkArtifactSet(sealedArtifacts(value), 33_554_432, "/", issues);
+  const outcomeFieldsDiffer =
+    baseline.task_success !== candidate.task_success ||
+    baseline.first_unsatisfied_step_id !== candidate.first_unsatisfied_step_id ||
+    baseline.recovery_actions !== candidate.recovery_actions ||
+    baseline.virtual_elapsed_ms !== candidate.virtual_elapsed_ms;
+  if (
+    outcomeFieldsDiffer &&
+    baseline.final_state_oracle.sha256 === candidate.final_state_oracle.sha256 &&
+    baseline.accessibility_oracle.sha256 === candidate.accessibility_oracle.sha256 &&
+    baseline.raw_trace.sha256 === candidate.raw_trace.sha256
+  ) {
+    issues.push(
+      issue(
+        "record.outcome_artifact_contradiction",
+        "/execution",
+        "different outcomes must be supported by different oracle or trace artifacts",
+      ),
+    );
+  }
+
+  checkArtifactSet(sealedArtifacts(record), maximumSealedUniqueBytes, "/", issues);
+  if (record.sealed_record_id !== computeSealedRecordId(record)) {
+    issues.push(
+      issue(
+        "record.identity",
+        "/sealed_record_id",
+        "sealed_record_id must be derived from the canonical record body",
+      ),
+    );
+  }
   assertNoIssues("impactdiff.sealed-record/v1", issues);
-  return value;
+  return record;
 }
 
 const partitionNames = ["train", "validation", "test"] as const;
@@ -419,12 +428,16 @@ function checkSortedUnique(
 }
 
 export function validateSplitAssignment(value: unknown): SplitAssignment {
-  assertSchema("impactdiff.split-assignment/v1", splitAssignmentValidator, value);
+  const assignment = normalizedSchemaValue(
+    "impactdiff.split-assignment/v1",
+    splitAssignmentValidator,
+    value,
+  );
 
   const issues: ContractIssue[] = [];
   const globallySeen = new Set<string>();
   for (const partition of partitionNames) {
-    const ids = value.partitions[partition];
+    const ids = assignment.partitions[partition];
     checkSortedUnique(ids, `/partitions/${partition}`, issues);
     for (const evidenceId of ids) {
       if (globallySeen.has(evidenceId)) {
@@ -440,18 +453,50 @@ export function validateSplitAssignment(value: unknown): SplitAssignment {
     }
   }
 
+  if (globallySeen.size > 1_000_000) {
+    issues.push(
+      issue(
+        "split.total_items",
+        "/partitions",
+        "a split cannot contain more than 1000000 evidence IDs",
+      ),
+    );
+  }
+
+  if (assignment.split_id !== computeSplitId(assignment)) {
+    issues.push(
+      issue(
+        "split.identity",
+        "/split_id",
+        "split_id must be derived from the canonical assignment body",
+      ),
+    );
+  }
   assertNoIssues("impactdiff.split-assignment/v1", issues);
-  return value;
+  return assignment;
 }
 
 export function validateSplitAudit(value: unknown): SplitAudit {
-  assertSchema("impactdiff.split-audit/v1", splitAuditValidator, value);
+  const audit = normalizedSchemaValue(
+    "impactdiff.split-audit/v1",
+    splitAuditValidator,
+    value,
+  );
 
   const issues: ContractIssue[] = [];
-  const ids = value.items.map((item) => item.evidence_id);
+  const ids = audit.items.map((item) => item.evidence_id);
   checkSortedUnique(ids, "/items", issues);
+  if (audit.split_audit_id !== computeSplitAuditId(audit)) {
+    issues.push(
+      issue(
+        "split_audit.identity",
+        "/split_audit_id",
+        "split_audit_id must be derived from the canonical audit body",
+      ),
+    );
+  }
   assertNoIssues("impactdiff.split-audit/v1", issues);
-  return value;
+  return audit;
 }
 
 export interface EvidenceRecordPair {
@@ -473,6 +518,41 @@ export function validateEvidenceRecordPair(
         "pair.evidence_id",
         "/evidence_id",
         "visible and sealed records must use the same evidence ID",
+      ),
+    );
+  }
+
+  if (sealedRecord.evidence_manifest_sha256 !== canonicalSha256(evidence)) {
+    issues.push(
+      issue(
+        "pair.manifest_digest",
+        "/evidence_manifest_sha256",
+        "the sealed record must bind the exact canonical evidence manifest",
+      ),
+    );
+  }
+
+  if (
+    sealedRecord.grouping.source_state_group_id !==
+    computeSourceStateGroupId(evidence.source_state_id)
+  ) {
+    issues.push(
+      issue(
+        "pair.source_state_group",
+        "/grouping/source_state_group_id",
+        "source-state grouping must be derived from the visible source identity",
+      ),
+    );
+  }
+  if (
+    sealedRecord.grouping.mutation_family_group_id !==
+    computeMutationFamilyGroupId(sealedRecord.intervention.family_id)
+  ) {
+    issues.push(
+      issue(
+        "pair.mutation_family_group",
+        "/grouping/mutation_family_group_id",
+        "mutation-family grouping must be derived from intervention family_id",
       ),
     );
   }
@@ -538,6 +618,16 @@ export function validateSplitBundle(
         "split_bundle.split_id",
         "/split_id",
         "assignment and audit split IDs must match",
+      ),
+    );
+  }
+
+  if (audit.assignment_sha256 !== canonicalSha256(assignment)) {
+    issues.push(
+      issue(
+        "split_bundle.assignment_digest",
+        "/assignment_sha256",
+        "the sealed audit must bind the exact canonical split assignment",
       ),
     );
   }

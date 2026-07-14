@@ -30,3 +30,27 @@ export type {
   EvidenceRecordPair,
   SplitBundle,
 } from "./contracts/validate.js";
+export { validateDatasetBundle } from "./contracts/dataset.js";
+export type { DatasetBundle, DatasetPairInput } from "./contracts/dataset.js";
+export {
+  canonicalJson,
+  canonicalSha256,
+  CanonicalJsonError,
+  computeCaptureId,
+  computeCheckpointId,
+  computeEnvironmentId,
+  computeEvidenceId,
+  computeFeatureProfileId,
+  computeMutationFamilyGroupId,
+  computeSealedRecordId,
+  computeSourceStateGroupId,
+  computeSourceStateId,
+  computeSplitAuditId,
+  computeSplitId,
+  computeTaskId,
+  JsonDataError,
+  normalizeJsonData,
+  parseCanonicalJson,
+  sha256Hex,
+} from "./contracts/canonical.js";
+export type { JsonValue, ParseLimits } from "./contracts/canonical.js";
