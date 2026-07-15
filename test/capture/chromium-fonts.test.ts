@@ -13,6 +13,7 @@ interface PlatformFont {
 
 interface FakeChromiumOptions {
   readonly fontsByNode?: ReadonlyMap<number, readonly PlatformFont[]>;
+  readonly sessionFailure?: Error;
   readonly sendFailureAt?: string;
   readonly sendFailure?: Error;
   readonly detachFailure?: Error;
@@ -79,7 +80,12 @@ function fakeChromiumPage(options: FakeChromiumOptions = {}): FakeChromiumPage {
     },
   };
   const page = {
-    context: () => ({ newCDPSession: async () => client }),
+    context: () => ({
+      newCDPSession: async () => {
+        if (options.sessionFailure !== undefined) throw options.sessionFailure;
+        return client;
+      },
+    }),
   } as unknown as Page;
   return { page, calls, detachCount: () => detachCount };
 }
@@ -165,6 +171,19 @@ test("closed Chromium font audit aggregates probing and detach failures", async 
     return true;
   });
   assert.equal(fixture.detachCount(), 1);
+});
+
+test("closed Chromium font audit types a CDP session initialization failure", async () => {
+  const sessionFailure = new Error("CDP unavailable");
+  const fixture = fakeChromiumPage({ sessionFailure });
+
+  await assert.rejects(audit(fixture.page), (error: unknown) => {
+    assert.ok(error instanceof TestFontAuditError);
+    assert.equal(error.message, "fixture platform-font usage could not be audited");
+    assert.equal(error.cause, sessionFailure);
+    return true;
+  });
+  assert.equal(fixture.detachCount(), 0);
 });
 
 test("closed Chromium font audit reports a detach-only failure", async () => {

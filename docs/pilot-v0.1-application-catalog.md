@@ -4,8 +4,10 @@
 
 This document defines the planned human-readable catalog for Pilot v0.1: 20 local
 mini-applications, two workflows per application, and one outer block per application.
-It is a construction specification, not evidence that any fixture, capture, label,
-feature, model, or result already exists.
+It is a construction specification, not evidence that the complete fixture corpus,
+captures, labels, features, models, or results exist. Only the mutable
+`pilot-market-basket-v1` pre-release and its baseline browser-authoring replay are
+implemented so far; the other 19 applications remain planned.
 
 The keys below are stable review and authoring keys. They are deliberately not
 `application_group_id`, `workflow_id`, `source_state_id`, or `task_id` values. Those
@@ -98,10 +100,13 @@ presentation breaking operator still needs a declared usability predicate; a cos
 palette change alone is only suitable as a preserving control.
 
 The code-owned catalog binds planned keys and blocks but does not resolve fixture,
-action-plan, operator, or audit bytes. A resolved verifier must open those exact
-references, enforce this ABI and the three-checkpoint schedule, and validate every audit
-before the generation plan may execute. The existing bounded development runner is not
-evidence that this Pilot runner or verifier already exists.
+action-plan, operator, or audit bytes. The baseline Pilot runtime now reopens the exact
+market-basket package from an in-memory snapshot, enforces its retained ABI and
+three-boundary workflow schedule in fresh browser contexts, performs the source-center
+pointer action, and returns a success-only `official: false` audit. It neither executes
+the eight predicate families nor produces checkpoint modalities. A resolved operator
+verifier must still open the exact references, validate every mutation audit, and bind
+them before the generation plan may execute.
 
 ## Data and shared-infrastructure policy
 
@@ -167,6 +172,13 @@ establish:
   bindings; and
 - exact restoration of DOM, styles, listeners, accessibility, and layout after each
   operator inverse and cleanup.
+
+The current market-basket baseline covers only package/resource binding and the closed
+no-mutation browser replay: pinned environment, fresh context, readiness, CSP, font,
+request, retained-ABI, action, final-state, and lifecycle checks. Its checkpoint
+ordinals are schedule evidence, not PNG, accessibility, or layout artifacts. It does not
+satisfy the three-run modality determinism, 16-operator compatibility, or exact
+apply/inverse restoration gates above.
 
 Authoring checks may execute only explicitly versioned, mutable pre-release source and
 action bytes. They produce no official corpus row, sealed label, or operator outcome and

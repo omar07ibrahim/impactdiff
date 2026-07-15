@@ -87,6 +87,12 @@ function exactStrings(actual: readonly string[], expected: readonly string[]): b
   );
 }
 
+function standaloneBytes(bytes: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy;
+}
+
 function canonicalManifestPayload(bytes: Uint8Array): Uint8Array {
   if (
     bytes.byteLength > 1 &&
@@ -183,7 +189,7 @@ function artifact(reference: ArtifactRef, bytes: Uint8Array): PilotFixtureArtifa
     bytes: {
       configurable: false,
       enumerable: true,
-      get: () => Buffer.from(privateBytes),
+      get: () => standaloneBytes(privateBytes),
     },
   });
   return Object.freeze(value);

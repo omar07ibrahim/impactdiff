@@ -14,8 +14,12 @@ import type {
   PairedReleaseInput,
   PilotApplicationGroupIdentityInput,
   PilotFixtureActionStepIdentity,
+  PilotFixtureAuthoringCaptureSpecArtifact,
+  PilotFixtureAuthoringEnvironment,
   PilotFixtureAuthoringPackage,
   PilotFixtureManifest,
+  PilotFixtureResourceRequestAudit,
+  PilotFixtureWorkflowAuthoringAudit,
   PilotGenerationPlan,
   PilotMutationFamilyKey,
   PilotMutationOperatorCatalog,
@@ -42,8 +46,12 @@ function acceptsPublicTypes(
   _publicationInput: PairedReleaseInput,
   _pilotApplicationGroupIdentity: PilotApplicationGroupIdentityInput,
   _pilotFixtureActionStepIdentity: PilotFixtureActionStepIdentity,
+  _pilotFixtureAuthoringCaptureSpec: PilotFixtureAuthoringCaptureSpecArtifact,
+  _pilotFixtureAuthoringEnvironment: PilotFixtureAuthoringEnvironment,
   _pilotFixtureAuthoringPackage: PilotFixtureAuthoringPackage,
   _pilotFixtureManifest: PilotFixtureManifest,
+  _pilotFixtureResourceRequestAudit: PilotFixtureResourceRequestAudit,
+  _pilotFixtureWorkflowAuthoringAudit: PilotFixtureWorkflowAuthoringAudit,
   _pilotGenerationPlan: PilotGenerationPlan,
   _pilotMutationFamilyKey: PilotMutationFamilyKey,
   _pilotMutationOperatorCatalog: PilotMutationOperatorCatalog,
@@ -79,6 +87,7 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "launchMutationFixtureEnvironment",
     "loadVerifiedMutationFixtureActionPlan",
     "loadPilotFixtureAuthoringPackage",
+    "launchPilotFixtureAuthoringEnvironment",
     "MutationFixtureCheckpointBytes",
     "MutationFixtureEnvironment",
     "openMutationFixtureSession",
@@ -90,8 +99,11 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "parsePilotMutationOperatorCatalog",
     "parsePilotMutationOperatorDefinition",
     "parseSourceState",
+    "PilotFixtureAuthoringEnvironment",
+    "PilotFixtureAuthoringRuntimeError",
     "prepareMutationFixtureTask",
     "publishFreshMutationFixturePair",
+    "replayPilotFixtureAuthoringWorkflow",
     "validateDatasetBundle",
     "validatePilotGenerationPlan",
     "validatePilotFixtureManifest",
@@ -114,6 +126,18 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     false,
     "unchecked ActionPlan construction must remain package-internal",
   );
+  for (const internalName of [
+    "acquirePilotFixtureAuthoringEnvironment",
+    "assertClosedChromiumFonts",
+    "loadPilotFixtureAuthoringSnapshot",
+    "runPilotFixtureWorkflowAuthoringSession",
+  ]) {
+    assert.equal(
+      internalName in publicApi,
+      false,
+      `${internalName} must remain package-internal`,
+    );
+  }
 
   assert.equal(publicApi.contractVersion, 1);
   assert.equal(publicApi.evidenceContract, "impactdiff.evidence");

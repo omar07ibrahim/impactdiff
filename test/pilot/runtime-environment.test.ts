@@ -38,6 +38,10 @@ test(
   { concurrency: false },
   () => {
     assert.ok(Object.isFrozen(PilotFixtureAuthoringEnvironment.prototype));
+    assert.deepEqual(
+      Object.getOwnPropertyNames(PilotFixtureAuthoringEnvironment.prototype).sort(),
+      ["capture_spec", "close", "constructor"],
+    );
     expectSynchronousRuntimeError(
       () => Reflect.construct(PilotFixtureAuthoringEnvironment, [Symbol("forged"), {}]),
       "pilot_runtime.untrusted_environment",
@@ -80,14 +84,33 @@ test(
       assert.notEqual(firstArtifact, secondArtifact);
       assert.notEqual(firstArtifact.reference, secondArtifact.reference);
       assert.notEqual(firstArtifact.bytes, secondArtifact.bytes);
+      assert.equal(Buffer.isBuffer(firstArtifact.bytes), false);
+      assert.equal(firstArtifact.bytes.byteOffset, 0);
+      assert.equal(
+        firstArtifact.bytes.buffer.byteLength,
+        firstArtifact.bytes.byteLength,
+      );
+      assert.equal(secondArtifact.bytes.byteOffset, 0);
+      assert.equal(
+        secondArtifact.bytes.buffer.byteLength,
+        secondArtifact.bytes.byteLength,
+      );
+      assert.notEqual(firstArtifact.bytes.buffer, secondArtifact.bytes.buffer);
       assert.deepEqual(firstArtifact.reference, secondArtifact.reference);
       assert.deepEqual(firstArtifact.bytes, secondArtifact.bytes);
       assert.equal(sha256Hex(firstArtifact.bytes), firstArtifact.reference.sha256);
       assert.equal(firstArtifact.bytes.byteLength, firstArtifact.reference.byte_length);
       parseCaptureSpec(firstArtifact.bytes);
 
-      firstArtifact.bytes[0] = firstArtifact.bytes[0] === 0 ? 1 : 0;
+      new Uint8Array(firstArtifact.bytes.buffer).fill(0);
       const protectedArtifact = environment.capture_spec;
+      assert.equal(protectedArtifact.bytes.byteOffset, 0);
+      assert.equal(
+        protectedArtifact.bytes.buffer.byteLength,
+        protectedArtifact.bytes.byteLength,
+      );
+      assert.notEqual(protectedArtifact.bytes.buffer, firstArtifact.bytes.buffer);
+      assert.notEqual(protectedArtifact.bytes.buffer, secondArtifact.bytes.buffer);
       assert.deepEqual(protectedArtifact.bytes, secondArtifact.bytes);
       assert.equal(
         sha256Hex(protectedArtifact.bytes),
@@ -162,6 +185,71 @@ test(
           await environment.close();
         } catch {
           // Preserve the original test failure after a best-effort browser cleanup.
+        }
+      }
+    }
+  },
+);
+
+test(
+  "Pilot authoring lease fails closed on a release-time browser disconnect",
+  { concurrency: false },
+  async () => {
+    const environment = await launchPilotFixtureAuthoringEnvironment(fixtureDirectory);
+    const lease = acquirePilotFixtureAuthoringEnvironment(environment);
+    const browser = lease.browser;
+    const originalDescriptor = Object.getOwnPropertyDescriptor(browser, "isConnected");
+    const originalIsConnected = browser.isConnected.bind(browser);
+    let connectionChecks = 0;
+    let releaseAttempted = false;
+    let methodPatched = false;
+    let closed = false;
+    try {
+      Object.defineProperty(browser, "isConnected", {
+        configurable: true,
+        value: () => {
+          connectionChecks += 1;
+          return connectionChecks === 1;
+        },
+      });
+      methodPatched = true;
+      releaseAttempted = true;
+      expectSynchronousRuntimeError(lease.release, "pilot_runtime.environment_lease");
+      assert.equal(connectionChecks, 2);
+      if (originalDescriptor === undefined) {
+        Reflect.deleteProperty(browser, "isConnected");
+      } else {
+        Object.defineProperty(browser, "isConnected", originalDescriptor);
+      }
+      methodPatched = false;
+      assert.equal(originalIsConnected(), true);
+      expectSynchronousRuntimeError(
+        () => acquirePilotFixtureAuthoringEnvironment(environment),
+        "pilot_runtime.environment_poisoned",
+      );
+      await environment.close();
+      closed = true;
+      assert.equal(originalIsConnected(), false);
+    } finally {
+      if (methodPatched) {
+        if (originalDescriptor === undefined) {
+          Reflect.deleteProperty(browser, "isConnected");
+        } else {
+          Object.defineProperty(browser, "isConnected", originalDescriptor);
+        }
+      }
+      if (!releaseAttempted) {
+        try {
+          lease.invalidate();
+        } catch {
+          // Close below remains the final owner of the browser process.
+        }
+      }
+      if (!closed) {
+        try {
+          await environment.close();
+        } catch {
+          // Preserve the first assertion after best-effort browser cleanup.
         }
       }
     }

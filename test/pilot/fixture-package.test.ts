@@ -33,7 +33,7 @@ const fixtureDirectory = resolve("fixtures/pilot-market-basket-v1");
 const checkoutFixtureDirectory = resolve("fixtures/checkout-card-v1");
 
 const expectedContentSecurityPolicy =
-  "default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-src 'none'; img-src 'self'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'nonce-aW1wYWN0ZGlmZi1tYXJrZXQtYmFza2V0LXYx'; worker-src 'none'";
+  "default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-src 'none'; img-src 'self'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'nonce-aW1wYWN0ZGlmZi1tYXJrZXQtYmFza2V0LXYx'; webrtc 'block'; worker-src 'none'";
 
 const expectedResourcePaths = Object.freeze([
   "app.js",
@@ -46,7 +46,7 @@ const expectedResourcePaths = Object.freeze([
 ]);
 
 const goldenSourceReference = Object.freeze({
-  sha256: "91227eb12582617d885acb37ec05a4cdb791650393ac0c7010b5b6e5107d422a",
+  sha256: "f260bb51821ad99c7ab13df7570b365ffe82104af0f08f8418b01a316144dc86",
   byte_length: 1_731,
   media_type: "application/vnd.impactdiff.source-state+json",
   format_version: 1,
@@ -56,22 +56,22 @@ const goldenWorkflows = Object.freeze([
   Object.freeze({
     workflow_key: "add_bundle",
     reference: Object.freeze({
-      sha256: "619153122740419f8fae9ea4ac1648bd8412ff8c7ecd379da76d1a9d29a6655e",
+      sha256: "bb03cf5b90f3fa7a09526e0f5dbe7eac5ffe026d36f0202a93bdff27229d5bed",
       byte_length: 1_025,
       media_type: "application/vnd.impactdiff.action-plan+json",
       format_version: 1,
     }),
-    task_id: "idtk1_97e8143bb0ec2b7f326cfe02793182f25110f7834b05dcae29eba2f066bf61a2",
+    task_id: "idtk1_79c6534b21c46bfabcb881f01a2a51bf72ccaf3d3d4a1215deef3285f8e4453f",
   }),
   Object.freeze({
     workflow_key: "choose_pickup",
     reference: Object.freeze({
-      sha256: "9707420d01a113ead998a5b41508f91d5fb348b63d0a27aed44892623015b3ee",
+      sha256: "665dee6a357c2ea8f746924ca19ac0c191a4e8d72597bb271dc52a0aeecdd567",
       byte_length: 1_025,
       media_type: "application/vnd.impactdiff.action-plan+json",
       format_version: 1,
     }),
-    task_id: "idtk1_36fa89ee2d7f696299242821dcb214c3b7b1577944b63ae12098dd2c41d72b8a",
+    task_id: "idtk1_ab2de7b7bfe7df885fbb0b8f7f4d6fe82828b2da578e14daace7cf146d23e8f9",
   }),
 ]);
 
@@ -284,6 +284,25 @@ function jaccard(left: ReadonlySet<string>, right: ReadonlySet<string>): number 
   return union === 0 ? 1 : intersection / union;
 }
 
+function assertStandaloneDefensiveBytes(read: () => Uint8Array): void {
+  const first = read();
+  const second = read();
+  assert.equal(Buffer.isBuffer(first), false);
+  assert.equal(first.byteOffset, 0);
+  assert.equal(first.buffer.byteLength, first.byteLength);
+  assert.equal(second.byteOffset, 0);
+  assert.equal(second.buffer.byteLength, second.byteLength);
+  assert.notEqual(first, second);
+  assert.notEqual(first.buffer, second.buffer);
+  assert.deepEqual(first, second);
+
+  new Uint8Array(first.buffer).fill(0);
+  const protectedBytes = read();
+  assert.notEqual(protectedBytes.buffer, first.buffer);
+  assert.notEqual(protectedBytes.buffer, second.buffer);
+  assert.deepEqual(protectedBytes, second);
+}
+
 test("authoring package emits only frozen, non-official source and task artifacts", async () => {
   const first = await loadPilotFixtureAuthoringPackage(fixtureDirectory);
   const second = await loadPilotFixtureAuthoringPackage(fixtureDirectory);
@@ -323,10 +342,10 @@ test("authoring package emits only frozen, non-official source and task artifact
   }
 
   const rawManifest = await readFile(join(fixtureDirectory, "fixture.json"));
-  assert.equal(rawManifest.byteLength, 6_505);
+  assert.equal(rawManifest.byteLength, 6_521);
   assert.equal(
     sha256Hex(rawManifest),
-    "0d21e7336b74512b26a0d129d71834ae6a84c3953022c15d13ad33b1a0153391",
+    "8747c81b2aa1f6771ac0b0cc7ef25f4d3a103a0e14e0fedb4904003442f9df94",
   );
 
   const sourceState = parseSourceState(first.source_state.bytes);
@@ -359,7 +378,7 @@ test("authoring package emits only frozen, non-official source and task artifact
   );
   assert.equal(
     first.source_state_id,
-    "idss1_d8f296f4762166cb2dc13e9dbde4c755ba1a42eb37415757efee87379b6cd697",
+    "idss1_b43ed568e468f7ad1d51363532843cb82f6953c8596ab6658a4f3c8e1e005cb0",
   );
 
   assert.deepEqual(
@@ -408,20 +427,15 @@ test("authoring package emits only frozen, non-official source and task artifact
   assert.deepEqual(first.manifest, second.manifest);
   assert.deepEqual(first.source_state.reference, second.source_state.reference);
   assert.deepEqual(first.workflows, second.workflows);
+});
 
-  const pristineSourceBytes = first.source_state.bytes;
-  const mutableSourceBytes = first.source_state.bytes;
-  assert.notEqual(pristineSourceBytes, mutableSourceBytes);
-  mutableSourceBytes[0] = 0;
-  assert.deepEqual(first.source_state.bytes, pristineSourceBytes);
+test("public authoring artifacts own exact defensive byte backing stores", async () => {
+  const fixturePackage = await loadPilotFixtureAuthoringPackage(fixtureDirectory);
+  assertStandaloneDefensiveBytes(() => fixturePackage.source_state.bytes);
 
-  const firstWorkflow = first.workflows[0];
-  assert.ok(firstWorkflow !== undefined);
-  const pristineActionBytes = firstWorkflow.action_plan.bytes;
-  const mutableActionBytes = firstWorkflow.action_plan.bytes;
-  assert.notEqual(pristineActionBytes, mutableActionBytes);
-  mutableActionBytes[0] = 0;
-  assert.deepEqual(firstWorkflow.action_plan.bytes, pristineActionBytes);
+  for (const workflow of fixturePackage.workflows) {
+    assertStandaloneDefensiveBytes(() => workflow.action_plan.bytes);
+  }
 });
 
 test("browser authoring resources come from one defensive audited byte snapshot", async () => {
@@ -533,7 +547,7 @@ test("market source, catalog, CSP, shared bytes, and near-duplicate budget stay 
     ready: true,
     pending_requests: 0,
   });
-  assert.equal(manifest.revision, "pilot-market-basket-v1.0.0-authoring.1");
+  assert.equal(manifest.revision, "pilot-market-basket-v1.0.0-authoring.2");
   assert.ok(app.includes(`const revision = "${manifest.revision}";`));
   assert.ok(app.includes('Object.defineProperty(window, "__impactdiffFixtureV1"'));
   assert.ok(app.includes("ready: true"));
@@ -581,7 +595,7 @@ test("market source, catalog, CSP, shared bytes, and near-duplicate budget stay 
       ({ path }) => path !== manifest.font.path && path !== manifest.font.license_path,
     )
     .reduce((total, { byte_length: byteLength }) => total + byteLength, 0);
-  assert.equal(applicationOwnedBytes, 18_300);
+  assert.equal(applicationOwnedBytes, 18_316);
   assert.ok(applicationOwnedBytes <= 512 * 1_024);
 
   const sourceFiles = ["index.html", "styles.css", "app.js"] as const;

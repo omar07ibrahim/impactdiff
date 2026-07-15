@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { CDPSession, Page } from "@playwright/test";
 
 export type ChromiumFontAuditErrorFactory<Failure extends Error> = (
   message: string,
@@ -28,7 +28,14 @@ export async function assertClosedChromiumFonts<Failure extends Error>(
   page: Page,
   options: ChromiumFontAuditOptions<Failure>,
 ): Promise<void> {
-  const client = await page.context().newCDPSession(page);
+  let client: CDPSession;
+  try {
+    client = await page.context().newCDPSession(page);
+  } catch (error) {
+    throw options.createError("fixture platform-font usage could not be audited", {
+      cause: error,
+    });
+  }
   let auditFailure: { readonly error: unknown } | undefined;
   try {
     await client.send("DOM.enable");

@@ -60,6 +60,12 @@ function captureSpecReference(reference: ArtifactRef): ArtifactRef {
   return Object.freeze({ ...reference });
 }
 
+function standaloneBytes(bytes: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy;
+}
+
 function environmentState(value: unknown): PilotFixtureAuthoringEnvironmentState {
   if (value === null || typeof value !== "object") {
     fail(
@@ -185,7 +191,7 @@ export class PilotFixtureAuthoringEnvironment {
     const state = environmentState(this);
     return Object.freeze({
       reference: captureSpecReference(state.captureSpecReference),
-      bytes: Buffer.from(state.captureSpecBytes),
+      bytes: standaloneBytes(state.captureSpecBytes),
     });
   }
 
@@ -349,8 +355,16 @@ export function acquirePilotFixtureAuthoringEnvironment(
         { cause: error },
       );
     }
-    if (!reusable || !mutationLease.browser.isConnected()) {
+    if (!reusable) {
       state.lifecycle = "poisoned";
+      return;
+    }
+    if (!mutationLease.browser.isConnected()) {
+      state.lifecycle = "poisoned";
+      fail(
+        "pilot_runtime.environment_lease",
+        "verified browser disconnected while its Pilot lease was finalized",
+      );
     }
   };
 

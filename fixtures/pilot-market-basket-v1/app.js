@@ -1,6 +1,6 @@
 "use strict";
 
-const revision = "pilot-market-basket-v1.0.0-authoring.1";
+const revision = "pilot-market-basket-v1.0.0-authoring.2";
 
 const root = document.querySelector('[data-testid="market-basket-root"]');
 const wovenTag = document.querySelector('[data-testid="woven-tag-art"]');

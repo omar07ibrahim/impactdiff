@@ -26,29 +26,29 @@ import { parsePilotFixtureManifest } from "../../src/pilot/fixture/validate.js";
 
 const fixtureManifestPath = "fixtures/pilot-market-basket-v1/fixture.json";
 const goldenManifestSha256 =
-  "0d21e7336b74512b26a0d129d71834ae6a84c3953022c15d13ad33b1a0153391";
+  "8747c81b2aa1f6771ac0b0cc7ef25f4d3a103a0e14e0fedb4904003442f9df94";
 
 const goldenPlans = Object.freeze({
   add_bundle: Object.freeze({
-    referenceSha256: "619153122740419f8fae9ea4ac1648bd8412ff8c7ecd379da76d1a9d29a6655e",
+    referenceSha256: "bb03cf5b90f3fa7a09526e0f5dbe7eac5ffe026d36f0202a93bdff27229d5bed",
     byteLength: 1_025,
-    taskId: "idtk1_97e8143bb0ec2b7f326cfe02793182f25110f7834b05dcae29eba2f066bf61a2",
+    taskId: "idtk1_79c6534b21c46bfabcb881f01a2a51bf72ccaf3d3d4a1215deef3285f8e4453f",
     stepIds: Object.freeze([
-      "idst1_f06b93f58ef1ea596ac4fe9fb1de21aea0ede66b9d077d50a1e2b18545513966",
-      "idst1_2821e2ba7e5e0901d64d483b66aa0c8c7730e06bea28e6f7c4b016db383b92b7",
-      "idst1_ef26c6ad4cde06bab82c7f3350ba70ec60b7fa1fc8656fb5f64e6d7fa9dc1be1",
-      "idst1_7265bc2081b3f23636e335a73dd9a05cb61a46ab5486f6751418640d54e1dc1a",
+      "idst1_efa78313f323fc2bde87e280fab1b95bfd08eda5bfaead1c6257970656f30114",
+      "idst1_aa81eab75dbef06cd07f8ffbe78e46869bba1850270611042669d9aead30d6c0",
+      "idst1_6e99bb138f02eee6e54424aca8cab335f482414fe75d10eeae00bc7385034301",
+      "idst1_84e5ed90688e182bec9432d262606f106ada5221a09aad85f77b0017d6b185e6",
     ]),
   }),
   choose_pickup: Object.freeze({
-    referenceSha256: "9707420d01a113ead998a5b41508f91d5fb348b63d0a27aed44892623015b3ee",
+    referenceSha256: "665dee6a357c2ea8f746924ca19ac0c191a4e8d72597bb271dc52a0aeecdd567",
     byteLength: 1_025,
-    taskId: "idtk1_36fa89ee2d7f696299242821dcb214c3b7b1577944b63ae12098dd2c41d72b8a",
+    taskId: "idtk1_ab2de7b7bfe7df885fbb0b8f7f4d6fe82828b2da578e14daace7cf146d23e8f9",
     stepIds: Object.freeze([
-      "idst1_fc4e6be96406d370f3ba39a30cc5b959fac8117555af85e476f90d4a6df6ea1c",
-      "idst1_b5446102b8b5ba4289152b4976b59d34e30df846e36c51d31985af827ba82991",
-      "idst1_b960d69cff84aac9e0df22253fb6c44c4ea8323bb9860b144716d2434e92ca1e",
-      "idst1_9f84065633cf4f6caaef7360487feea8431ae4a2a23e97a0d4ff65c16d3b364d",
+      "idst1_170183ceaca86032820efa1c23e9d1f867dd7d703e24352b8b29b038a9775f50",
+      "idst1_9e6722d2eae1677dc25a569f366e411f1f24369b5490ac5d34fef7f3a64c64d1",
+      "idst1_8e65ef14de28238a98461bfa4894cc9d6d69e9c3f5f5ef03dadc15f1bb38dbdb",
+      "idst1_f366dd2cb18604edb50a2f24ef5810c6534f9c2598868532403945ffeea8cc02",
     ]),
   }),
 } as const);
@@ -144,6 +144,25 @@ function assertDeepFrozen(value: unknown, path = "$", seen = new Set<object>()):
   }
 }
 
+function assertStandaloneDefensiveBytes(read: () => Uint8Array): void {
+  const first = read();
+  const second = read();
+  assert.equal(Buffer.isBuffer(first), false);
+  assert.equal(first.byteOffset, 0);
+  assert.equal(first.buffer.byteLength, first.byteLength);
+  assert.equal(second.byteOffset, 0);
+  assert.equal(second.buffer.byteLength, second.byteLength);
+  assert.notEqual(first, second);
+  assert.notEqual(first.buffer, second.buffer);
+  assert.deepEqual(first, second);
+
+  new Uint8Array(first.buffer).fill(0);
+  const protectedBytes = read();
+  assert.notEqual(protectedBytes.buffer, first.buffer);
+  assert.notEqual(protectedBytes.buffer, second.buffer);
+  assert.deepEqual(protectedBytes, second);
+}
+
 test("the actual market-basket manifest derives two exact canonical action plans", async () => {
   const { manifest, manifestSha256, artifacts } = await loadActualPlans();
 
@@ -219,14 +238,7 @@ test("action-plan artifacts expose immutable metadata and defensive byte copies"
   const { artifacts } = await loadActualPlans();
 
   for (const artifact of artifacts) {
-    const first = artifact.bytes;
-    const second = artifact.bytes;
-    assert.notEqual(first, second);
-    assert.deepEqual(first, second);
-    const original = first[0];
-    assert.notEqual(original, undefined);
-    first[0] = (original ?? 0) ^ 0xff;
-    assert.deepEqual(artifact.bytes, second);
+    assertStandaloneDefensiveBytes(() => artifact.bytes);
     assert.ok(Object.isFrozen(artifact));
     assert.ok(Object.isFrozen(artifact.reference));
   }
