@@ -1,0 +1,48 @@
+{
+  "contract": "impactdiff.synthetic-market-catalog",
+  "version": 1,
+  "market": "Thread & Tally",
+  "bundles": [
+    {
+      "id": "dawn-pantry",
+      "label": "Dawn Pantry",
+      "pieces": 3,
+      "items": ["Linen wrap", "Herb tin", "Seeded rye round"]
+    },
+    {
+      "id": "harbor-picnic",
+      "label": "Harbor Picnic",
+      "pieces": 3,
+      "items": ["Harbor cloth", "Blue herb tin", "Seeded rye round"]
+    }
+  ],
+  "pickup_points": [
+    {
+      "id": "north-arcade",
+      "label": "North Arcade",
+      "window": "Friday 4 PM to 6 PM"
+    },
+    {
+      "id": "river-steps",
+      "label": "River Steps",
+      "window": "Saturday 10 AM to noon"
+    }
+  ],
+  "featured_pieces": [
+    {
+      "id": "harbor-cloth",
+      "label": "Harbor cloth",
+      "note": "Indigo cotton with a saffron selvedge."
+    },
+    {
+      "id": "blue-herb-tin",
+      "label": "Blue herb tin",
+      "note": "Juniper, mint, and dried lemon."
+    },
+    {
+      "id": "seeded-rye-round",
+      "label": "Seeded rye round",
+      "note": "Cut for a shared picnic."
+    }
+  ]
+}

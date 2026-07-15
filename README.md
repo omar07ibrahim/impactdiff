@@ -20,6 +20,14 @@ model, or benchmark result, and makes no accuracy claim.
 
 Implemented today:
 
+- a machine-validated Pilot v0.1 protocol frozen before corpus outcomes: 20 application
+  keys, two workflows per application, eight causal mutation families, paired breaking
+  and preserving relations, four application-disjoint outer folds, exact metrics, and
+  explicit claim gates;
+- a content-addressed Pilot operator catalog with 16 exact definitions. Each definition
+  binds typed effects, source and installed probes, inverse/cleanup requirements, and an
+  ordered eight-predicate causal policy that distinguishes designated, correlated, and
+  preserved effects;
 - four closed dataset-manifest schemas with strict canonical JSON, content-derived
   identities, visible/sealed binding, and leakage-aware split validation;
 - a registered-codec content-addressed store that canonicalizes on write, revalidates on
@@ -56,7 +64,13 @@ Implemented today:
   staging directory, verifies exact topology and full semantic replay, writes a commit
   binding both canonical records, and exposes the pair with one same-parent directory
   rename. Startup recovers only reserved owned stages; committed releases are idempotent
-  and immutable.
+  and immutable; and
+- the first pre-release Pilot authoring package, `pilot-market-basket-v1`. Its strict
+  manifest binds an independently designed 800 by 600 Thread & Tally UI, two four-action
+  workflows, the shared mutation ABI, exact resource provenance, a canonical
+  SourceState, and two derived ActionPlans without creating identity cycles. The loader
+  is deliberately `official: false` and has no execution, outcome, capture, or label
+  API.
 
 The capture contract names the exact installed file trees for `@playwright/test`,
 `playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
@@ -149,7 +163,10 @@ closure, the narrow development label policy, and its non-claims. The
 recovery rules, and unsupported filesystem adversaries. The
 [Pilot v0.1 protocol](docs/pilot-v0.1-protocol.md) freezes the corpus matrix, primary
 split, metric hierarchy, claim gate, release artifacts, and explicit non-claims before
-the corpus exists.
+the corpus exists. The
+[market-basket authoring note](docs/pilot-v0.1-market-basket-authoring.md) documents the
+first fixture's two tasks, closed ABI, acyclic source/task identity graph, and the
+deliberate boundary before browser authoring execution.
 
 ## Repository map
 
@@ -166,9 +183,13 @@ the corpus exists.
 - `src/publication/` — paired commits, input snapshots, atomic publication, recovery,
   and strict reopen verification;
 - `src/benchmark/` — the machine-validated frozen Pilot v0.1 research protocol;
+- `src/pilot/fixture/` — authoring-only Pilot fixture manifests, package verification,
+  source-state derivation, and in-memory ActionPlan construction;
 - `src/cli/` — the bounded development-release command; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
-  capture tests.
+  capture tests; and
+- `fixtures/pilot-market-basket-v1/` — the independently authored Thread & Tally
+  pre-release with two Pilot workflows and no official outcomes.
 
 The fixture vendors the Latin variable WOFF2 from
 `@fontsource-variable/noto-sans@5.2.10`. Noto Sans remains licensed under the SIL Open

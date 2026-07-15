@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-src 'none'; img-src 'self'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'nonce-aW1wYWN0ZGlmZi1tYXJrZXQtYmFza2V0LXYx'; worker-src 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Thread &amp; Tally | Market board</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main
+      class="market-shell"
+      data-testid="market-basket-root"
+      data-bundle-state="idle"
+      data-pickup-state="idle"
+      aria-labelledby="market-title"
+    >
+      <section class="market-board" aria-labelledby="market-title">
+        <header class="brand-block">
+          <div>
+            <p class="brand-kicker">Saturday market · Table 14</p>
+            <h1 id="market-title">Thread &amp; Tally</h1>
+            <p class="brand-note">Useful pieces, gathered by color and texture.</p>
+          </div>
+          <img
+            class="woven-tag"
+            data-testid="woven-tag-art"
+            src="art/woven-tag.svg"
+            width="132"
+            height="82"
+            alt=""
+            aria-hidden="true"
+          />
+        </header>
+
+        <div class="product-mosaic" aria-label="Featured market pieces">
+          <article class="market-tile market-tile--harbor">
+            <p class="tile-index">A1 · Woven</p>
+            <h2>Harbor cloth</h2>
+            <p>Indigo cotton with a saffron selvedge.</p>
+            <span class="thread-swatch" aria-hidden="true"></span>
+          </article>
+
+          <article class="market-tile market-tile--tin">
+            <p class="tile-index">B2 · Pantry</p>
+            <h2>Blue herb tin</h2>
+            <p>Juniper, mint, and dried lemon.</p>
+          </article>
+
+          <article class="market-tile market-tile--bread">
+            <p class="tile-index">C3 · Bakery</p>
+            <h2>Seeded rye round</h2>
+            <p>Cut for a shared picnic.</p>
+          </article>
+        </div>
+
+        <div class="market-notes" aria-label="Market notes">
+          <p class="pressure-card" data-testid="add-bundle-pressure">
+            Weave note: three compact pieces travel together.
+          </p>
+          <p class="pressure-card" data-testid="use-pickup-pressure">
+            Pickup note: collection windows stay fixed.
+          </p>
+        </div>
+      </section>
+
+      <aside class="basket-docket" aria-labelledby="docket-title">
+        <header class="docket-header">
+          <p class="docket-kicker">Basket docket · 014</p>
+          <h2 id="docket-title">Build a market carry</h2>
+          <p>Set the weave and the meeting point.</p>
+        </header>
+
+        <section class="workflow-card" aria-labelledby="bundle-title">
+          <header class="workflow-heading">
+            <span aria-hidden="true">01</span>
+            <div>
+              <h3 id="bundle-title">Bundle weave</h3>
+              <p>Choose a three-piece grouping.</p>
+            </div>
+          </header>
+
+          <div class="field-line">
+            <label for="bundle-weave">Bundle weave</label>
+            <select id="bundle-weave" data-testid="bundle-weave">
+              <option value="dawn-pantry" data-pieces="3">Dawn Pantry</option>
+              <option value="harbor-picnic" data-pieces="3">Harbor Picnic</option>
+            </select>
+          </div>
+
+          <div class="clip-stage" data-testid="add-bundle-clip">
+            <div class="action-anchor" data-testid="add-bundle-anchor">
+              <button class="task-button" type="button" data-testid="add-bundle">
+                Add bundle
+              </button>
+            </div>
+            <button class="task-button" type="button" data-testid="add-bundle-peer">
+              Bundle guide
+            </button>
+          </div>
+
+          <p
+            class="workflow-status"
+            data-testid="add-bundle-status"
+            role="status"
+            aria-live="polite"
+            tabindex="-1"
+          >
+            Bundle line is ready.
+          </p>
+        </section>
+
+        <section class="workflow-card" aria-labelledby="pickup-title">
+          <header class="workflow-heading">
+            <span aria-hidden="true">02</span>
+            <div>
+              <h3 id="pickup-title">Pickup point</h3>
+              <p>Choose a staffed collection window.</p>
+            </div>
+          </header>
+
+          <div class="field-line">
+            <label for="pickup-point">Pickup point</label>
+            <select id="pickup-point" data-testid="pickup-point">
+              <option value="north-arcade" data-window="Friday 4 PM to 6 PM">
+                North Arcade
+              </option>
+              <option value="river-steps" data-window="Saturday 10 AM to noon">
+                River Steps
+              </option>
+            </select>
+          </div>
+
+          <div class="clip-stage" data-testid="use-pickup-clip">
+            <div class="action-anchor" data-testid="use-pickup-anchor">
+              <button class="task-button" type="button" data-testid="use-pickup">
+                Use pickup
+              </button>
+            </div>
+            <button class="task-button" type="button" data-testid="use-pickup-peer">
+              Pickup guide
+            </button>
+          </div>
+
+          <p
+            class="workflow-status"
+            data-testid="use-pickup-status"
+            role="status"
+            aria-live="polite"
+            tabindex="-1"
+          >
+            Pickup line is ready.
+          </p>
+        </section>
+
+        <footer class="docket-footer">
+          <span aria-hidden="true">T&amp;T</span>
+          <p>Local table · fixed collection windows</p>
+        </footer>
+      </aside>
+    </main>
+  </body>
+</html>
