@@ -53,6 +53,7 @@ pipeline, not a claim about shipped data or models.
 ```mermaid
 flowchart LR
   fixture["Pinned fixture bytes"] --> session["Verified Chromium session"]
+  source["Sealed source-state provenance"] --> session
   actions["Canonical action plan"] --> session
   session --> probe["Live source probe"]
   probe --> compiler["Reversible mutation compiler"]

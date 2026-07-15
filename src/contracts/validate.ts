@@ -189,15 +189,6 @@ export function validateEvidenceManifest(value: unknown): EvidenceManifest {
       ),
     );
   }
-  if (manifest.source_state_id !== computeSourceStateId(manifest)) {
-    issues.push(
-      issue(
-        "evidence.source_state_identity",
-        "/source_state_id",
-        "source_state_id must be derived from label-free baseline state",
-      ),
-    );
-  }
   if (manifest.evidence_id !== computeEvidenceId(manifest)) {
     issues.push(
       issue(
@@ -528,6 +519,19 @@ export function validateEvidenceRecordPair(
         "pair.manifest_digest",
         "/evidence_manifest_sha256",
         "the sealed record must bind the exact canonical evidence manifest",
+      ),
+    );
+  }
+
+  if (
+    evidence.source_state_id !==
+    computeSourceStateId(sealedRecord.provenance.source_state)
+  ) {
+    issues.push(
+      issue(
+        "pair.source_state_identity",
+        "/provenance/source_state",
+        "visible source_state_id must be derived from sealed source-state provenance",
       ),
     );
   }

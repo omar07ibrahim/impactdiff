@@ -37,6 +37,10 @@ export const captureSpec = artifact(
   "application/vnd.impactdiff.capture-spec+json",
   "2",
 );
+export const sourceState = artifact(
+  "application/vnd.impactdiff.source-state+json",
+  "source-state",
+);
 export const checkpointId = computeCheckpointId(actionPlan, 0);
 
 export const checkpoint = (character: string, ordinal = 0) => ({
@@ -68,12 +72,12 @@ const candidate = {
   ...candidateDraft,
   capture_id: computeCaptureId(candidateDraft),
 } as const;
-const evidenceWithoutSourceIdentity = {
+const evidenceDraft = {
   contract: "impactdiff.evidence",
   version: 1,
   evidence_id: id("idev1_", "a"),
   feature_profile_id: computeFeatureProfileId(captureSpec),
-  source_state_id: id("idss1_", "c"),
+  source_state_id: computeSourceStateId(sourceState),
   task: {
     task_id: computeTaskId(actionPlan),
     action_plan: actionPlan,
@@ -86,11 +90,6 @@ const evidenceWithoutSourceIdentity = {
     baseline,
     candidate,
   },
-} as const;
-
-const evidenceDraft = {
-  ...evidenceWithoutSourceIdentity,
-  source_state_id: computeSourceStateId(evidenceWithoutSourceIdentity),
 } as const;
 
 export const evidence = {
@@ -135,6 +134,9 @@ const sealedRecordDraft = {
   evidence_id: evidence.evidence_id,
   evidence_manifest_sha256: canonicalSha256(evidence),
   label_policy_id: id("idlp1_", "b"),
+  provenance: {
+    source_state: sourceState,
+  },
   grouping,
   intervention: {
     family_id: familyId,

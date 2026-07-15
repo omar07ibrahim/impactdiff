@@ -89,6 +89,7 @@ export function observationArtifacts(manifest: EvidenceManifest): ArtifactRef[] 
 
 export function sealedArtifacts(record: SealedRecord): ArtifactRef[] {
   const refs: ArtifactRef[] = [
+    record.provenance.source_state,
     record.intervention.parameters,
     record.intervention.preconditions,
     record.intervention.changed_surface,

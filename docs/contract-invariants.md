@@ -21,9 +21,11 @@ Serialized manifests use RFC 8785 canonical JSON with additional contract restri
 - hashes are lowercase SHA-256 over canonical bytes.
 
 Root IDs and model-visible routing IDs use domain-separated hashes. An `evidence_id`,
-capture ID, checkpoint ID, task ID, environment ID, source-state ID, or feature-profile
-ID cannot be independently selected after its label-free body is known. IDs and digests
-are routing metadata and are not intended model features.
+capture ID, checkpoint ID, task ID, environment ID, or feature-profile ID cannot be
+independently selected after its label-free visible body is known. Source-state identity
+is derived from a sealed source-state artifact reference and is therefore checked at the
+visible/sealed pair boundary rather than by the standalone evidence validator. IDs and
+digests are routing metadata and are not intended model features.
 
 ## Record and split binding
 
@@ -88,18 +90,19 @@ Node path-based implementation does not claim that guarantee.
 
 ## Canonical capture payloads
 
-The registered production codecs cover the action plan, capture specification,
-accessibility snapshot, layout snapshot, mutation plan, precondition report, and PNG
-screenshot. JSON codecs parse the bounded canonical document, validate its closed v1
-schema and semantic invariants, then emit canonical JSON again.
+The registered production codecs cover the source-state provenance, action plan, capture
+specification, accessibility snapshot, layout snapshot, mutation plan, precondition
+report, and PNG screenshot. JSON codecs parse the bounded canonical document, validate
+its closed v1 schema and semantic invariants, then emit canonical JSON again.
 
 The resolved evidence validator composes those payload guarantees for bytes supplied by
 an artifact resolver. It checks each digest, byte length, media type, and format
 version; requires already-canonical payloads; binds screenshot dimensions to the capture
 viewport; matches both checkpoint sequences to the fixed action-plan schedule; and
 applies the action/accessibility/layout graph checks at every checkpoint. The resolved
-intervention validator similarly composes one visible manifest, sealed record, mutation
-plan, and precondition report, then checks their exact references and source, task,
+intervention validator similarly composes one visible manifest, sealed record,
+source-state artifact, mutation plan, and precondition report. It resolves and parses
+every canonical payload, then checks their exact references and source, task,
 environment, operator, instance, and expected-relation bindings.
 
 These validators deliberately accept resolved bytes rather than paths. They prove the
@@ -126,14 +129,16 @@ Four closed capture payloads establish the model-visible surface:
   selected computed style, paint order, and opaque action-target links.
 
 The capture specification contains renderer/environment provenance only. The evidence
-manifest carries a separate opaque source-state identity and task reference, but v1 does
-not yet carry a source-resource-manifest reference. The closed fixture runtime verifies
-its revision and resource manifest independently; a future publisher must bind that
-reconstruction provenance into the dataset while keeping operator identity/version
-sealed. Raw browser node IDs are used only inside the normalization adapter and cannot
-appear in normalized accessibility/layout payloads. The normalizers reject ambiguous,
-dangling, cyclic, disconnected, overdeep, oversized, or non-finite input; the payload
-validators enforce cross-graph action and accessibility links.
+manifest carries a separate opaque source-state identity and task reference. Its sealed
+record now references a canonical source-state artifact containing the fixture identity,
+revision, license, entrypoint, exact raw-manifest identity, normalized resource digests
+and lengths, and fixed initial-state policy. The pair validator derives the visible
+source ID from that reference, while the closed fixture runtime resolves the bytes and
+matches the complete package description before opening a page. Raw browser node IDs are
+used only inside the normalization adapter and cannot appear in normalized
+accessibility/layout payloads. The normalizers reject ambiguous, dangling, cyclic,
+disconnected, overdeep, oversized, or non-finite input; the payload validators enforce
+cross-graph action and accessibility links.
 
 The `checkout-card-v1` fixture is self-contained: its manifest pins the fixture revision
 and hashes every HTML, CSS, JavaScript, font, and license resource; its CSP denies
@@ -146,9 +151,11 @@ capture schema pins Playwright 1.61.1 and Chromium revision 1228 (149.0.7827.55)
 ### Verified Chromium mutation session
 
 `openMutationFixtureSession` accepts an already-running Chromium browser, the fixture
-directory, and upstream source/environment IDs plus canonical action-plan bytes. Before
-returning a session it:
+directory, an upstream environment ID, and canonical source-state and action-plan
+artifacts. Before returning a session it:
 
+- verifies the source-state `ArtifactRef` and canonical bytes, matches the exact closed
+  fixture package and initial state, then derives `source_state_id` from the reference;
 - verifies the exact action-plan `ArtifactRef`, canonical bytes, and supported primary
   pointer target, then derives `task_id` from that reference;
 - derives the stable action-target ID from the fixture ID, revision, exact manifest
@@ -159,6 +166,11 @@ returning a session it:
   service-worker policy, and an explicit-only clock; and
 - serves only allowlisted in-memory fixture resources while aborting and recording
   external or unexpected requests.
+
+`loadVerifiedMutationFixtureSourceState` performs the same exact directory, manifest,
+and resource audit and returns a fresh copy of the canonical source-state bytes plus
+their reference. Generator code therefore does not duplicate the runtime's private
+fixture description when preparing the sealed artifact.
 
 The returned `MutationFixtureSession` is branded in a module-private `WeakMap`; copied
 objects and transplanted Playwright pages fail provenance checks. Operations are
@@ -172,15 +184,15 @@ and transient DOM changes. The runtime applies only the typed operations emitted
 mutation compiler; integration tests exercise the primary task with a real coordinate
 click through the trusted Playwright page.
 
-This boundary is intentionally narrower than a browser sandbox. `source_state_id` and
-`environment_id` are trusted upstream inputs; the session does not recompute them from a
-source package or capture specification. It verifies the supplied browser's engine and
-reported version, but cannot prove the hash of an already-running browser binary. The
-public `session.page` is a trusted same-process capability: code that controls it, or
-hostile page code that replaces JavaScript intrinsics and listener state, may evade
-page-realm checks. The runtime therefore attests the exact fixture and its cooperative
-audited execution, not arbitrary JavaScript pages. Complete paired-capture assembly is
-still pending.
+This boundary is intentionally narrower than a browser sandbox. `source_state_id` is no
+longer trusted upstream: it is derived from resolved sealed provenance. `environment_id`
+remains a trusted upstream input, and the session does not yet resolve the capture
+specification. It verifies the supplied browser's engine and reported version, but
+cannot prove the hash of an already-running browser binary. The public `session.page` is
+a trusted same-process capability: code that controls it, or hostile page code that
+replaces JavaScript intrinsics and listener state, may evade page-realm checks. The
+runtime therefore attests the exact fixture and its cooperative audited execution, not
+arbitrary JavaScript pages. Complete paired-capture assembly is still pending.
 
 ## Reversible mutation compilation
 

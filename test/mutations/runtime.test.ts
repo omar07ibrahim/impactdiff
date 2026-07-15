@@ -14,6 +14,7 @@ import {
 } from "../../src/capture/index.js";
 import {
   canonicalJson,
+  computeSourceStateId,
   computeTaskId,
   sha256Hex,
 } from "../../src/contracts/canonical.js";
@@ -21,6 +22,7 @@ import {
   applyCompiledMutation,
   compileMutation,
   computeMutationTargetNodeId,
+  loadVerifiedMutationFixtureSourceState,
   MutationRuntimeError,
   openMutationFixtureSession,
   probeMutation,
@@ -72,9 +74,77 @@ const actionPlanReference = Object.freeze({
   media_type: "application/vnd.impactdiff.action-plan+json",
   format_version: 1 as const,
 });
+const sourceState = Object.freeze({
+  contract: "impactdiff.source-state",
+  version: 1,
+  source: Object.freeze({
+    kind: "closed_fixture",
+    fixture_id: "checkout-card-v1",
+    revision: "checkout-card-v1.0.0",
+    license: "Apache-2.0",
+    entrypoint: "index.html",
+    raw_manifest: Object.freeze({
+      sha256: "3b8a3f79a15969e575e0d4ace4a98b7a89704840cb1b2a818c06e03e5cc4e9ea",
+      byte_length: 1_819,
+    }),
+    resources: [
+      {
+        path: "app.js",
+        media_type: "text/javascript; charset=utf-8",
+        sha256: "9e63523f982ff8f71276ed7137f098198750f2cdde2a811fcd1678087aa4bf60",
+        byte_length: 1_185,
+        license: "Apache-2.0",
+      },
+      {
+        path: "fonts/OFL-1.1.txt",
+        media_type: "text/plain; charset=utf-8",
+        sha256: "54ec7b5a35310ad66f9f3091426f7028484cbf9ae1ab5da30122ee412a3009e1",
+        byte_length: 4_518,
+        license: "OFL-1.1",
+      },
+      {
+        path: "fonts/noto-sans-latin-standard-normal.woff2",
+        media_type: "font/woff2",
+        sha256: "df8c8215937ab2a4270c0cd997101b3fb8cdd444c9903d342200d6179ebcc097",
+        byte_length: 59_928,
+        license: "OFL-1.1",
+      },
+      {
+        path: "index.html",
+        media_type: "text/html; charset=utf-8",
+        sha256: "325a67d957557b9e766c23f53f6d8c71e64f03cea06f1f752ae1a6195efdfd40",
+        byte_length: 4_899,
+        license: "Apache-2.0",
+      },
+      {
+        path: "styles.css",
+        media_type: "text/css; charset=utf-8",
+        sha256: "ea32617a0be3b2d3c73dae0a31a7d198e2e0f758f0d0c18a9bc60e7f793fcb9d",
+        byte_length: 6_349,
+        license: "Apache-2.0",
+      },
+    ],
+  }),
+  initial_state: Object.freeze({
+    kind: "fixture_default",
+    route: "/",
+    storage: "empty",
+  }),
+});
+const sourceStateBytes = Buffer.from(canonicalJson(sourceState), "utf8");
+const sourceStateReference = Object.freeze({
+  sha256: sha256Hex(sourceStateBytes),
+  byte_length: sourceStateBytes.byteLength,
+  media_type: "application/vnd.impactdiff.source-state+json",
+  format_version: 1 as const,
+});
+const sourceStateId = computeSourceStateId(sourceStateReference);
 const upstreamEvidence = Object.freeze({
-  source_state_id: id("idss1_", "1"),
   environment_id: id("iden1_", "3"),
+  source_state: Object.freeze({
+    reference: sourceStateReference,
+    bytes: sourceStateBytes,
+  }),
   action_plan: Object.freeze({
     reference: actionPlanReference,
     bytes: actionPlanBytes,
@@ -85,8 +155,8 @@ const taskId = computeTaskId(actionPlanReference);
 function upstreamEvidenceForActionPlan(value: unknown) {
   const bytes = Buffer.from(canonicalJson(value), "utf8");
   return {
-    source_state_id: upstreamEvidence.source_state_id,
     environment_id: upstreamEvidence.environment_id,
+    source_state: upstreamEvidence.source_state,
     action_plan: {
       reference: {
         sha256: sha256Hex(bytes),
@@ -137,7 +207,6 @@ async function fixtureSession(): Promise<MutationFixtureSession> {
 function mutationRequest(
   operatorKey: MutationRequest["operator_key"],
 ): MutationRequest {
-  const sourceStateId = id("idss1_", "1");
   const locator = {
     strategy: "test_id" as const,
     value: operatorKey === "palette_swap" ? "app-root" : "place-order",
@@ -272,6 +341,8 @@ test("baseline task uses a true coordinate click and the fixture route aborts ex
     assert.ok(Object.isFrozen(session.binding.action_plan));
     assert.equal(session.binding.task_id, taskId);
     assert.deepEqual(session.binding.action_plan, actionPlanReference);
+    assert.equal(session.binding.source_state_id, sourceStateId);
+    assert.deepEqual(session.binding.source_state, sourceStateReference);
     assert.equal(session.binding.primary_action_target_id, primaryActionTargetId);
     const firstTime = await session.page.evaluate(() => Date.now());
     await new Promise<void>((resolveDelay) => {
@@ -420,6 +491,69 @@ test("factory binds task identity to exact canonical action-plan bytes and targe
     (error: unknown) =>
       error instanceof MutationRuntimeError && error.code === "mutation.binding_shape",
   );
+});
+
+test("factory derives source identity from exact sealed provenance bytes", async () => {
+  assert.ok(browser);
+  const wrongBytes = Buffer.from(sourceStateBytes);
+  wrongBytes[wrongBytes.byteLength - 1] = 0x20;
+  await expectRuntimeError(
+    openMutationFixtureSession(browser, fixtureDirectory, {
+      ...upstreamEvidence,
+      source_state: { reference: sourceStateReference, bytes: wrongBytes },
+    }),
+    "mutation.source_state_reference",
+  );
+
+  const changedState = {
+    ...sourceState,
+    initial_state: { ...sourceState.initial_state, route: "/changed" },
+  };
+  const changedBytes = Buffer.from(canonicalJson(changedState), "utf8");
+  const changedReference = {
+    ...sourceStateReference,
+    sha256: sha256Hex(changedBytes),
+    byte_length: changedBytes.byteLength,
+  };
+  await expectRuntimeError(
+    openMutationFixtureSession(browser, fixtureDirectory, {
+      ...upstreamEvidence,
+      source_state: { reference: changedReference, bytes: changedBytes },
+    }),
+    "mutation.source_state_fixture",
+  );
+
+  assert.throws(
+    () =>
+      validateMutationRuntimeBinding({
+        ...upstreamEvidence,
+        source_state_id: id("idss1_", "f"),
+      }),
+    (error: unknown) =>
+      error instanceof MutationRuntimeError && error.code === "mutation.binding_shape",
+  );
+});
+
+test("verified fixture loader emits the exact reusable source-state artifact", async () => {
+  const artifact = await loadVerifiedMutationFixtureSourceState(fixtureDirectory);
+  assert.deepEqual(artifact.reference, sourceStateReference);
+  assert.deepEqual(artifact.bytes, sourceStateBytes);
+  assert.equal(artifact.reference.byte_length, 1_322);
+  assert.equal(
+    artifact.reference.sha256,
+    "dfb68f22b93c901389d52a57275e5bfa3cd52113b637e0cf94f54289b909d891",
+  );
+  assert.equal(
+    computeSourceStateId(artifact.reference),
+    "idss1_141b99be1e1955be93cffe9b90a5574d3519c060ee020e988abcc8abc662e66b",
+  );
+  assert.notEqual(artifact.bytes, sourceStateBytes);
+  assert.ok(Object.isFrozen(artifact));
+
+  const copiedBytes = artifact.bytes as Uint8Array;
+  copiedBytes[copiedBytes.byteLength - 1] = 0x20;
+  const second = await loadVerifiedMutationFixtureSourceState(fixtureDirectory);
+  assert.deepEqual(second.bytes, sourceStateBytes);
 });
 
 test("runtime provenance rejects unbranded sessions, caller targets, and mismatched IDs", async () => {

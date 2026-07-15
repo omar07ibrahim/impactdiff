@@ -661,18 +661,13 @@ export function computeCaptureId<
   return `idcp1_${domainDigest("impactdiff:capture:v1", body)}`;
 }
 
-export function computeSourceStateId<
-  const Manifest extends {
-    readonly task: { readonly task_id: unknown };
-    readonly environment: { readonly environment_id: unknown };
-    readonly pair: { readonly baseline: unknown };
-  },
->(manifest: Manifest): string {
-  return `idss1_${domainDigest("impactdiff:source-state:v1", {
-    environment_id: manifest.environment.environment_id,
-    baseline: manifest.pair.baseline,
-    task_id: manifest.task.task_id,
-  })}`;
+/**
+ * Commits the visible opaque source identity to its sealed canonical artifact
+ * reference. The reference is intentionally not part of the model-visible
+ * manifest; validateEvidenceRecordPair checks this derivation across the boundary.
+ */
+export function computeSourceStateId(sourceStateReference: unknown): string {
+  return `idss1_${domainDigest("impactdiff:source-state:v1", sourceStateReference)}`;
 }
 
 export function computeSourceStateGroupId(sourceStateId: unknown): string {

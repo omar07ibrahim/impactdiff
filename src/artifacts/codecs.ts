@@ -13,6 +13,8 @@ import type {
   CaptureSpec,
   LayoutSnapshot,
 } from "../capture/schema.js";
+import { parseSourceState } from "../source/validate.js";
+import type { SourceState } from "../source/schema.js";
 import {
   validateMutationPlan,
   validatePreconditionReport,
@@ -61,6 +63,12 @@ export const layoutCodec = strictJsonCodec<LayoutSnapshot>(
   "application/vnd.impactdiff.layout+json",
   4_194_304,
   parseLayoutSnapshot,
+);
+
+export const sourceStateCodec = strictJsonCodec<SourceState>(
+  "application/vnd.impactdiff.source-state+json",
+  1_048_576,
+  parseSourceState,
 );
 
 const mutationLimits = Object.freeze({

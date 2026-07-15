@@ -53,6 +53,41 @@ function reference<const MediaType extends string>(
   };
 }
 
+const resolvedSourceState = {
+  contract: "impactdiff.source-state",
+  version: 1,
+  source: {
+    kind: "closed_fixture",
+    fixture_id: "resolved-fixture-v1",
+    revision: "resolved-fixture-v1.0.0",
+    license: "Apache-2.0",
+    entrypoint: "index.html",
+    raw_manifest: {
+      sha256: digest("a"),
+      byte_length: 512,
+    },
+    resources: [
+      {
+        path: "index.html",
+        media_type: "text/html; charset=utf-8",
+        sha256: digest("b"),
+        byte_length: 256,
+        license: "Apache-2.0",
+      },
+    ],
+  },
+  initial_state: {
+    kind: "fixture_default",
+    route: "/",
+    storage: "empty",
+  },
+} as const;
+const resolvedSourceStateBytes = canonicalBytes(resolvedSourceState);
+const resolvedSourceStateRef = reference(
+  "application/vnd.impactdiff.source-state+json",
+  resolvedSourceStateBytes,
+);
+
 const actionTargetId = id("idat1_", "a");
 
 const baseActionPlan = {
@@ -317,6 +352,7 @@ function evidenceBundle(options: EvidenceOptions = {}) {
     "application/vnd.impactdiff.capture-spec+json",
     captureSpecBytes,
   );
+  const sourceStateRef = resolvedSourceStateRef;
   const baselinePayloads =
     options.baselinePayloads === undefined
       ? [
@@ -340,7 +376,7 @@ function evidenceBundle(options: EvidenceOptions = {}) {
     version: 1,
     evidence_id: id("idev1_", "0"),
     feature_profile_id: computeFeatureProfileId(captureSpecRef),
-    source_state_id: id("idss1_", "0"),
+    source_state_id: computeSourceStateId(sourceStateRef),
     task: {
       task_id: computeTaskId(actionPlanRef),
       action_plan: actionPlanRef,
@@ -351,13 +387,9 @@ function evidenceBundle(options: EvidenceOptions = {}) {
     },
     pair: { baseline, candidate },
   };
-  const identifiedSource = {
-    ...draft,
-    source_state_id: computeSourceStateId(draft),
-  };
   const manifest = {
-    ...identifiedSource,
-    evidence_id: computeEvidenceId(identifiedSource),
+    ...draft,
+    evidence_id: computeEvidenceId(draft),
   };
   return {
     manifest,
@@ -547,6 +579,9 @@ function interventionBundle(
     evidence_id: evidence.manifest.evidence_id,
     evidence_manifest_sha256: canonicalSha256(evidence.manifest),
     label_policy_id: id("idlp1_", "b"),
+    provenance: {
+      source_state: resolvedSourceStateRef,
+    },
     grouping: {
       application_group_id: id("idag1_", "1"),
       source_state_group_id: computeSourceStateGroupId(
@@ -575,6 +610,7 @@ function interventionBundle(
   return {
     manifest: evidence.manifest,
     sealed_record: sealedRecord,
+    source_state: Buffer.from(resolvedSourceStateBytes),
     mutation_plan: mutationPlanBytes,
     precondition_report: preconditionBytes,
   };
@@ -776,6 +812,7 @@ test("resolved intervention accepts canonical plan and precondition bytes", () =
   const result = validateResolvedInterventionBundle(interventionBundle());
 
   assert.equal(result.mutation_plan.operator.expected_task_relation, "break");
+  assert.deepEqual(result.source_state, resolvedSourceState);
   assert.equal(result.precondition_report.applicable, true);
   assert.equal(result.probe.target.used_by_task, true);
   assert.ok(Object.isFrozen(result));
@@ -840,6 +877,17 @@ test("resolved intervention binds the exact plan and precondition references", (
       validateResolvedInterventionBundle({
         ...bundle,
         mutation_plan: tamperedPlan,
+      }),
+    "resolved.ref_digest",
+  );
+
+  const tamperedSource = Buffer.from(bundle.source_state);
+  tamperedSource[tamperedSource.length - 1] = 0x20;
+  expectIssue(
+    () =>
+      validateResolvedInterventionBundle({
+        ...bundle,
+        source_state: tamperedSource,
       }),
     "resolved.ref_digest",
   );

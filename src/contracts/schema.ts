@@ -47,6 +47,10 @@ const captureSpecRefSchema = artifactRefSchema(
   "application/vnd.impactdiff.capture-spec+json",
   65_536,
 );
+const sourceStateRefSchema = artifactRefSchema(
+  "application/vnd.impactdiff.source-state+json",
+  1_048_576,
+);
 const interventionParametersRefSchema = artifactRefSchema(
   "application/vnd.impactdiff.intervention-parameters+json",
   131_072,
@@ -278,6 +282,7 @@ export const sealedRecordSchema = {
     "evidence_id",
     "evidence_manifest_sha256",
     "label_policy_id",
+    "provenance",
     "grouping",
     "intervention",
     "execution",
@@ -305,6 +310,14 @@ export const sealedRecordSchema = {
     label_policy_id: {
       type: "string",
       pattern: idPattern("idlp1_"),
+    },
+    provenance: {
+      type: "object",
+      additionalProperties: false,
+      required: ["source_state"],
+      properties: {
+        source_state: sourceStateRefSchema,
+      },
     },
     grouping: groupingSchema,
     intervention: {

@@ -57,13 +57,14 @@ label-side data. Detailed integrity events exist only in bounded in-memory enfor
 state; a successful close exposes a small generator-side summary, not a durable trace
 for the model.
 
-This is not yet the dataset-publication boundary. The session trusts upstream
-`source_state_id` and `environment_id`, cannot attest the hash of a Browser process that
-is already running, and exposes a same-process Playwright `Page` capability to trusted
-generator code. A complete publisher must still bind the captured modalities to the
-canonical capture specification, store them under their exact visible references, move
-traces and outcomes to the sealed root, audit both stores, and mount only the visible
-root into an isolated feature process.
+This is not yet the dataset-publication boundary. The session resolves canonical sealed
+source-state bytes and derives `source_state_id`, but still trusts upstream
+`environment_id`, cannot attest the hash of a Browser process that is already running,
+and exposes a same-process Playwright `Page` capability to trusted generator code. A
+complete publisher must still bind the captured modalities to the canonical capture
+specification, store them under their exact visible references, move traces and outcomes
+to the sealed root, audit both stores, and mount only the visible root into an isolated
+feature process.
 
 ## Visible evidence manifest
 
@@ -79,29 +80,32 @@ duration, recovery, oracle, or failed-step fields. Baseline and candidate captur
 have the same checkpoint IDs, ordinals, counts, and modalities. An incomplete pair is
 invalid and is not made visible as a shorter candidate sequence.
 
-Every model-visible routing identity is derived with a domain-separated hash from its
-label-free canonical body. Once that body is accepted, the ID cannot be assigned
-independently; this does not prove that a producer selected the body before observing an
-outcome. Feature code will consume ordered modality payloads, not routing IDs, content
-digests, or manifest filenames as learned features.
+Every model-visible routing identity is derived with a domain-separated hash from a
+label-free canonical body. Source-state identity is the one cross-boundary case: its
+body is a sealed artifact reference, so standalone evidence validation checks only its
+shape and visible/sealed pair validation proves its derivation. This does not prove that
+a producer selected any body before observing an outcome. Feature code will consume
+ordered modality payloads, not routing IDs, content digests, or manifest filenames as
+learned features.
 
 The capture specification describes only the renderer and environment: pinned browser
 and package builds, container/platform, font bundle, viewport, locale, timezone, media,
 virtual clock, screenshot policy, network policy, budgets, and geometry quantization. It
 intentionally contains neither source revision nor mutation operator. Source-state
 identity and the task reference are separate visible fields, while operator
-identity/version stay in the sealed record. The current fixture runtime independently
-verifies its revision/resource manifest; the future publisher must still bind that
-source manifest into dataset reconstruction provenance.
+identity/version stay in the sealed record. The sealed record references a canonical
+source-state artifact with the fixture revision, raw manifest digest, resource set, and
+initial-state policy. The runtime resolves that artifact and matches it to the exact
+fixture package; the future publisher must materialize it only in the sealed store.
 
 ## Sealed record
 
 `impactdiff.sealed-record` binds to the exact evidence manifest digest. It contains
-grouping keys, intervention provenance, raw baseline and candidate outcomes, oracle
-results, execution traces, and labels. Its intervention references a typed mutation plan
-and precondition report; those payloads embed and bind the exact pre-outcome
-request/source probe. A scorer derives validity, task regression, severity, failed step,
-and localization from the record under a versioned label policy.
+source-state provenance, grouping keys, intervention provenance, raw baseline and
+candidate outcomes, oracle results, execution traces, and labels. Its intervention
+references a typed mutation plan and precondition report; those payloads embed and bind
+the exact pre-outcome request/source probe. A scorer derives validity, task regression,
+severity, failed step, and localization from the record under a versioned label policy.
 
 The current record validator checks consistency among stored scalar outcomes and labels;
 the scorer that replays the versioned policy against resolved trace and oracle artifacts
@@ -153,3 +157,8 @@ Version 1 has no extension maps or optional free-form metadata. Unknown keys, ne
 modalities, and new artifact formats fail closed. Adding a model-visible field requires
 a new evidence contract and feature-profile ID, followed by a fresh leakage audit and
 benchmark split.
+
+The repository remains at `0.0.0` and has not released a corpus. Moving
+`source_state_id` from the former task/environment/baseline-derived prototype to the
+sealed source-state reference is therefore an explicit pre-release v1 identity reset,
+not a compatible migration for artifacts produced by earlier commits.

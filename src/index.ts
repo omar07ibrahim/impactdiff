@@ -86,7 +86,9 @@ export {
   mutationPlanCodec,
   pngCodec,
   preconditionReportCodec,
+  sourceStateCodec,
 } from "./artifacts/codecs.js";
 export { CanonicalPng, canonicalizePng } from "./artifacts/png.js";
 export * from "./capture/index.js";
 export * from "./mutations/index.js";
+export * from "./source/index.js";

@@ -16,7 +16,12 @@ import { validateArtifactReference } from "../artifacts/cas.js";
 import { computeFixtureActionTargetId } from "../capture/identity.js";
 import { parseActionPlan } from "../capture/validate.js";
 import type { ActionPlan } from "../capture/schema.js";
-import { canonicalJson, computeTaskId, sha256Hex } from "../contracts/canonical.js";
+import {
+  canonicalJson,
+  computeSourceStateId,
+  computeTaskId,
+  sha256Hex,
+} from "../contracts/canonical.js";
 import type { ArtifactRef } from "../contracts/artifacts.js";
 import {
   intrinsicUint8ArrayByteLength,
@@ -44,6 +49,8 @@ import type {
   MutationRequest,
   SourceProbe,
 } from "./schema.js";
+import { parseSourceState } from "../source/validate.js";
+import type { SourceState } from "../source/schema.js";
 
 const occupiedPages = new WeakSet<Page>();
 const pageSessions = new WeakMap<Page, MutationFixtureSessionState>();
@@ -55,6 +62,7 @@ const sessionConstructorToken = Symbol("impactdiff.mutation-fixture-session");
 const maximumAuditEvents = 256;
 const maximumAuditTextLength = 2_048;
 const maximumActionPlanBytes = 131_072;
+const maximumSourceStateBytes = 1_048_576;
 const closedFixture = Object.freeze({
   fixtureId: "checkout-card-v1",
   revision: "checkout-card-v1.0.0",
@@ -78,6 +86,7 @@ const fixtureResources = Object.freeze([
     sha256: "325a67d957557b9e766c23f53f6d8c71e64f03cea06f1f752ae1a6195efdfd40",
     byteLength: 4_899,
     served: true,
+    license: "Apache-2.0",
   }),
   Object.freeze({
     path: "styles.css",
@@ -85,6 +94,7 @@ const fixtureResources = Object.freeze([
     sha256: "ea32617a0be3b2d3c73dae0a31a7d198e2e0f758f0d0c18a9bc60e7f793fcb9d",
     byteLength: 6_349,
     served: true,
+    license: "Apache-2.0",
   }),
   Object.freeze({
     path: "app.js",
@@ -92,6 +102,7 @@ const fixtureResources = Object.freeze([
     sha256: "9e63523f982ff8f71276ed7137f098198750f2cdde2a811fcd1678087aa4bf60",
     byteLength: 1_185,
     served: true,
+    license: "Apache-2.0",
   }),
   Object.freeze({
     path: "fonts/noto-sans-latin-standard-normal.woff2",
@@ -99,6 +110,7 @@ const fixtureResources = Object.freeze([
     sha256: "df8c8215937ab2a4270c0cd997101b3fb8cdd444c9903d342200d6179ebcc097",
     byteLength: 59_928,
     served: true,
+    license: "OFL-1.1",
   }),
   Object.freeze({
     path: "fonts/OFL-1.1.txt",
@@ -106,8 +118,52 @@ const fixtureResources = Object.freeze([
     sha256: "54ec7b5a35310ad66f9f3091426f7028484cbf9ae1ab5da30122ee412a3009e1",
     byteLength: 4_518,
     served: false,
+    license: "OFL-1.1",
   }),
 ]);
+
+const exactSourceState = Object.freeze({
+  contract: "impactdiff.source-state",
+  version: 1,
+  source: Object.freeze({
+    kind: "closed_fixture",
+    fixture_id: closedFixture.fixtureId,
+    revision: closedFixture.revision,
+    license: "Apache-2.0",
+    entrypoint: "index.html",
+    raw_manifest: Object.freeze({
+      sha256: closedFixture.manifestSha256,
+      byte_length: closedFixture.manifestByteLength,
+    }),
+    resources: Object.freeze(
+      fixtureResources
+        .map((resource) =>
+          Object.freeze({
+            path: resource.path,
+            media_type: resource.mediaType,
+            sha256: resource.sha256,
+            byte_length: resource.byteLength,
+            license: resource.license,
+          }),
+        )
+        .sort((left, right) =>
+          left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+        ),
+    ),
+  }),
+  initial_state: Object.freeze({
+    kind: "fixture_default",
+    route: "/",
+    storage: "empty",
+  }),
+});
+const exactSourceStateBytes = Buffer.from(canonicalJson(exactSourceState), "utf8");
+const exactSourceStateReference = Object.freeze({
+  sha256: sha256Hex(exactSourceStateBytes),
+  byte_length: exactSourceStateBytes.byteLength,
+  media_type: "application/vnd.impactdiff.source-state+json",
+  format_version: 1 as const,
+});
 
 const exactFixtureManifest = Object.freeze({
   contract: "impactdiff.fixture-manifest",
@@ -304,12 +360,20 @@ interface MutationFixtureSessionState {
 }
 
 export interface MutationFixtureUpstreamEvidence {
-  readonly source_state_id: string;
   readonly environment_id: string;
+  readonly source_state: {
+    readonly reference: ArtifactRef;
+    readonly bytes: Uint8Array;
+  };
   readonly action_plan: {
     readonly reference: ArtifactRef;
     readonly bytes: Uint8Array;
   };
+}
+
+export interface MutationFixtureSourceStateArtifact {
+  readonly reference: ArtifactRef;
+  readonly bytes: Uint8Array;
 }
 
 export interface MutationRuntimeBinding {
@@ -319,6 +383,7 @@ export interface MutationRuntimeBinding {
   readonly fixture_id: "checkout-card-v1";
   readonly fixture_revision: "checkout-card-v1.0.0";
   readonly fixture_manifest_sha256: string;
+  readonly source_state: ArtifactRef;
   readonly action_plan: ArtifactRef;
   readonly primary_action_target_id: string;
 }
@@ -452,20 +517,94 @@ function resolveMutationRuntimeBinding(value: unknown): ResolvedRuntimeUpstream 
   const record = bindingRecord(value);
   assertClosedBindingKeys(
     record,
-    ["action_plan", "environment_id", "source_state_id"],
+    ["action_plan", "environment_id", "source_state"],
     "runtime provenance binding",
   );
 
-  const sourceStateId = bindingString(
-    bindingValue(record, "source_state_id"),
-    "source_state_id",
-    /^idss1_[0-9a-f]{64}$/u,
-  );
   const environmentId = bindingString(
     bindingValue(record, "environment_id"),
     "environment_id",
     /^iden1_[0-9a-f]{64}$/u,
   );
+
+  const sourceStateRecord = bindingRecord(bindingValue(record, "source_state"));
+  assertClosedBindingKeys(
+    sourceStateRecord,
+    ["bytes", "reference"],
+    "runtime source-state artifact",
+  );
+  let sourceStateReference: ArtifactRef;
+  try {
+    sourceStateReference = validateArtifactReference(
+      bindingValue(sourceStateRecord, "reference"),
+      maximumSourceStateBytes,
+    );
+  } catch (error) {
+    fail(
+      "mutation.source_state_reference",
+      "source-state reference is not a valid closed artifact reference",
+      { cause: error },
+    );
+  }
+  if (
+    sourceStateReference.media_type !== "application/vnd.impactdiff.source-state+json"
+  ) {
+    fail(
+      "mutation.source_state_reference",
+      "source-state reference has the wrong media type",
+    );
+  }
+  const sourceStateValue = bindingValue(sourceStateRecord, "bytes");
+  const sourceStateByteLength = intrinsicUint8ArrayByteLength(sourceStateValue);
+  if (
+    sourceStateByteLength === null ||
+    sourceStateByteLength < 1 ||
+    sourceStateByteLength > maximumSourceStateBytes
+  ) {
+    fail(
+      "mutation.source_state_bytes",
+      "source-state bytes must be a bounded fixed-memory Uint8Array",
+    );
+  }
+  let sourceStateBytes: Buffer;
+  try {
+    sourceStateBytes = snapshotUint8Array(
+      sourceStateValue as Uint8Array,
+      sourceStateByteLength,
+    );
+  } catch (error) {
+    fail(
+      "mutation.source_state_bytes",
+      "source-state bytes could not be snapshotted exactly",
+      { cause: error },
+    );
+  }
+  if (
+    sourceStateReference.byte_length !== sourceStateBytes.byteLength ||
+    sourceStateReference.sha256 !== sha256Hex(sourceStateBytes)
+  ) {
+    fail(
+      "mutation.source_state_reference",
+      "source-state bytes do not match their exact digest and byte-length reference",
+    );
+  }
+  let sourceState: SourceState;
+  try {
+    sourceState = parseSourceState(sourceStateBytes);
+  } catch (error) {
+    fail(
+      "mutation.source_state_bytes",
+      "source-state bytes do not encode canonical validated provenance",
+      { cause: error },
+    );
+  }
+  if (canonicalJson(sourceState) !== canonicalJson(exactSourceState)) {
+    fail(
+      "mutation.source_state_fixture",
+      "source-state provenance differs from the exact closed fixture package",
+    );
+  }
+  const sourceStateId = computeSourceStateId(sourceStateReference);
 
   const actionPlanRecord = bindingRecord(bindingValue(record, "action_plan"));
   assertClosedBindingKeys(
@@ -556,6 +695,7 @@ function resolveMutationRuntimeBinding(value: unknown): ResolvedRuntimeUpstream 
     fixture_id: closedFixture.fixtureId,
     fixture_revision: closedFixture.revision,
     fixture_manifest_sha256: closedFixture.manifestSha256,
+    source_state: sourceStateReference,
     action_plan: actionPlanReference,
     primary_action_target_id: primaryActionTargetId,
   });
@@ -728,6 +868,20 @@ async function loadMutationFixture(
     );
   }
   return Object.freeze({ resources });
+}
+
+/**
+ * Audits the exact closed fixture package before returning the canonical sealed
+ * source-state artifact that a generator can pass to the session factory and CAS.
+ */
+export async function loadVerifiedMutationFixtureSourceState(
+  fixtureDirectory: string,
+): Promise<MutationFixtureSourceStateArtifact> {
+  await loadMutationFixture(fixtureDirectory);
+  return Object.freeze({
+    reference: exactSourceStateReference,
+    bytes: Buffer.from(exactSourceStateBytes),
+  });
 }
 
 function mutationSessionState(value: unknown): MutationFixtureSessionState {
