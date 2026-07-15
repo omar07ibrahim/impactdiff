@@ -4,6 +4,7 @@ import { maximumCapturePngBytes } from "./limits.js";
 
 const sha256Pattern = "^[0-9a-f]{64}$";
 const digestPattern = "^sha256:[0-9a-f]{64}$";
+const sourceRevisionPattern = "^[0-9a-f]{40}$";
 const idPattern = (prefix: string) => `^${prefix}[0-9a-f]{64}$`;
 
 const noneValueSchema = {
@@ -253,17 +254,122 @@ const dimensionSchema = {
   },
 } as const satisfies JSONSchema;
 
+const playwrightPackageSchema = <const Name extends string>(name: Name) =>
+  ({
+    type: "object",
+    additionalProperties: false,
+    required: ["name", "version"],
+    properties: {
+      name: {
+        const: name,
+      },
+      version: {
+        const: "1.61.1",
+      },
+    },
+  }) as const satisfies JSONSchema;
+
+const hostExecutionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "platform"],
+  properties: {
+    kind: {
+      const: "host",
+    },
+    platform: {
+      const: "linux/amd64",
+    },
+  },
+} as const satisfies JSONSchema;
+
+const trustedOrchestratorAttestationSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "statement_format", "statement_sha256"],
+  properties: {
+    kind: {
+      const: "trusted-orchestrator",
+    },
+    statement_format: {
+      const: "in-toto-statement-v1",
+    },
+    statement_sha256: {
+      type: "string",
+      pattern: sha256Pattern,
+      description:
+        "SHA-256 of the exact canonical JSON bytes of an in-toto Statement v1 that an external trusted orchestrator verified; its subject digest must equal execution.image_digest.",
+    },
+  },
+  description:
+    "The publisher may accept the OCI subject only after a configured trusted orchestrator verifies this in-toto statement and its subject image digest.",
+} as const satisfies JSONSchema;
+
+const ociExecutionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "platform", "image_digest", "attestation"],
+  properties: {
+    kind: {
+      const: "oci",
+    },
+    platform: {
+      const: "linux/amd64",
+    },
+    image_digest: {
+      type: "string",
+      pattern: digestPattern,
+      description:
+        "Digest of the immutable base execution image before the repository, fixture, or capture specification is mounted, avoiding a self-referential image identity.",
+    },
+    attestation: trustedOrchestratorAttestationSchema,
+  },
+} as const satisfies JSONSchema;
+
+const fontFileSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["logical_name", "format", "sha256", "byte_length"],
+  properties: {
+    logical_name: {
+      type: "string",
+      minLength: 1,
+      maxLength: 128,
+      pattern: "^[a-z0-9][a-z0-9._-]*$",
+    },
+    format: {
+      const: "woff2",
+    },
+    sha256: {
+      type: "string",
+      pattern: sha256Pattern,
+    },
+    byte_length: {
+      type: "integer",
+      minimum: 1,
+      maximum: 16_777_216,
+    },
+  },
+} as const satisfies JSONSchema;
+
+/**
+ * This is a deliberate pre-release v1 reset. ImpactDiff is still 0.0.0 and no
+ * capture corpus was published under the superseded v1 shape, so carrying an
+ * unreleased ambiguous contract forward as v2 would manufacture compatibility.
+ */
 export const captureSpecSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://impactdiff.dev/schemas/capture-spec-v1.json",
   title: "ImpactDiff deterministic capture specification v1",
+  description:
+    "Pre-release v1 reset: the 0.0.0 project published no capture corpus under the superseded capture-spec shape.",
   type: "object",
   additionalProperties: false,
   required: [
     "contract",
     "version",
     "software",
-    "container",
+    "execution",
     "fonts",
     "display",
     "internationalization",
@@ -284,62 +390,100 @@ export const captureSpecSchema = {
     software: {
       type: "object",
       additionalProperties: false,
-      required: [
-        "playwright_version",
-        "playwright_package_sha256",
-        "browser_engine",
-        "browser_revision",
-        "browser_version",
-        "browser_binary_sha256",
-      ],
+      required: ["playwright", "browser"],
       properties: {
-        playwright_version: {
-          const: "1.61.1",
+        playwright: {
+          type: "object",
+          additionalProperties: false,
+          required: ["packages", "installed_file_tree_sha256"],
+          properties: {
+            packages: {
+              type: "object",
+              additionalProperties: false,
+              required: ["playwright_test", "playwright", "playwright_core"],
+              properties: {
+                playwright_test: playwrightPackageSchema("@playwright/test"),
+                playwright: playwrightPackageSchema("playwright"),
+                playwright_core: playwrightPackageSchema("playwright-core"),
+              },
+            },
+            installed_file_tree_sha256: {
+              type: "string",
+              pattern: sha256Pattern,
+              description:
+                "SHA-256 of RFC 8785 canonical JSON {contract:'impactdiff.playwright-installed-file-tree',version:1,packages:[...]}. It covers every regular file in exactly these three installed package roots; packages are sorted by name and files by normalized POSIX-relative path, with name, version, path, byte length, and per-file SHA-256. Symbolic links and special entries are forbidden.",
+            },
+          },
         },
-        playwright_package_sha256: {
-          type: "string",
-          pattern: sha256Pattern,
-        },
-        browser_engine: {
-          const: "chromium",
-        },
-        browser_revision: {
-          const: "1228",
-        },
-        browser_version: {
-          const: "149.0.7827.55",
-        },
-        browser_binary_sha256: {
-          type: "string",
-          pattern: sha256Pattern,
+        browser: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "engine",
+            "distribution",
+            "playwright_registry_revision",
+            "version",
+            "source_revision",
+            "executable_sha256",
+            "launch_profile_sha256",
+          ],
+          properties: {
+            engine: {
+              const: "chromium",
+            },
+            distribution: {
+              const: "chromium_headless_shell",
+            },
+            playwright_registry_revision: {
+              const: "1228",
+            },
+            version: {
+              const: "149.0.7827.55",
+            },
+            source_revision: {
+              type: "string",
+              pattern: sourceRevisionPattern,
+              description:
+                "Lowercase 40-hex Chromium source revision reported live by Browser.getVersion, without its leading @ marker.",
+            },
+            executable_sha256: {
+              type: "string",
+              pattern: sha256Pattern,
+            },
+            launch_profile_sha256: {
+              type: "string",
+              pattern: sha256Pattern,
+              description:
+                "SHA-256 of RFC 8785 canonical JSON {contract:'impactdiff.chromium-launch-profile',version:1,argv:[...]}. The live Browser.getBrowserCommandLine argv preserves order and duplicates after replacing argv[0] with $BINARY and its single nonempty --user-data-dir value with $EPHEMERAL.",
+            },
+          },
         },
       },
     },
-    container: {
-      type: "object",
-      additionalProperties: false,
-      required: ["image_digest", "platform"],
-      properties: {
-        image_digest: {
-          type: "string",
-          pattern: digestPattern,
-        },
-        platform: {
-          const: "linux/amd64",
-        },
-      },
+    execution: {
+      oneOf: [hostExecutionSchema, ociExecutionSchema],
     },
     fonts: {
       type: "object",
       additionalProperties: false,
-      required: ["bundle_sha256", "loading"],
+      required: ["bundle_format", "files", "loading", "fallback_policy"],
       properties: {
-        bundle_sha256: {
-          type: "string",
-          pattern: sha256Pattern,
+        bundle_format: {
+          const: "closed-font-file-set-v1",
+        },
+        files: {
+          type: "array",
+          minItems: 1,
+          maxItems: 64,
+          items: fontFileSchema,
+          description:
+            "The complete font-resource allowlist exposed to document CSS; logical names are stable labels and SHA-256 covers the exact WOFF2 bytes.",
         },
         loading: {
           const: "document-fonts-ready",
+        },
+        fallback_policy: {
+          const: "closed-bundle-only",
         },
       },
     },
@@ -479,6 +623,8 @@ export const captureSpecSchema = {
           type: "integer",
           minimum: 1,
           maximum: 10_000,
+          description:
+            "Applied as the Playwright page default timeout before any planned action executes.",
         },
         maximum_pending_requests: {
           const: 0,

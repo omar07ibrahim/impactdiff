@@ -42,10 +42,13 @@ Implemented today:
   coordinate click, then emits two canonical PNG, accessibility-tree, and layout-graph
   checkpoints without exposing a partial run.
 
-The capture contract pins Playwright 1.61.1 and Chromium revision 1228 (149.0.7827.55).
-The verified single-role capture path and mutation runtime are implemented; assembling
-baseline and candidate roles into one audited publication is still pending. Learned
-baselines come only after that path is auditable end to end.
+The capture contract names the exact installed file trees for `@playwright/test`,
+`playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
+source revision, and normalized launch profile; every render-font file; and either an
+honest Linux host or an externally verified OCI subject. The verified single-role
+capture path and mutation runtime are implemented; assembling baseline and candidate
+roles into one audited publication is still pending. Learned baselines come only after
+that path is auditable end to end.
 
 ## Architecture
 

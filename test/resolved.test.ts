@@ -119,20 +119,49 @@ const captureSpec = {
   contract: "impactdiff.capture-spec",
   version: 1,
   software: {
-    playwright_version: "1.61.1",
-    playwright_package_sha256: digest("1"),
-    browser_engine: "chromium",
-    browser_revision: "1228",
-    browser_version: "149.0.7827.55",
-    browser_binary_sha256: digest("2"),
+    playwright: {
+      packages: {
+        playwright_test: {
+          name: "@playwright/test",
+          version: "1.61.1",
+        },
+        playwright: {
+          name: "playwright",
+          version: "1.61.1",
+        },
+        playwright_core: {
+          name: "playwright-core",
+          version: "1.61.1",
+        },
+      },
+      installed_file_tree_sha256: digest("1"),
+    },
+    browser: {
+      engine: "chromium",
+      distribution: "chromium_headless_shell",
+      playwright_registry_revision: "1228",
+      version: "149.0.7827.55",
+      source_revision: "3188f8a607ae7e067593be8aab7f02d2451fec07",
+      executable_sha256: digest("2"),
+      launch_profile_sha256: digest("3"),
+    },
   },
-  container: {
-    image_digest: `sha256:${digest("3")}`,
+  execution: {
+    kind: "host",
     platform: "linux/amd64",
   },
   fonts: {
-    bundle_sha256: digest("4"),
+    bundle_format: "closed-font-file-set-v1",
+    files: [
+      {
+        logical_name: "noto-sans-latin-variable-normal",
+        format: "woff2",
+        sha256: digest("4"),
+        byte_length: 59_928,
+      },
+    ],
     loading: "document-fonts-ready",
+    fallback_policy: "closed-bundle-only",
   },
   display: {
     viewport: { width: 320, height: 240 },

@@ -98,15 +98,24 @@ a producer selected any body before observing an outcome. Feature code will cons
 ordered modality payloads, not routing IDs, content digests, or manifest filenames as
 learned features.
 
-The capture specification describes only the renderer and environment: pinned browser
-and package builds, container/platform, font bundle, viewport, locale, timezone, media,
-virtual clock, screenshot policy, network policy, budgets, and geometry quantization. It
-intentionally contains neither source revision nor mutation operator. Source-state
-identity and the task reference are separate visible fields, while operator
-identity/version stay in the sealed record. The sealed record references a canonical
-source-state artifact with the fixture revision, raw manifest digest, resource set, and
-initial-state policy. The runtime resolves that artifact and matches it to the exact
-fixture package; the future publisher must materialize it only in the sealed store.
+The capture specification describes only the renderer and environment: exact installed
+Playwright file trees, browser distribution/executable/source revision/launch profile,
+an honest host or externally verified OCI execution subject, a closed list of exact
+render-font files, viewport, locale, timezone, media, virtual clock, screenshot policy,
+network policy, budgets, and geometry quantization. It intentionally contains neither
+application source revision nor mutation operator. Source-state identity and the task
+reference are separate visible fields, while operator identity/version stay in the
+sealed record. The sealed record references a canonical source-state artifact with the
+fixture revision, raw manifest digest, resource set, and initial-state policy. The
+runtime resolves that artifact and matches it to the exact fixture package; the future
+publisher must materialize it only in the sealed store.
+
+Host execution records only `linux/amd64` and makes no container-image claim; it is a
+development capture mode, not a reproducible base-image attestation. OCI execution
+instead names the immutable base image before the repository, fixture, or CaptureSpec is
+mounted, and is acceptable only after an external trusted orchestrator verifies the
+referenced in-toto subject. This split avoids both fictitious host digests and an image
+that would need to contain its own hash.
 
 ## Sealed record
 
@@ -170,5 +179,8 @@ benchmark split.
 
 The repository remains at `0.0.0` and has not released a corpus. Moving
 `source_state_id` from the former task/environment/baseline-derived prototype to the
-sealed source-state reference is therefore an explicit pre-release v1 identity reset,
-not a compatible migration for artifacts produced by earlier commits.
+sealed source-state reference, and replacing the former ambiguous capture-environment
+hashes, are explicit pre-release v1 identity resets—not compatible migrations for
+artifacts produced by earlier commits. New capture-spec bytes also reset their artifact
+reference, environment ID, feature-profile ID, evidence ID, and every downstream
+identity that commits to those values.

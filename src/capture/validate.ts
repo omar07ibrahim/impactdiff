@@ -153,6 +153,33 @@ function actionPlanIssues(plan: ActionPlan): ContractIssue[] {
 
 function captureSpecIssues(spec: CaptureSpec): ContractIssue[] {
   const issues: ContractIssue[] = [];
+  const fontNames = new Set<string>();
+  let priorFontName: string | undefined;
+
+  for (const [index, font] of spec.fonts.files.entries()) {
+    const path = `/fonts/files/${index}/logical_name`;
+    if (fontNames.has(font.logical_name)) {
+      issues.push(
+        issue(
+          "capture_spec.duplicate_font",
+          path,
+          "font logical names must be unique within the closed bundle",
+        ),
+      );
+    }
+    if (priorFontName !== undefined && font.logical_name <= priorFontName) {
+      issues.push(
+        issue(
+          "capture_spec.font_order",
+          path,
+          "font files must be strictly sorted by logical name",
+        ),
+      );
+    }
+    fontNames.add(font.logical_name);
+    priorFontName = font.logical_name;
+  }
+
   if (
     spec.display.viewport.width * spec.display.viewport.height >
     maximumCapturePixels
