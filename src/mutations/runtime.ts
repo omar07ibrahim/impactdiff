@@ -4,7 +4,6 @@ import { open, readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type {
-  Browser,
   BrowserContext,
   BrowserContextOptions,
   CDPSession,
@@ -21,11 +20,16 @@ import {
 } from "../capture/chromium-layout.js";
 import { computeFixtureActionTargetId } from "../capture/identity.js";
 import { normalizeAccessibilitySnapshot } from "../capture/normalize-ax.js";
-import type { ActionPlan, LayoutSnapshot } from "../capture/schema.js";
-import { assertCaptureGraphBindings, parseActionPlan } from "../capture/validate.js";
+import type { ActionPlan, CaptureSpec, LayoutSnapshot } from "../capture/schema.js";
+import {
+  assertCaptureGraphBindings,
+  parseActionPlan,
+  parseCaptureSpec,
+} from "../capture/validate.js";
 import {
   canonicalJson,
   computeCheckpointId,
+  computeEnvironmentId,
   computeSourceStateId,
   computeTaskId,
   sha256Hex,
@@ -59,6 +63,13 @@ import type {
 } from "./schema.js";
 import { parseSourceState } from "../source/validate.js";
 import type { SourceState } from "../source/schema.js";
+import {
+  acquireMutationFixtureEnvironment,
+  type MutationFixtureEnvironment,
+} from "./environment.js";
+import { MutationRuntimeError } from "./errors.js";
+
+export { MutationRuntimeError } from "./errors.js";
 
 const occupiedPages = new WeakSet<Page>();
 const pageSessions = new WeakMap<Page, MutationFixtureSessionState>();
@@ -71,17 +82,15 @@ const checkpointConstructorToken = Symbol("impactdiff.mutation-fixture-checkpoin
 const maximumAuditEvents = 256;
 const maximumAuditTextLength = 2_048;
 const maximumActionPlanBytes = 131_072;
+const maximumCaptureSpecBytes = 65_536;
 const maximumSourceStateBytes = 1_048_576;
-const fixedCaptureViewport = Object.freeze({ width: 800, height: 600 });
 const closedFixture = Object.freeze({
   fixtureId: "checkout-card-v1",
   revision: "checkout-card-v1.0.0",
   manifestSha256: "3b8a3f79a15969e575e0d4ace4a98b7a89704840cb1b2a818c06e03e5cc4e9ea",
   manifestByteLength: 1_819,
   styleNonceValue: "impactdiff-checkout-v1",
-  browserVersion: "149.0.7827.55",
   origin: "https://fixture.impactdiff.invalid",
-  fixedEpochMs: 1_735_689_600_000,
 });
 const fixtureUrl = `${closedFixture.origin}/`;
 const fixtureStyleNonce = Buffer.from(closedFixture.styleNonceValue, "utf8").toString(
@@ -363,6 +372,9 @@ interface MutationFixtureSessionState {
   readonly page: Page;
   readonly binding: MutationRuntimeBinding;
   readonly actionPlan: ActionPlan;
+  readonly captureSpec: CaptureSpec;
+  readonly releaseEnvironment: () => void;
+  readonly invalidateEnvironment: () => void;
   readonly primaryActionTargetId: string;
   readonly documentElement: ElementHandle<HTMLElement>;
   readonly criticalElements: readonly {
@@ -391,12 +403,15 @@ interface MutationFixtureSessionState {
 }
 
 export interface MutationFixtureUpstreamEvidence {
-  readonly environment_id: string;
   readonly source_state: {
     readonly reference: ArtifactRef;
     readonly bytes: Uint8Array;
   };
   readonly action_plan: {
+    readonly reference: ArtifactRef;
+    readonly bytes: Uint8Array;
+  };
+  readonly capture_spec: {
     readonly reference: ArtifactRef;
     readonly bytes: Uint8Array;
   };
@@ -472,6 +487,7 @@ export interface MutationRuntimeBinding {
   readonly fixture_manifest_sha256: string;
   readonly source_state: ArtifactRef;
   readonly action_plan: ArtifactRef;
+  readonly capture_spec: ArtifactRef;
   readonly primary_action_target_id: string;
 }
 
@@ -513,16 +529,6 @@ export class MutationFixtureSession {
 
 Object.freeze(MutationFixtureSession.prototype);
 
-export class MutationRuntimeError extends Error {
-  readonly code: string;
-
-  constructor(code: string, message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "MutationRuntimeError";
-    this.code = code;
-  }
-}
-
 export type MutationCleanup = () => Promise<void>;
 
 function fail(code: string, message: string, options?: ErrorOptions): never {
@@ -560,16 +566,6 @@ function bindingValue(record: Record<string, unknown>, key: string): unknown {
   return descriptor.value;
 }
 
-function bindingString(value: unknown, name: string, pattern: RegExp): string {
-  if (typeof value !== "string" || !pattern.test(value)) {
-    fail(
-      "mutation.binding_value",
-      `runtime provenance field ${name} has an invalid value`,
-    );
-  }
-  return value;
-}
-
 function assertClosedBindingKeys(
   record: Record<string, unknown>,
   requiredKeys: readonly string[],
@@ -598,93 +594,107 @@ function assertClosedBindingKeys(
 interface ResolvedRuntimeUpstream {
   readonly binding: MutationRuntimeBinding;
   readonly actionPlan: ActionPlan;
+  readonly captureSpec: CaptureSpec;
+}
+
+interface ResolvedRuntimeArtifact<T> {
+  readonly reference: ArtifactRef;
+  readonly value: T;
+}
+
+function resolveRuntimeArtifact<T>(
+  parent: Record<string, unknown>,
+  key: string,
+  options: {
+    readonly label: string;
+    readonly mediaType: string;
+    readonly maximumBytes: number;
+    readonly errorPrefix: string;
+    readonly parse: (bytes: Buffer) => T;
+  },
+): ResolvedRuntimeArtifact<T> {
+  const artifactRecord = bindingRecord(bindingValue(parent, key));
+  assertClosedBindingKeys(
+    artifactRecord,
+    ["bytes", "reference"],
+    `runtime ${options.label} artifact`,
+  );
+  let reference: ArtifactRef;
+  try {
+    reference = validateArtifactReference(
+      bindingValue(artifactRecord, "reference"),
+      options.maximumBytes,
+    );
+  } catch (error) {
+    fail(
+      `mutation.${options.errorPrefix}_reference`,
+      `${options.label} reference is not a valid closed artifact reference`,
+      { cause: error },
+    );
+  }
+  if (reference.media_type !== options.mediaType) {
+    fail(
+      `mutation.${options.errorPrefix}_reference`,
+      `${options.label} reference has the wrong media type`,
+    );
+  }
+  const byteValue = bindingValue(artifactRecord, "bytes");
+  const byteLength = intrinsicUint8ArrayByteLength(byteValue);
+  if (byteLength === null || byteLength < 1 || byteLength > options.maximumBytes) {
+    fail(
+      `mutation.${options.errorPrefix}_bytes`,
+      `${options.label} bytes must be a bounded fixed-memory Uint8Array`,
+    );
+  }
+  let bytes: Buffer;
+  try {
+    bytes = snapshotUint8Array(byteValue as Uint8Array, byteLength);
+  } catch (error) {
+    fail(
+      `mutation.${options.errorPrefix}_bytes`,
+      `${options.label} bytes could not be snapshotted exactly`,
+      { cause: error },
+    );
+  }
+  if (
+    reference.byte_length !== bytes.byteLength ||
+    reference.sha256 !== sha256Hex(bytes)
+  ) {
+    fail(
+      `mutation.${options.errorPrefix}_reference`,
+      `${options.label} bytes do not match their exact digest and byte-length reference`,
+    );
+  }
+  let parsed: T;
+  try {
+    parsed = options.parse(bytes);
+  } catch (error) {
+    fail(
+      `mutation.${options.errorPrefix}_bytes`,
+      `${options.label} bytes do not encode a canonical validated contract`,
+      { cause: error },
+    );
+  }
+  return Object.freeze({ reference, value: parsed });
 }
 
 function resolveMutationRuntimeBinding(value: unknown): ResolvedRuntimeUpstream {
   const record = bindingRecord(value);
   assertClosedBindingKeys(
     record,
-    ["action_plan", "environment_id", "source_state"],
+    ["action_plan", "capture_spec", "source_state"],
     "runtime provenance binding",
   );
 
-  const environmentId = bindingString(
-    bindingValue(record, "environment_id"),
-    "environment_id",
-    /^iden1_[0-9a-f]{64}$/u,
-  );
-
-  const sourceStateRecord = bindingRecord(bindingValue(record, "source_state"));
-  assertClosedBindingKeys(
-    sourceStateRecord,
-    ["bytes", "reference"],
-    "runtime source-state artifact",
-  );
-  let sourceStateReference: ArtifactRef;
-  try {
-    sourceStateReference = validateArtifactReference(
-      bindingValue(sourceStateRecord, "reference"),
-      maximumSourceStateBytes,
-    );
-  } catch (error) {
-    fail(
-      "mutation.source_state_reference",
-      "source-state reference is not a valid closed artifact reference",
-      { cause: error },
-    );
-  }
-  if (
-    sourceStateReference.media_type !== "application/vnd.impactdiff.source-state+json"
-  ) {
-    fail(
-      "mutation.source_state_reference",
-      "source-state reference has the wrong media type",
-    );
-  }
-  const sourceStateValue = bindingValue(sourceStateRecord, "bytes");
-  const sourceStateByteLength = intrinsicUint8ArrayByteLength(sourceStateValue);
-  if (
-    sourceStateByteLength === null ||
-    sourceStateByteLength < 1 ||
-    sourceStateByteLength > maximumSourceStateBytes
-  ) {
-    fail(
-      "mutation.source_state_bytes",
-      "source-state bytes must be a bounded fixed-memory Uint8Array",
-    );
-  }
-  let sourceStateBytes: Buffer;
-  try {
-    sourceStateBytes = snapshotUint8Array(
-      sourceStateValue as Uint8Array,
-      sourceStateByteLength,
-    );
-  } catch (error) {
-    fail(
-      "mutation.source_state_bytes",
-      "source-state bytes could not be snapshotted exactly",
-      { cause: error },
-    );
-  }
-  if (
-    sourceStateReference.byte_length !== sourceStateBytes.byteLength ||
-    sourceStateReference.sha256 !== sha256Hex(sourceStateBytes)
-  ) {
-    fail(
-      "mutation.source_state_reference",
-      "source-state bytes do not match their exact digest and byte-length reference",
-    );
-  }
-  let sourceState: SourceState;
-  try {
-    sourceState = parseSourceState(sourceStateBytes);
-  } catch (error) {
-    fail(
-      "mutation.source_state_bytes",
-      "source-state bytes do not encode canonical validated provenance",
-      { cause: error },
-    );
-  }
+  const sourceArtifact = resolveRuntimeArtifact<SourceState>(record, "source_state", {
+    label: "source-state",
+    mediaType: "application/vnd.impactdiff.source-state+json",
+    maximumBytes: maximumSourceStateBytes,
+    errorPrefix: "source_state",
+    parse: parseSourceState,
+  });
+  const sourceStateReference = sourceArtifact.reference;
+  const sourceState = sourceArtifact.value;
   if (canonicalJson(sourceState) !== canonicalJson(exactSourceState)) {
     fail(
       "mutation.source_state_fixture",
@@ -693,73 +703,15 @@ function resolveMutationRuntimeBinding(value: unknown): ResolvedRuntimeUpstream 
   }
   const sourceStateId = computeSourceStateId(sourceStateReference);
 
-  const actionPlanRecord = bindingRecord(bindingValue(record, "action_plan"));
-  assertClosedBindingKeys(
-    actionPlanRecord,
-    ["bytes", "reference"],
-    "runtime action-plan artifact",
-  );
-
-  let actionPlanReference: ArtifactRef;
-  try {
-    actionPlanReference = validateArtifactReference(
-      bindingValue(actionPlanRecord, "reference"),
-      maximumActionPlanBytes,
-    );
-  } catch (error) {
-    fail(
-      "mutation.action_plan_reference",
-      "action-plan reference is not a valid closed artifact reference",
-      { cause: error },
-    );
-  }
-  if (
-    actionPlanReference.media_type !== "application/vnd.impactdiff.action-plan+json"
-  ) {
-    fail(
-      "mutation.action_plan_reference",
-      "action-plan reference has the wrong media type",
-    );
-  }
-
-  const byteValue = bindingValue(actionPlanRecord, "bytes");
-  const byteLength = intrinsicUint8ArrayByteLength(byteValue);
-  if (byteLength === null || byteLength < 1 || byteLength > maximumActionPlanBytes) {
-    fail(
-      "mutation.action_plan_bytes",
-      "action-plan bytes must be a bounded fixed-memory Uint8Array",
-    );
-  }
-  let actionPlanBytes: Buffer;
-  try {
-    actionPlanBytes = snapshotUint8Array(byteValue as Uint8Array, byteLength);
-  } catch (error) {
-    fail(
-      "mutation.action_plan_bytes",
-      "action-plan bytes could not be snapshotted exactly",
-      { cause: error },
-    );
-  }
-  if (
-    actionPlanReference.byte_length !== actionPlanBytes.byteLength ||
-    actionPlanReference.sha256 !== sha256Hex(actionPlanBytes)
-  ) {
-    fail(
-      "mutation.action_plan_reference",
-      "action-plan bytes do not match their exact digest and byte-length reference",
-    );
-  }
-
-  let actionPlan: ActionPlan;
-  try {
-    actionPlan = parseActionPlan(actionPlanBytes);
-  } catch (error) {
-    fail(
-      "mutation.action_plan_bytes",
-      "action-plan bytes do not encode a canonical validated action plan",
-      { cause: error },
-    );
-  }
+  const actionArtifact = resolveRuntimeArtifact<ActionPlan>(record, "action_plan", {
+    label: "action-plan",
+    mediaType: "application/vnd.impactdiff.action-plan+json",
+    maximumBytes: maximumActionPlanBytes,
+    errorPrefix: "action_plan",
+    parse: parseActionPlan,
+  });
+  const actionPlanReference = actionArtifact.reference;
+  const actionPlan = actionArtifact.value;
   const targetActions = actionPlan.actions.filter(
     (action) => action.target_id === primaryActionTargetId,
   );
@@ -775,18 +727,29 @@ function resolveMutationRuntimeBinding(value: unknown): ResolvedRuntimeUpstream 
     );
   }
 
+  const captureArtifact = resolveRuntimeArtifact<CaptureSpec>(record, "capture_spec", {
+    label: "capture-spec",
+    mediaType: "application/vnd.impactdiff.capture-spec+json",
+    maximumBytes: maximumCaptureSpecBytes,
+    errorPrefix: "capture_spec",
+    parse: parseCaptureSpec,
+  });
+  const captureSpecReference = captureArtifact.reference;
+  const captureSpec = captureArtifact.value;
+
   const binding = Object.freeze({
     source_state_id: sourceStateId,
     task_id: computeTaskId(actionPlanReference),
-    environment_id: environmentId,
+    environment_id: computeEnvironmentId(captureSpecReference),
     fixture_id: closedFixture.fixtureId,
     fixture_revision: closedFixture.revision,
     fixture_manifest_sha256: closedFixture.manifestSha256,
     source_state: sourceStateReference,
     action_plan: actionPlanReference,
+    capture_spec: captureSpecReference,
     primary_action_target_id: primaryActionTargetId,
   });
-  return Object.freeze({ binding, actionPlan });
+  return Object.freeze({ binding, actionPlan, captureSpec });
 }
 
 export function validateMutationRuntimeBinding(value: unknown): MutationRuntimeBinding {
@@ -1641,9 +1604,9 @@ async function assertAuthenticatedDocument(
   if (taints.length > 0) {
     fail("mutation.session_tainted", taints.join("; "));
   }
-  await assertFixtureReadiness(state.page, state.binding);
+  await assertFixtureReadiness(state.page, state.binding, state.captureSpec);
   const now = await state.page.evaluate(() => Date.now());
-  if (now !== closedFixture.fixedEpochMs) {
+  if (now !== state.captureSpec.clock.epoch_ms) {
     fail("mutation.clock_drift", "fixture virtual clock is no longer paused exactly");
   }
 }
@@ -1726,10 +1689,24 @@ async function closeMutationFixtureSession(
   } catch {
     auditIssues.add("fixture document handle disposal failed");
   }
+  let contextReusable = true;
   try {
     await state.context.close();
   } catch {
+    contextReusable = false;
     auditIssues.add("fixture browser context close failed");
+  }
+  if (state.audit.activeRouteHandlers !== 0) {
+    contextReusable = false;
+  }
+  try {
+    if (contextReusable) {
+      state.releaseEnvironment();
+    } else {
+      state.invalidateEnvironment();
+    }
+  } catch {
+    auditIssues.add("capture environment lease release failed");
   }
   if (state.audit.activeRouteHandlers !== 0) {
     auditIssues.add("fixture route audit remained active after context close");
@@ -1768,36 +1745,31 @@ async function closeMutationFixtureSession(
 }
 
 /**
- * Opens the one closed checkout fixture. The canonical action-plan bytes are
- * verified against their exact ArtifactRef, parsed, and hashed through the
- * same `computeTaskId(reference)` identity used by evidence manifests.
+ * Opens the one closed checkout fixture inside a runtime-owned browser. The
+ * source, task, and environment identities are derived from exact canonical
+ * artifact references rather than accepted as caller-selected strings.
  */
 export async function openMutationFixtureSession(
-  browser: Browser,
-  fixtureDirectory: string,
+  environment: MutationFixtureEnvironment,
   upstreamEvidence: unknown,
 ): Promise<MutationFixtureSession> {
-  if (
-    browser.browserType().name() !== "chromium" ||
-    browser.version() !== closedFixture.browserVersion
-  ) {
-    fail(
-      "mutation.browser_version",
-      `fixture sessions require Chromium ${closedFixture.browserVersion}`,
-    );
-  }
-  const { binding, actionPlan } = resolveMutationRuntimeBinding(upstreamEvidence);
-  const loaded = await loadMutationFixture(fixtureDirectory);
+  const { binding, actionPlan, captureSpec } =
+    resolveMutationRuntimeBinding(upstreamEvidence);
+  const environmentLease = acquireMutationFixtureEnvironment(
+    environment,
+    binding.capture_spec,
+  );
+  const { browser, fixtureDirectory } = environmentLease;
   const contextOptions = {
-    viewport: fixedCaptureViewport,
-    screen: fixedCaptureViewport,
-    deviceScaleFactor: 1,
-    locale: "en-US",
-    timezoneId: "UTC",
-    colorScheme: "light",
-    reducedMotion: "reduce",
-    forcedColors: "none",
-    serviceWorkers: "block",
+    viewport: { ...captureSpec.display.viewport },
+    screen: { ...captureSpec.display.screen },
+    deviceScaleFactor: captureSpec.display.device_scale_factor,
+    locale: captureSpec.internationalization.locale,
+    timezoneId: captureSpec.internationalization.timezone_id,
+    colorScheme: captureSpec.media.color_scheme,
+    reducedMotion: captureSpec.media.reduced_motion,
+    forcedColors: captureSpec.media.forced_colors,
+    serviceWorkers: captureSpec.network.service_workers,
     acceptDownloads: false,
     permissions: [],
     bypassCSP: false,
@@ -1806,7 +1778,10 @@ export async function openMutationFixtureSession(
     isMobile: false,
   } satisfies BrowserContextOptions;
   let context: BrowserContext | undefined;
+  let contextCreationAttempted = false;
   try {
+    const loaded = await loadMutationFixture(fixtureDirectory);
+    contextCreationAttempted = true;
     context = await browser.newContext(contextOptions);
     const audit: MutationFixtureAuditState = {
       blockedExternalRequests: [],
@@ -1896,19 +1871,24 @@ export async function openMutationFixtureSession(
         audit.documentReplaced = true;
       }
     });
-    page.setDefaultNavigationTimeout(10_000);
-    page.setDefaultTimeout(5_000);
-    await page.clock.install({ time: closedFixture.fixedEpochMs });
-    await page.clock.pauseAt(closedFixture.fixedEpochMs);
+    page.setDefaultNavigationTimeout(captureSpec.budgets.navigation_timeout_ms);
+    page.setDefaultTimeout(captureSpec.budgets.action_timeout_ms);
+    await page.clock.install({ time: captureSpec.clock.epoch_ms });
+    await page.clock.pauseAt(captureSpec.clock.epoch_ms);
     await page.goto(fixtureUrl, { waitUntil: "load" });
-    await page.waitForFunction(() => {
-      const state = Reflect.get(window, "__impactdiffFixtureV1") as
-        { readonly ready?: unknown; readonly pendingRequests?: unknown } | undefined;
-      return state?.ready === true && state.pendingRequests === 0;
-    });
-    await assertFixtureReadiness(page, binding);
+    await page.waitForFunction(
+      () => {
+        const state = Reflect.get(window, "__impactdiffFixtureV1") as
+          { readonly ready?: unknown; readonly pendingRequests?: unknown } | undefined;
+        return state?.ready === true && state.pendingRequests === 0;
+      },
+      undefined,
+      { timeout: captureSpec.budgets.readiness_timeout_ms },
+    );
+    await assertFixtureReadiness(page, binding, captureSpec);
+    await assertClosedFixtureFonts(page);
     const now = await page.evaluate(() => Date.now());
-    if (now !== closedFixture.fixedEpochMs) {
+    if (now !== captureSpec.clock.epoch_ms) {
       fail("mutation.clock_drift", "fixture virtual clock did not pause exactly");
     }
     const initialResourceIssues = servedResourceIssues(audit);
@@ -1989,6 +1969,9 @@ export async function openMutationFixtureSession(
       page,
       binding,
       actionPlan,
+      captureSpec,
+      releaseEnvironment: environmentLease.release,
+      invalidateEnvironment: environmentLease.invalidate,
       primaryActionTargetId,
       documentElement: documentElement as ElementHandle<HTMLElement>,
       criticalElements: frozenCriticalElements,
@@ -2008,7 +1991,48 @@ export async function openMutationFixtureSession(
     audit.navigationArmed = true;
     return session;
   } catch (error) {
-    await context?.close();
+    let contextReusable = !contextCreationAttempted;
+    let cleanupFailure: { readonly error: unknown } | undefined;
+    if (context !== undefined) {
+      try {
+        await context.close();
+        contextReusable = true;
+      } catch (cleanupError) {
+        contextReusable = false;
+        cleanupFailure = { error: cleanupError };
+      }
+    }
+    try {
+      if (contextReusable) {
+        environmentLease.release();
+      } else {
+        environmentLease.invalidate();
+      }
+    } catch (cleanupError) {
+      cleanupFailure = {
+        error:
+          cleanupFailure === undefined
+            ? cleanupError
+            : new AggregateError(
+                [cleanupFailure.error, cleanupError],
+                "fixture session cleanup failed",
+              ),
+      };
+    }
+    if (cleanupFailure !== undefined) {
+      if (error instanceof MutationRuntimeError) {
+        throw new MutationRuntimeError(error.code, error.message, {
+          cause: new AggregateError(
+            [error, cleanupFailure.error],
+            "fixture session construction and cleanup both failed",
+          ),
+        });
+      }
+      throw new AggregateError(
+        [error, cleanupFailure.error],
+        "fixture session construction and cleanup both failed",
+      );
+    }
     throw error;
   }
 }
@@ -2114,9 +2138,10 @@ async function readBrowserCaptureGeometry(
     },
   };
   const { targetBounds } = geometry;
+  const viewport = state.captureSpec.display.viewport;
   if (
-    geometry.viewportWidth !== fixedCaptureViewport.width ||
-    geometry.viewportHeight !== fixedCaptureViewport.height ||
+    geometry.viewportWidth !== viewport.width ||
+    geometry.viewportHeight !== viewport.height ||
     !Number.isSafeInteger(geometry.scrollX) ||
     !Number.isSafeInteger(geometry.scrollY) ||
     geometry.scrollX < 0 ||
@@ -2338,14 +2363,15 @@ async function captureMutationCheckpoint(
   if (preparedGeometry !== null) {
     await assertPreparedCaptureGeometry(state, preparedGeometry);
   }
+  await assertClosedFixtureFonts(state.page);
   const targetBackendNodeId = await captureTargetBackendNodeId(client);
   const screenshotInput = await state.page.screenshot({
-    type: "png",
-    fullPage: false,
-    animations: "disabled",
-    caret: "hide",
-    scale: "css",
-    omitBackground: false,
+    type: state.captureSpec.screenshot.format,
+    fullPage: state.captureSpec.screenshot.full_page,
+    animations: state.captureSpec.screenshot.animations,
+    caret: state.captureSpec.screenshot.caret,
+    scale: state.captureSpec.screenshot.scale,
+    omitBackground: state.captureSpec.screenshot.omit_background,
   });
   const domSnapshot = await client.send("DOMSnapshot.captureSnapshot", {
     computedStyles: [...chromiumLayoutComputedStyles],
@@ -2355,7 +2381,7 @@ async function captureMutationCheckpoint(
     includeTextColorOpacities: false,
   });
   const layout = adaptChromiumLayoutSnapshot(domSnapshot, {
-    viewport: fixedCaptureViewport,
+    viewport: state.captureSpec.display.viewport,
     target: {
       backendDomNodeId: targetBackendNodeId,
       actionTargetId: state.primaryActionTargetId,
@@ -2368,7 +2394,10 @@ async function captureMutationCheckpoint(
   );
   assertFixtureCheckpointTarget(state, layout.snapshot, ordinal);
   assertCaptureGraphBindings(state.actionPlan, accessibility, layout.snapshot);
-  const screenshot = canonicalizePng(screenshotInput, fixedCaptureViewport).bytes;
+  const screenshot = canonicalizePng(
+    screenshotInput,
+    state.captureSpec.display.viewport,
+  ).bytes;
   const checkpoint = new MutationFixtureCheckpointBytes(checkpointConstructorToken, {
     checkpoint_id: computeCheckpointId(state.binding.action_plan, ordinal),
     ordinal,
@@ -2528,6 +2557,7 @@ function assertRequestBinding(
 async function assertFixtureReadiness(
   page: Page,
   binding: MutationRuntimeBinding,
+  captureSpec: CaptureSpec,
 ): Promise<void> {
   let evidence: {
     readonly ready: boolean;
@@ -2608,34 +2638,117 @@ async function assertFixtureReadiness(
       cause: error,
     });
   }
+  const viewport = captureSpec.display.viewport;
+  const screen = captureSpec.display.screen;
   if (
     !evidence.ready ||
     evidence.revision !== binding.fixture_revision ||
-    evidence.pendingRequests !== 0 ||
+    evidence.pendingRequests !== captureSpec.budgets.maximum_pending_requests ||
     !evidence.sealed ||
     evidence.csp !== exactFixtureCsp ||
     !evidence.fontLoaded ||
     evidence.rootCount !== 1 ||
     evidence.actionCount !== 1 ||
     evidence.successCount !== 1 ||
-    evidence.innerWidth !== 800 ||
-    evidence.innerHeight !== 600 ||
-    evidence.screenWidth !== 800 ||
-    evidence.screenHeight !== 600 ||
-    evidence.devicePixelRatio !== 1 ||
-    evidence.language !== "en-US" ||
-    evidence.timeZone !== "UTC" ||
-    !evidence.lightScheme ||
-    !evidence.reducedMotion ||
-    evidence.forcedColors ||
+    evidence.innerWidth !== viewport.width ||
+    evidence.innerHeight !== viewport.height ||
+    evidence.screenWidth !== screen.width ||
+    evidence.screenHeight !== screen.height ||
+    evidence.devicePixelRatio !== captureSpec.display.device_scale_factor ||
+    evidence.language !== captureSpec.internationalization.locale ||
+    evidence.timeZone !== captureSpec.internationalization.timezone_id ||
+    evidence.lightScheme !== (captureSpec.media.color_scheme === "light") ||
+    evidence.reducedMotion !== (captureSpec.media.reduced_motion === "reduce") ||
+    evidence.forcedColors !== (captureSpec.media.forced_colors !== "none") ||
     evidence.serviceWorkerControlled ||
     evidence.serviceWorkerRegistrations !== 0 ||
-    page.viewportSize()?.width !== 800 ||
-    page.viewportSize()?.height !== 600
+    page.viewportSize()?.width !== viewport.width ||
+    page.viewportSize()?.height !== viewport.height
   ) {
     fail(
       "mutation.fixture_readiness",
       "page readiness, revision, CSP, or pending-request state differs from the bound fixture",
+    );
+  }
+}
+
+async function assertClosedFixtureFonts(page: Page): Promise<void> {
+  const client = await page.context().newCDPSession(page);
+  let auditFailure: { readonly error: unknown } | undefined;
+  try {
+    await client.send("DOM.enable");
+    await client.send("CSS.enable");
+    const document = await client.send("DOM.getDocument", {
+      depth: 1,
+      pierce: false,
+    });
+    const matches = await client.send("DOM.querySelectorAll", {
+      nodeId: document.root.nodeId,
+      selector: "body, body *",
+    });
+    let glyphCount = 0;
+    for (const nodeId of matches.nodeIds) {
+      const usage = await client.send("CSS.getPlatformFontsForNode", { nodeId });
+      for (const font of usage.fonts) {
+        glyphCount += font.glyphCount;
+        if (font.isCustomFont !== true || font.familyName !== "Noto Sans") {
+          fail(
+            "mutation.fixture_font_fallback",
+            "fixture text used a font outside the exact custom WOFF2 bundle",
+          );
+        }
+      }
+    }
+    if (glyphCount < 1) {
+      fail(
+        "mutation.fixture_font_fallback",
+        "fixture font audit observed no rendered custom glyphs",
+      );
+    }
+  } catch (error) {
+    auditFailure = { error };
+  }
+  let detachFailure: { readonly error: unknown } | undefined;
+  try {
+    await client.detach();
+  } catch (error) {
+    detachFailure = { error };
+  }
+  if (auditFailure !== undefined) {
+    if (auditFailure.error instanceof MutationRuntimeError) {
+      if (detachFailure === undefined) {
+        throw auditFailure.error;
+      }
+      throw new MutationRuntimeError(
+        auditFailure.error.code,
+        auditFailure.error.message,
+        {
+          cause: new AggregateError(
+            [auditFailure.error, detachFailure.error],
+            "fixture font audit and CDP cleanup both failed",
+          ),
+        },
+      );
+    }
+    fail(
+      "mutation.fixture_font_fallback",
+      "fixture platform-font usage could not be audited",
+      {
+        cause:
+          detachFailure === undefined
+            ? auditFailure.error
+            : new AggregateError(
+                [auditFailure.error, detachFailure.error],
+                "fixture font audit and CDP cleanup both failed",
+              ),
+      },
+    );
+  }
+  if (detachFailure !== undefined) {
+    fail(
+      "mutation.fixture_font_fallback",
+      "fixture platform-font audit session could not be detached",
+      { cause: detachFailure.error },
     );
   }
 }

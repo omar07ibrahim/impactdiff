@@ -151,24 +151,41 @@ under the SIL Open Font License 1.1, whose
 capture schema pins the three Playwright 1.61.1 package roots and Chromium Headless
 Shell registry revision 1228 (149.0.7827.55), while keeping its live source revision,
 complete installation tree, executable bytes, and normalized launch profile distinct.
+The host launcher requires all computed digests to equal the project's known-good
+closure; these are reproducibility pins, not vendor signatures.
 
 ### Verified Chromium mutation session
 
-`openMutationFixtureSession` accepts an already-running Chromium browser, the fixture
-directory, an upstream environment ID, and canonical source-state and action-plan
-artifacts. Before returning a session it:
+`launchMutationFixtureEnvironment` accepts the fixture directory, launches and owns the
+pinned Chromium Headless Shell, and returns a branded capability plus fresh copy-on-read
+canonical CaptureSpec bytes. `openMutationFixtureSession` accepts that capability and
+canonical source-state, action-plan, and CaptureSpec artifacts. Before returning a
+session, together they:
 
-- verifies the source-state `ArtifactRef` and canonical bytes, matches the exact closed
-  fixture package and initial state, then derives `source_state_id` from the reference;
-- verifies the exact action-plan `ArtifactRef`, canonical bytes, and supported primary
-  pointer target, then derives `task_id` from that reference;
-- derives the stable action-target ID from the fixture ID, revision, exact manifest
+- hash every regular file under the exact `@playwright/test`, `playwright`, and
+  `playwright-core` package roots, reject symbolic, hard-linked, and special entries,
+  validate package versions and the Headless Shell registry entry, then require the
+  resulting closure digest to equal the project pin;
+- hash the complete live browser installation and executable, read the live source
+  revision and command line through CDP, and bind a normalized launch profile that
+  substitutes only the binary and ephemeral user-data paths, with each live measurement
+  required to equal its project pin;
+- verify the exact WOFF2 before launch and prove at session initialization and before
+  every checkpoint that rendered glyphs use only that custom Noto Sans resource;
+- verify the source-state `ArtifactRef` and canonical bytes, match the exact closed
+  fixture package and initial state, then derive `source_state_id` from the reference;
+- verify the exact action-plan `ArtifactRef`, canonical bytes, and supported primary
+  pointer target, then derive `task_id` from that reference;
+- verify the exact CaptureSpec `ArtifactRef` and canonical bytes, require it to equal
+  the branded live environment, then derive `environment_id` from that reference;
+- derive the stable action-target ID from the fixture ID, revision, exact manifest
   digest, and fixed `test_id` locator rather than from a capture result;
-- verifies the exact fixture manifest digest, directory membership, resource byte
-  lengths and hashes, CSP, and the pinned browser engine/version;
-- creates a closed context with fixed viewport, locale, timezone, media preferences,
-  service-worker policy, and an explicit-only clock; and
-- serves only allowlisted in-memory fixture resources while aborting and recording
+- verify the exact fixture manifest digest, directory membership, resource byte lengths
+  and hashes, and CSP;
+- create the context, clock, and screenshot policy from the verified CaptureSpec, apply
+  its navigation and action fields as Playwright defaults, and bound its explicit
+  readiness wait; and
+- serve only allowlisted in-memory fixture resources while aborting and recording
   external or unexpected requests.
 
 `loadVerifiedMutationFixtureSourceState` performs the same exact directory, manifest,
@@ -178,32 +195,34 @@ fixture description when preparing the sealed artifact.
 
 The returned `MutationFixtureSession` is branded in a module-private `WeakMap`; copied
 objects and transplanted Playwright pages fail provenance checks. Operations are
-serialized so close cannot race a probe or mutation. A bounded in-memory enforcement
-audit accumulates network, CSP, page, and integrity events and makes close fail on a
-tainted session. A successful close returns only the fixture digest, served resources,
-and blocked external requests—not a durable event log. Retained element handles, exact
-DOM/CSS fingerprints, an early `MutationObserver`, task-state transitions, owned
-mutation nodes, and cleanup checks detect navigation, replacement, persistent tampering,
-and transient DOM changes. The runtime applies only the typed operations emitted by the
-mutation compiler; integration tests exercise the primary task with a real coordinate
-click through the trusted Playwright page.
+serialized so close cannot race a probe or mutation, and the environment permits only
+one active branded session lease. A context-cleanup failure permanently poisons that
+capability for capture reuse; browser shutdown remains retryable as cleanup. A bounded
+in-memory enforcement audit accumulates network, CSP, page, and integrity events and
+makes close fail on a tainted session. A successful close returns only the fixture
+digest, served resources, and blocked external requests—not a durable event log.
+Retained element handles, exact DOM/CSS fingerprints, an early `MutationObserver`,
+task-state transitions, owned mutation nodes, and cleanup checks detect navigation,
+replacement, persistent tampering, and transient DOM changes. The runtime applies only
+the typed operations emitted by the mutation compiler; integration tests exercise the
+primary task with a real coordinate click through the trusted Playwright page.
 
 `prepareMutationFixtureTask` lets the pinned renderer perform its deterministic initial
 scroll, records the resulting scroll and target rectangle, and then rejects geometry
 drift before execution. This happens before an optional mutation is probed or applied;
-the runtime does not yet compare that geometry to a capture-spec or golden artifact.
-`executeMutationFixtureTask` owns one serialized operation from the initial checkpoint
-through the true coordinate click and final checkpoint. Caller code cannot select a
-role, checkpoint ordinal, locator, or coordinate. The executor accepts only one primary
-pointer action with checkpoints before and after it, captures screenshot, DOM snapshot,
-and full accessibility tree in a fixed order, and exposes copy-on-read canonical
-modality bytes only after both checkpoints succeed. The initial layout must contain
-exactly one authenticated action target; the final target presence must match the
-measured closed task state. A failed technical capture poisons that run and cannot
-expose or retry a partial sequence. Chromium does not provide an atomic transaction
-spanning those three modalities. Their fixed sequential reads are justified only by the
-paused clock, blocked network, cooperative closed fixture, and authentication audits
-before and after each checkpoint.
+the runtime binds its viewport to the CaptureSpec but does not require one golden target
+rectangle shared across browser builds. `executeMutationFixtureTask` owns one serialized
+operation from the initial checkpoint through the true coordinate click and final
+checkpoint. Caller code cannot select a role, checkpoint ordinal, locator, or
+coordinate. The executor accepts only one primary pointer action with checkpoints before
+and after it, captures screenshot, DOM snapshot, and full accessibility tree in a fixed
+order, and exposes copy-on-read canonical modality bytes only after both checkpoints
+succeed. The initial layout must contain exactly one authenticated action target; the
+final target presence must match the measured closed task state. A failed technical
+capture poisons that run and cannot expose or retry a partial sequence. Chromium does
+not provide an atomic transaction spanning those three modalities. Their fixed
+sequential reads are justified only by the paused clock, blocked network, cooperative
+closed fixture, and authentication audits before and after each checkpoint.
 
 The returned task run is provisional generator state until an active mutation cleanup
 and `MutationFixtureSession.close()` both succeed. The future publisher must retain it
@@ -219,11 +238,15 @@ accessibility payloads. Fresh-session integration tests require byte-identical b
 modalities and distinguish the successful palette candidate from the blocked pointer
 candidate without treating task failure as an executor error.
 
-This boundary is intentionally narrower than a browser sandbox. `source_state_id` is no
-longer trusted upstream: it is derived from resolved sealed provenance. `environment_id`
-remains a trusted upstream input, and the session does not yet resolve the capture
-specification. It verifies the supplied browser's engine and reported version, but
-cannot prove the hash of an already-running browser binary. The public `session.page` is
+This boundary is intentionally narrower than a browser sandbox. Source, task, and
+environment IDs are all derived from resolved exact artifacts; callers cannot choose
+them independently. The byte-tree audit assumes trusted same-process intrinsics and no
+hostile concurrent filesystem writer, and host mode does not attest loaded process
+memory, Node, kernel, or system-library bytes. CaptureSpec's OCI branch is reserved for
+a future publisher with exact statement bytes and a configured trusted verifier; schema
+validation alone is not attestation verification, and this launcher creates host mode
+only. The navigation and action timeout fields are Playwright defaults rather than
+whole-phase deadlines for raw CDP or coordinate input. The public `session.page` is also
 a trusted same-process capability: code that controls it, or hostile page code that
 replaces JavaScript intrinsics and listener state, may evade page-realm checks. The
 runtime therefore attests the exact fixture and its cooperative audited execution, not

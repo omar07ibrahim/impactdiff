@@ -620,18 +620,22 @@ export const captureSpecSchema = {
           type: "integer",
           minimum: 1,
           maximum: 60_000,
+          description:
+            "Applied as the Playwright page default navigation timeout, including the fixture goto; it is not a wall-clock deadline for later CDP audits.",
         },
         readiness_timeout_ms: {
           type: "integer",
           minimum: 1,
           maximum: 60_000,
+          description:
+            "Bounds the explicit fixture readiness wait; subsequent integrity and platform-font probes fail closed independently but are not included in this timer.",
         },
         action_timeout_ms: {
           type: "integer",
           minimum: 1,
           maximum: 10_000,
           description:
-            "Applied as the Playwright page default timeout before any planned action executes.",
+            "Applied as the Playwright page default DOM-operation timeout before planned execution; Mouse.click and raw CDP calls do not consume this default.",
         },
         maximum_pending_requests: {
           const: 0,

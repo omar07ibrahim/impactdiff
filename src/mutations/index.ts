@@ -40,6 +40,11 @@ export type {
   SourceProbe,
 } from "./schema.js";
 export {
+  launchMutationFixtureEnvironment,
+  MutationFixtureEnvironment,
+} from "./environment.js";
+export type { MutationFixtureCaptureSpecArtifact } from "./environment.js";
+export {
   applyCompiledMutation,
   executeMutationFixtureTask,
   loadVerifiedMutationFixtureSourceState,

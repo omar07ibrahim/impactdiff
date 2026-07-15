@@ -35,18 +35,22 @@ Implemented today:
 - a typed, reversible mutation compiler for a contrast-safe palette swap and a pointer
   interceptor expected to break the task, with source probes and derived preconditions;
   and
-- a verified Chromium mutation session over a deterministic checkout fixture. It binds
-  exact action-plan bytes, fixture resources, reported browser version, CSP, virtual
-  time, network policy, DOM/CSS integrity, and exact mutation cleanup. Its authenticated
-  task executor derives and locks deterministic scroll/target geometry, performs a true
-  coordinate click, then emits two canonical PNG, accessibility-tree, and layout-graph
-  checkpoints without exposing a partial run.
+- a runtime-owned Chromium mutation environment over a deterministic checkout fixture.
+  It derives environment identity from canonical CaptureSpec bytes that bind installed
+  Playwright and browser trees, the project-pinned live executable and launch profile,
+  declared font bytes, and capture settings. The session separately verifies fixture
+  resources, CSP, actual custom-font use, virtual time, network policy, DOM/CSS
+  integrity, and exact mutation cleanup. Its authenticated task executor derives and
+  locks deterministic scroll/target geometry, performs a true coordinate click, then
+  emits two canonical PNG, accessibility-tree, and layout-graph checkpoints without
+  exposing a partial run.
 
 The capture contract names the exact installed file trees for `@playwright/test`,
 `playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
 complete installation tree, source revision, and normalized launch profile; every
-render-font file; and either an honest Linux host or an externally verified OCI subject.
-The verified single-role capture path and mutation runtime are implemented; assembling
+render-font file; and an honest Linux host or an OCI shape reserved for external
+attestation verification. The current launcher produces a host capability only. The
+verified single-role capture path and mutation runtime are implemented; assembling
 baseline and candidate roles into one audited publication is still pending. Learned
 baselines come only after that path is auditable end to end.
 
@@ -57,7 +61,8 @@ pipeline, not a claim about shipped data or models.
 
 ```mermaid
 flowchart LR
-  fixture["Pinned fixture bytes"] --> session["Verified Chromium session"]
+  fixture["Pinned fixture bytes"] --> environment["Owned capture environment"]
+  environment -->|"branded browser + CaptureSpec"| session["Verified Chromium session"]
   source["Sealed source-state provenance"] --> session
   actions["Canonical action plan"] --> session
   session --> probe["Live source probe"]

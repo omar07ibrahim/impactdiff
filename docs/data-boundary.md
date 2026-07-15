@@ -48,17 +48,22 @@ documented in [contract invariants](contract-invariants.md).
 ## Generation-side browser boundary
 
 The fixture session belongs to the trusted generator, never to the model-visible feature
-process. It receives canonical visible action-plan bytes and sealed mutation
-instructions, verifies the fixed fixture resources and browser version, blocks external
-traffic, audits DOM/CSS/CSP/clock state, and requires exact rollback of its owned
-mutation node. Its single-role task executor fixes preparation before mutation, holds
-the authenticated operation lock across both checkpoints and the real coordinate click,
-and returns canonical screenshot, accessibility, and layout bytes only as a complete
-two-checkpoint sequence. The action plan determines `task_id`; mutation family,
-operator, preconditions, cleanup state, and blocked-task result remain generator-side or
-label-side data. Detailed integrity events exist only in bounded in-memory enforcement
-state; a successful close exposes a small generator-side summary, not a durable trace
-for the model.
+process. Its launcher owns the Chromium process and creates canonical CaptureSpec bytes
+only after hashing the installed Playwright roots, complete browser installation, live
+executable/command line, and exact declared font, and requiring the software
+measurements to equal project pins. The session resolves exact source-state,
+action-plan, and CaptureSpec artifacts; derives `source_state_id`, `task_id`, and
+`environment_id` from their references; blocks external traffic; audits actual
+custom-font use at initialization and every checkpoint plus DOM/CSS/CSP/clock state; and
+requires exact rollback of its owned mutation node. It allows one active branded session
+lease and poisons the environment after any unconfirmed context cleanup. Its single-role
+task executor fixes preparation before mutation, holds the authenticated operation lock
+across both checkpoints and the real coordinate click, and returns canonical screenshot,
+accessibility, and layout bytes only as a complete two-checkpoint sequence. Mutation
+family, operator, preconditions, cleanup state, and blocked-task result remain
+generator-side or label-side data. Detailed integrity events exist only in bounded
+in-memory enforcement state; a successful close exposes a small generator-side summary,
+not a durable trace for the model.
 
 At this trusted-generator layer, `MutationFixtureTaskRun` still returns copy-on-read
 canonical modalities and the measured task outcome together. It is provisional until
@@ -67,12 +72,12 @@ artifact. The pending publisher must keep it in private staging, discard it afte
 lifecycle failure, write modality bytes to the visible store, and derive and write
 outcome, trace, intervention, and label artifacts only to the sealed store.
 
-This is not yet the dataset-publication boundary. The session resolves canonical sealed
-source-state bytes and derives `source_state_id`, but still trusts upstream
-`environment_id`, cannot attest the hash of a Browser process that is already running,
-and exposes a same-process Playwright `Page` capability to trusted generator code. A
-complete publisher must still bind the captured modalities to the canonical capture
-specification, store them under their exact visible references, move traces and outcomes
+This is not yet the dataset-publication boundary. The launcher verifies project-pinned
+installed bytes and the live process command line under a trusted same-process,
+non-hostile filesystem boundary; host mode does not attest loaded process memory, the
+Node binary, kernel or system libraries. The session also exposes a same-process
+Playwright `Page` capability to trusted generator code. A complete publisher must still
+store captured modalities under their exact visible references, move traces and outcomes
 to the sealed root, audit both stores, and mount only the visible root into an isolated
 feature process.
 
@@ -100,23 +105,26 @@ learned features.
 
 The capture specification describes only the renderer and environment: exact installed
 Playwright file trees, browser distribution/executable/source revision/launch profile,
-the browser's complete installation file tree, an honest host or externally verified OCI
-execution subject, a closed list of exact render-font files, viewport, locale, timezone,
-media, virtual clock, screenshot policy, network policy, budgets, and geometry
-quantization. It intentionally contains neither application source revision nor mutation
-operator. Source-state identity and the task reference are separate visible fields,
-while operator identity/version stay in the sealed record. The sealed record references
-a canonical source-state artifact with the fixture revision, raw manifest digest,
-resource set, and initial-state policy. The runtime resolves that artifact and matches
-it to the exact fixture package; the future publisher must materialize it only in the
-sealed store.
+the browser's complete installation file tree, an honest host or OCI execution shape
+reserved for external verification, a closed list of exact render-font files, viewport,
+locale, timezone, media, virtual clock, screenshot policy, network policy, budgets, and
+geometry quantization. It intentionally contains neither application source revision nor
+mutation operator. Source-state identity and the task reference are separate visible
+fields, while operator identity/version stay in the sealed record. The sealed record
+references a canonical source-state artifact with the fixture revision, raw manifest
+digest, resource set, and initial-state policy. The runtime resolves that artifact and
+matches it to the exact fixture package; the future publisher must materialize it only
+in the sealed store.
 
 Host execution records only `linux/amd64` and makes no container-image claim; it is a
 development capture mode, not a reproducible base-image attestation. OCI execution
 instead names the immutable base image before the repository, fixture, or CaptureSpec is
 mounted, and is acceptable only after an external trusted orchestrator verifies the
-referenced in-toto subject. This split avoids both fictitious host digests and an image
-that would need to contain its own hash.
+referenced in-toto subject and exact statement bytes. Today that branch is structural
+and reserved: the launcher emits host mode, the host capability rejects a different OCI
+CaptureSpec, and schema validation alone does not verify an attestation. This split
+avoids both fictitious host digests and an image that would need to contain its own
+hash.
 
 ## Sealed record
 
