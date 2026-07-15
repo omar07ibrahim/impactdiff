@@ -122,9 +122,9 @@ Four closed capture payloads establish the model-visible surface:
 - the action plan is non-branching, uses a bounded action vocabulary, and fixes an
   initial/final checkpoint schedule before execution;
 - the capture specification pins exact installed Playwright file trees, browser
-  executable/source revision/launch profile, execution mode, render-font files, display,
-  locale, timezone, media, virtual clock, network policy, budgets, and Q64 geometry
-  rules;
+  installation tree/executable/source revision/launch profile, execution mode,
+  render-font files, display, locale, timezone, media, virtual clock, network policy,
+  budgets, and Q64 geometry rules;
 - the accessibility snapshot is a bounded normalized preorder tree with allowlisted
   roles and states; and
 - the layout snapshot is a bounded normalized preorder graph containing Q64 boxes,
@@ -150,7 +150,7 @@ under the SIL Open Font License 1.1, whose
 [text is shipped beside the font](../fixtures/checkout-card-v1/fonts/OFL-1.1.txt). The
 capture schema pins the three Playwright 1.61.1 package roots and Chromium Headless
 Shell registry revision 1228 (149.0.7827.55), while keeping its live source revision,
-executable bytes, and normalized launch profile distinct.
+complete installation tree, executable bytes, and normalized launch profile distinct.
 
 ### Verified Chromium mutation session
 

@@ -100,15 +100,16 @@ learned features.
 
 The capture specification describes only the renderer and environment: exact installed
 Playwright file trees, browser distribution/executable/source revision/launch profile,
-an honest host or externally verified OCI execution subject, a closed list of exact
-render-font files, viewport, locale, timezone, media, virtual clock, screenshot policy,
-network policy, budgets, and geometry quantization. It intentionally contains neither
-application source revision nor mutation operator. Source-state identity and the task
-reference are separate visible fields, while operator identity/version stay in the
-sealed record. The sealed record references a canonical source-state artifact with the
-fixture revision, raw manifest digest, resource set, and initial-state policy. The
-runtime resolves that artifact and matches it to the exact fixture package; the future
-publisher must materialize it only in the sealed store.
+the browser's complete installation file tree, an honest host or externally verified OCI
+execution subject, a closed list of exact render-font files, viewport, locale, timezone,
+media, virtual clock, screenshot policy, network policy, budgets, and geometry
+quantization. It intentionally contains neither application source revision nor mutation
+operator. Source-state identity and the task reference are separate visible fields,
+while operator identity/version stay in the sealed record. The sealed record references
+a canonical source-state artifact with the fixture revision, raw manifest digest,
+resource set, and initial-state policy. The runtime resolves that artifact and matches
+it to the exact fixture package; the future publisher must materialize it only in the
+sealed store.
 
 Host execution records only `linux/amd64` and makes no container-image claim; it is a
 development capture mode, not a reproducible base-image attestation. OCI execution

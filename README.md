@@ -44,11 +44,11 @@ Implemented today:
 
 The capture contract names the exact installed file trees for `@playwright/test`,
 `playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
-source revision, and normalized launch profile; every render-font file; and either an
-honest Linux host or an externally verified OCI subject. The verified single-role
-capture path and mutation runtime are implemented; assembling baseline and candidate
-roles into one audited publication is still pending. Learned baselines come only after
-that path is auditable end to end.
+complete installation tree, source revision, and normalized launch profile; every
+render-font file; and either an honest Linux host or an externally verified OCI subject.
+The verified single-role capture path and mutation runtime are implemented; assembling
+baseline and candidate roles into one audited publication is still pending. Learned
+baselines come only after that path is auditable end to end.
 
 ## Architecture
 

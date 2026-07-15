@@ -142,6 +142,7 @@ const captureSpec = {
       playwright_registry_revision: "1228",
       version: "149.0.7827.55",
       source_revision: "3188f8a607ae7e067593be8aab7f02d2451fec07",
+      installation_file_tree_sha256: digest("9"),
       executable_sha256: digest("2"),
       launch_profile_sha256: digest("3"),
     },

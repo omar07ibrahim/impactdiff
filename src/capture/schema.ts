@@ -424,6 +424,7 @@ export const captureSpecSchema = {
             "playwright_registry_revision",
             "version",
             "source_revision",
+            "installation_file_tree_sha256",
             "executable_sha256",
             "launch_profile_sha256",
           ],
@@ -445,6 +446,12 @@ export const captureSpecSchema = {
               pattern: sourceRevisionPattern,
               description:
                 "Lowercase 40-hex Chromium source revision reported live by Browser.getVersion, without its leading @ marker.",
+            },
+            installation_file_tree_sha256: {
+              type: "string",
+              pattern: sha256Pattern,
+              description:
+                "SHA-256 of RFC 8785 canonical JSON {contract:'impactdiff.chromium-installation-file-tree',version:1,distribution,playwright_registry_revision,files:[...]}. It covers every regular file in the launched executable's installation directory, sorted by normalized POSIX-relative path with byte length and per-file SHA-256; symbolic links and special entries are forbidden.",
             },
             executable_sha256: {
               type: "string",
