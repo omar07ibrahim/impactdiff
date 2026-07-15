@@ -16,13 +16,25 @@ import { ArtifactPayloadError } from "./errors.js";
 const pngSignature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 const maximumChunks = 1_024;
 const allowedCriticalChunks = new Set(["IHDR", "PLTE", "IDAT", "IEND"]);
+const canonicalPngCapability: unique symbol = Symbol("CanonicalPng capability");
 
 export class CanonicalPng {
   readonly width: number;
   readonly height: number;
   readonly #bytes: Buffer;
 
-  constructor(bytes: Uint8Array, width: number, height: number) {
+  constructor(
+    capability: typeof canonicalPngCapability,
+    bytes: Uint8Array,
+    width: number,
+    height: number,
+  ) {
+    if (capability !== canonicalPngCapability) {
+      fail(
+        "png.capability",
+        "CanonicalPng values can only be created by the canonical PNG decoder",
+      );
+    }
     const byteLength = intrinsicUint8ArrayByteLength(bytes);
     if (byteLength === null || byteLength < 1 || byteLength > maximumCapturePngBytes) {
       fail("png.byte_length", `PNG exceeds ${maximumCapturePngBytes} bytes`);
@@ -368,5 +380,5 @@ export function canonicalizePng(
     fail("png.encoder_chunk", "canonical encoder emitted an unexpected chunk");
   }
 
-  return new CanonicalPng(bytes, decoded.width, decoded.height);
+  return new CanonicalPng(canonicalPngCapability, bytes, decoded.width, decoded.height);
 }

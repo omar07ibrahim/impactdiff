@@ -6,7 +6,7 @@ import { deflateSync } from "node:zlib";
 import { PNG } from "pngjs";
 
 import { ArtifactPayloadError } from "../src/artifacts/errors.js";
-import { canonicalizePng } from "../src/artifacts/png.js";
+import { CanonicalPng, canonicalizePng } from "../src/artifacts/png.js";
 
 const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
@@ -303,4 +303,28 @@ test("capture dimensions are bound to the canonical payload", () => {
     (error: unknown) =>
       error instanceof ArtifactPayloadError && error.code === "png.dimension_mismatch",
   );
+});
+
+test("CanonicalPng construction requires the module-private capability", () => {
+  const source = rgbaPng(2, 2, opaquePixels);
+  const RuntimeCanonicalPng = CanonicalPng as unknown as new (
+    ...arguments_: readonly unknown[]
+  ) => CanonicalPng;
+
+  assert.throws(
+    () => new RuntimeCanonicalPng(source, 2, 2),
+    (error: unknown) =>
+      error instanceof ArtifactPayloadError && error.code === "png.capability",
+  );
+  assert.throws(
+    () => new RuntimeCanonicalPng(Symbol("guessed capability"), source, 2, 2),
+    (error: unknown) =>
+      error instanceof ArtifactPayloadError && error.code === "png.capability",
+  );
+
+  const canonical = canonicalizePng(source);
+  assert.ok(canonical instanceof CanonicalPng);
+  const callerCopy = canonical.bytes;
+  callerCopy.fill(0);
+  assert.notDeepEqual(canonical.bytes, callerCopy);
 });
