@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 
 import canonicalize from "canonicalize";
 
+import { intrinsicUint8ArrayByteLength, snapshotUint8Array } from "./byte-array.js";
+
 export type JsonValue =
   | null
   | boolean
@@ -212,6 +214,26 @@ const defaultLimits: ParseLimits = {
   maximumDepth: 32,
   maximumValues: 100_000,
 };
+
+function validateParseLimit(name: keyof ParseLimits, value: number): number {
+  if (!Number.isSafeInteger(value) || value < 1) {
+    throw new CanonicalJsonError(
+      "json.limit",
+      0,
+      `${name} must be a positive safe integer`,
+    );
+  }
+  return value;
+}
+
+function resolveParseLimits(limits: Partial<ParseLimits>): ParseLimits {
+  const resolved = { ...defaultLimits, ...limits };
+  return Object.freeze({
+    maximumBytes: validateParseLimit("maximumBytes", resolved.maximumBytes),
+    maximumDepth: validateParseLimit("maximumDepth", resolved.maximumDepth),
+    maximumValues: validateParseLimit("maximumValues", resolved.maximumValues),
+  });
+}
 
 const isWhitespace = (character: string | undefined): boolean =>
   character === " " || character === "\n" || character === "\r" || character === "\t";
@@ -522,7 +544,16 @@ class StrictJsonParser {
 
 function decodeUtf8(input: string | Uint8Array, maximumBytes: number): string {
   const byteLength =
-    typeof input === "string" ? Buffer.byteLength(input, "utf8") : input.byteLength;
+    typeof input === "string"
+      ? Buffer.byteLength(input, "utf8")
+      : intrinsicUint8ArrayByteLength(input);
+  if (byteLength === null) {
+    throw new CanonicalJsonError(
+      "json.input",
+      0,
+      "canonical JSON input must be a genuine byte array",
+    );
+  }
   if (byteLength > maximumBytes) {
     throw new CanonicalJsonError(
       "json.byte_length",
@@ -536,7 +567,8 @@ function decodeUtf8(input: string | Uint8Array, maximumBytes: number): string {
   }
 
   try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(input);
+    const snapshot = snapshotUint8Array(input, byteLength);
+    return new TextDecoder("utf-8", { fatal: true }).decode(snapshot);
   } catch {
     throw new CanonicalJsonError("json.utf8", 0, "invalid UTF-8 input");
   }
@@ -554,7 +586,7 @@ export function parseCanonicalJson(
   input: string | Uint8Array,
   limits: Partial<ParseLimits> = {},
 ): JsonValue {
-  const resolvedLimits = { ...defaultLimits, ...limits };
+  const resolvedLimits = resolveParseLimits(limits);
   const text = decodeUtf8(input, resolvedLimits.maximumBytes);
   if (text.startsWith("\uFEFF")) {
     throw new CanonicalJsonError("json.bom", 0, "a UTF-8 BOM is not allowed");
@@ -571,7 +603,23 @@ export function parseCanonicalJson(
 }
 
 export function sha256Hex(input: string | Uint8Array): string {
-  return createHash("sha256").update(input).digest("hex");
+  if (typeof input === "string") {
+    return createHash("sha256").update(input).digest("hex");
+  }
+
+  const byteLength = intrinsicUint8ArrayByteLength(input);
+  if (byteLength === null) {
+    throw new TypeError("SHA-256 input must be a fixed, unshared genuine byte array");
+  }
+  let snapshot: Buffer;
+  try {
+    snapshot = snapshotUint8Array(input, byteLength);
+  } catch (error) {
+    throw new TypeError("SHA-256 input could not be copied into a stable snapshot", {
+      cause: error,
+    });
+  }
+  return createHash("sha256").update(snapshot).digest("hex");
 }
 
 export function canonicalSha256(value: unknown): string {

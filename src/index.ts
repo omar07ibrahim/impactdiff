@@ -33,6 +33,16 @@ export type {
 export { validateDatasetBundle } from "./contracts/dataset.js";
 export type { DatasetBundle, DatasetPairInput } from "./contracts/dataset.js";
 export {
+  validateResolvedEvidenceBundle,
+  validateResolvedInterventionBundle,
+} from "./contracts/resolved.js";
+export type {
+  ResolvedCaptureCheckpoint,
+  ResolvedEvidenceBundle,
+  ResolvedInterventionBundle,
+} from "./contracts/resolved.js";
+export type { ArtifactRef } from "./contracts/artifacts.js";
+export {
   canonicalJson,
   canonicalSha256,
   CanonicalJsonError,
@@ -54,3 +64,29 @@ export {
   sha256Hex,
 } from "./contracts/canonical.js";
 export type { JsonValue, ParseLimits } from "./contracts/canonical.js";
+export {
+  ARTIFACT_STORE_V1_THREAT_MODEL,
+  ArtifactStore,
+  assertDisjointArtifactStores,
+  auditArtifactStorePair,
+  validateArtifactReference,
+} from "./artifacts/cas.js";
+export type {
+  ArtifactAuditEntry,
+  ArtifactCodec,
+  ArtifactDecoder,
+  ArtifactStoreAudit,
+} from "./artifacts/cas.js";
+export { ArtifactPayloadError, ArtifactStoreError } from "./artifacts/errors.js";
+export {
+  accessibilityCodec,
+  actionPlanCodec,
+  captureSpecCodec,
+  layoutCodec,
+  mutationPlanCodec,
+  pngCodec,
+  preconditionReportCodec,
+} from "./artifacts/codecs.js";
+export { CanonicalPng, canonicalizePng } from "./artifacts/png.js";
+export * from "./capture/index.js";
+export * from "./mutations/index.js";

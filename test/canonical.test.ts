@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import {
@@ -76,6 +77,18 @@ test("strict decoding rejects invalid Unicode and UTF-8", () => {
   expectCanonicalError(new Uint8Array([0xff]), "json.utf8");
   expectCanonicalError('{"a":"\\ud800"}', "json.unpaired_surrogate");
   expectCanonicalError('{"a":"é"}', "json.non_nfc_string");
+
+  const ResizableArrayBuffer = ArrayBuffer as unknown as new (
+    byteLength: number,
+    options: { readonly maxByteLength: number },
+  ) => ArrayBuffer;
+  const resizable = new Uint8Array(new ResizableArrayBuffer(2, { maxByteLength: 4 }));
+  resizable.set(new TextEncoder().encode("{}"));
+  expectCanonicalError(resizable, "json.input");
+
+  const shared = new Uint8Array(new SharedArrayBuffer(2));
+  shared.set(new TextEncoder().encode("{}"));
+  expectCanonicalError(shared, "json.input");
 });
 
 test("contract numbers are exact safe integers", () => {
@@ -101,6 +114,65 @@ test("decoder resource limits fail closed", () => {
     (error: unknown) =>
       error instanceof CanonicalJsonError && error.code === "json.value_count",
   );
+
+  const shadowedLength = new Uint8Array(5);
+  shadowedLength.set(new TextEncoder().encode("null "));
+  Object.defineProperty(shadowedLength, "byteLength", { value: 1 });
+  assert.throws(
+    () => parseCanonicalJson(shadowedLength, { maximumBytes: 4 }),
+    (error: unknown) =>
+      error instanceof CanonicalJsonError && error.code === "json.byte_length",
+  );
+});
+
+test("decoder rejects malformed resource-limit overrides", () => {
+  const invalidValues = [
+    undefined,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+    0,
+    -1,
+    1.5,
+    Number.MAX_SAFE_INTEGER + 1,
+  ] as const;
+
+  for (const name of ["maximumBytes", "maximumDepth", "maximumValues"] as const) {
+    for (const value of invalidValues) {
+      const limits = { [name]: value } as unknown as Partial<
+        import("../src/contracts/canonical.js").ParseLimits
+      >;
+      assert.throws(
+        () => parseCanonicalJson("0", limits),
+        (error: unknown) =>
+          error instanceof CanonicalJsonError && error.code === "json.limit",
+        `${name} accepted ${String(value)}`,
+      );
+    }
+  }
+
+  assert.equal(parseCanonicalJson("0", { maximumBytes: 1 }), 0);
+  assert.equal(parseCanonicalJson("0", { maximumDepth: 1 }), 0);
+  assert.equal(parseCanonicalJson("0", { maximumValues: 1 }), 0);
+});
+
+test("SHA-256 snapshots fixed byte views and rejects unstable backing memory", () => {
+  const fixed = new TextEncoder().encode("impactdiff");
+  Object.defineProperty(fixed, "byteLength", { value: 1 });
+  assert.equal(
+    sha256Hex(fixed),
+    createHash("sha256").update("impactdiff").digest("hex"),
+  );
+
+  const shared = new Uint8Array(new SharedArrayBuffer(4));
+  assert.throws(() => sha256Hex(shared), TypeError);
+
+  const ResizableArrayBuffer = ArrayBuffer as unknown as new (
+    byteLength: number,
+    options: { readonly maxByteLength: number },
+  ) => ArrayBuffer;
+  const resizable = new Uint8Array(new ResizableArrayBuffer(4, { maxByteLength: 8 }));
+  assert.throws(() => sha256Hex(resizable), TypeError);
 });
 
 test("domain-separated identities bind their canonical bodies", () => {

@@ -1,9 +1,9 @@
 # Contract invariants
 
 The v1 contract is an executable trust boundary. JSON Schema establishes the shape of
-each manifest; runtime validators establish relationships that a schema cannot express.
-Validation returns a fresh, recursively frozen data tree so callers never retain hidden
-JavaScript state through a typed result.
+each manifest and capture payload; runtime validators establish relationships that a
+schema cannot express. Validation returns a fresh, recursively frozen data tree so
+callers never retain hidden JavaScript state through a typed result.
 
 ## Strict JSON boundary
 
@@ -49,19 +49,165 @@ The artifact budget is measured as unique content-addressed storage bytes. Repea
 references with identical metadata count once; the same digest with conflicting media,
 length, or format metadata is invalid.
 
-## What manifest validation does not prove
+## Resolved artifact boundary
 
-An artifact reference proves identity and declared metadata, not that the referenced
-bytes are safe. The materializer must resolve every digest, verify byte length and hash,
-decode each media type with bounded parsers, strip PNG ancillary metadata, and validate
-the action-plan, capture-spec, accessibility, and layout payload schemas. That resolved
-artifact layer is part of the capture milestone and must land before a public benchmark
-is claimed leakage-safe.
+An artifact reference alone proves only a declared digest, media type, format version,
+and byte length. `ArtifactStore` adds the resolved-byte boundary. A store opens with an
+explicit set of codecs, with exactly one registered codec per media type. Every write:
 
-Likewise, record-only checks establish label consistency; the future versioned scorer
+1. checks both the store and codec byte budgets;
+2. canonicalizes and validates the payload before hashing;
+3. canonicalizes the result again and rejects a non-idempotent codec; and
+4. publishes the canonical bytes at a digest-derived path.
+
+Reads and audits do not trust publication. They open the leaf without following
+symlinks, compare path and file-descriptor identity, require a regular single-link file,
+read with an exact byte budget, verify stable metadata and SHA-256, then run the
+registered codec again. Stored bytes must already equal the codec's canonical output. An
+audit requires exact reference-to-store membership and seals that `ArtifactStore`
+instance against later writes. A paired audit also rejects nested or aliased visible and
+sealed roots, shared digests, and shared inodes.
+
+Published roots and shard directories must belong to the current uid with exact mode
+`0700`; artifact leaves must have exact mode `0400`. Publication uses a private
+temporary file, fsync, and atomic rename under the threat boundary below. Unexpected
+files, abandoned temporary entries, symlinks, hardlinks, ownership changes, and
+permission drift fail closed.
+
+### ArtifactStore v1 threat boundary
+
+The supported v1 deployment is a private staging root with one process, one same-process
+`ArtifactStore` instance, and one logical writer. The instance serializes its own
+publication and audit operations.
+
+External processes, a second writer—including another process running as the same
+uid—and hostile concurrent filesystem mutation are explicitly out of scope. Unix mode
+bits do not defend a file from another process with the same uid. Supporting that model
+requires an `openat2`/`renameat2`-backed native helper plus inter-process locking; the
+Node path-based implementation does not claim that guarantee.
+
+## Canonical capture payloads
+
+The registered production codecs cover the action plan, capture specification,
+accessibility snapshot, layout snapshot, mutation plan, precondition report, and PNG
+screenshot. JSON codecs parse the bounded canonical document, validate its closed v1
+schema and semantic invariants, then emit canonical JSON again.
+
+The resolved evidence validator composes those payload guarantees for bytes supplied by
+an artifact resolver. It checks each digest, byte length, media type, and format
+version; requires already-canonical payloads; binds screenshot dimensions to the capture
+viewport; matches both checkpoint sequences to the fixed action-plan schedule; and
+applies the action/accessibility/layout graph checks at every checkpoint. The resolved
+intervention validator similarly composes one visible manifest, sealed record, mutation
+plan, and precondition report, then checks their exact references and source, task,
+environment, operator, instance, and expected-relation bindings.
+
+These validators deliberately accept resolved bytes rather than paths. They prove the
+composition of the supplied payload bundle, not that an arbitrary external resolver or
+filesystem mount is trustworthy.
+
+PNG handling is decode-and-reencode canonicalization, not metadata filtering by name.
+The decoder verifies every chunk CRC, enforces chunk, byte, dimension, pixel, and exact
+inflate budgets, accepts only bounded non-interlaced eight-bit RGB, indexed, or RGBA
+images, and rejects APNG and unknown critical chunks. Decoded pixels are normalized to
+RGBA, RGB beneath zero alpha is cleared, and a deterministic encoder emits only
+`IHDR`/`IDAT`/`IEND`. The PNG codec can also bind the decoded image to the dimensions in
+the capture specification.
+
+Four closed capture payloads establish the model-visible surface:
+
+- the action plan is non-branching, uses a bounded action vocabulary, and fixes an
+  initial/final checkpoint schedule before execution;
+- the capture specification pins renderer configuration, display, locale, timezone,
+  media, virtual clock, network policy, font bundle, budgets, and Q64 geometry rules;
+- the accessibility snapshot is a bounded normalized preorder tree with allowlisted
+  roles and states; and
+- the layout snapshot is a bounded normalized preorder graph containing Q64 boxes,
+  selected computed style, paint order, and opaque action-target links.
+
+The capture specification contains renderer/environment provenance only. The evidence
+manifest carries a separate opaque source-state identity and task reference, but v1 does
+not yet carry a source-resource-manifest reference. The closed fixture runtime verifies
+its revision and resource manifest independently; a future publisher must bind that
+reconstruction provenance into the dataset while keeping operator identity/version
+sealed. Raw browser node IDs are used only inside the normalization adapter and cannot
+appear in normalized accessibility/layout payloads. The normalizers reject ambiguous,
+dangling, cyclic, disconnected, overdeep, oversized, or non-finite input; the payload
+validators enforce cross-graph action and accessibility links.
+
+The `checkout-card-v1` fixture is self-contained: its manifest pins the fixture revision
+and hashes every HTML, CSS, JavaScript, font, and license resource; its CSP denies
+external connections; and readiness is published only after the vendored font loads. The
+Latin variable WOFF2 comes from `@fontsource-variable/noto-sans@5.2.10` and remains
+under the SIL Open Font License 1.1, whose
+[text is shipped beside the font](../fixtures/checkout-card-v1/fonts/OFL-1.1.txt). The
+capture schema pins Playwright 1.61.1 and Chromium revision 1228 (149.0.7827.55).
+
+### Verified Chromium mutation session
+
+`openMutationFixtureSession` accepts an already-running Chromium browser, the fixture
+directory, and upstream source/environment IDs plus canonical action-plan bytes. Before
+returning a session it:
+
+- verifies the exact action-plan `ArtifactRef`, canonical bytes, and supported primary
+  pointer target, then derives `task_id` from that reference;
+- derives the stable action-target ID from the fixture ID, revision, exact manifest
+  digest, and fixed `test_id` locator rather than from a capture result;
+- verifies the exact fixture manifest digest, directory membership, resource byte
+  lengths and hashes, CSP, and the pinned browser engine/version;
+- creates a closed context with fixed viewport, locale, timezone, media preferences,
+  service-worker policy, and an explicit-only clock; and
+- serves only allowlisted in-memory fixture resources while aborting and recording
+  external or unexpected requests.
+
+The returned `MutationFixtureSession` is branded in a module-private `WeakMap`; copied
+objects and transplanted Playwright pages fail provenance checks. Operations are
+serialized so close cannot race a probe or mutation. A bounded in-memory enforcement
+audit accumulates network, CSP, page, and integrity events and makes close fail on a
+tainted session. A successful close returns only the fixture digest, served resources,
+and blocked external requests—not a durable event log. Retained element handles, exact
+DOM/CSS fingerprints, an early `MutationObserver`, task-state transitions, owned
+mutation nodes, and cleanup checks detect navigation, replacement, persistent tampering,
+and transient DOM changes. The runtime applies only the typed operations emitted by the
+mutation compiler; integration tests exercise the primary task with a real coordinate
+click through the trusted Playwright page.
+
+This boundary is intentionally narrower than a browser sandbox. `source_state_id` and
+`environment_id` are trusted upstream inputs; the session does not recompute them from a
+source package or capture specification. It verifies the supplied browser's engine and
+reported version, but cannot prove the hash of an already-running browser binary. The
+public `session.page` is a trusted same-process capability: code that controls it, or
+hostile page code that replaces JavaScript intrinsics and listener state, may evade
+page-realm checks. The runtime therefore attests the exact fixture and its cooperative
+audited execution, not arbitrary JavaScript pages. Complete paired-capture assembly is
+still pending.
+
+## Reversible mutation compilation
+
+Mutation requests, source probes, precondition reports, and plans are closed sealed
+contracts. Domain-separated identities bind the exact source state, task, environment,
+operator, target, and replicate in an outcome-free request body; the contract does not
+attest when a producer created that body. Preconditions are deterministically derived
+from the embedded request and probe; failed checks yield an explicit `not_applicable`
+result rather than a fallback plan.
+
+The v1 compiler supports two fixed operators: a contrast-checked `palette_swap` expected
+to preserve the task and a `pointer_interceptor` expected to break pointer hit testing.
+Plans carry one typed forward operation and an inverse that removes the same owned
+handle. They accept only a bounded `test_id` locator and fixed opcodes—no arbitrary
+JavaScript, CSS, selectors, or free-form mutation payload. Expected task relation is
+sealed provenance and never substitutes for the measured execution label.
+
+## What remains unproven
+
+The repository does not yet assemble and mount a complete read-only visible dataset for
+an isolated feature process. The paired-capture executor, full oracle/trace codecs,
+changed-surface validation, and versioned scorer are also still incomplete. The scorer
 must recompute severity, failed-step membership, and localization from resolved oracle,
-trace, action-plan, and policy artifacts. Until then, this repository makes no benchmark
-quality or model-accuracy claim.
+trace, action-plan, and policy artifacts.
+
+Until the full generation and scoring path is exercised on a released corpus, this
+repository makes no benchmark-quality, leakage-safety, or model-accuracy claim.
 
 ## Public validation flow
 

@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-src 'none'; img-src 'none'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'nonce-aW1wYWN0ZGlmZi1jaGVja291dC12MQ=='; worker-src 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Review your order | Northstar Supply</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main
+      class="checkout-shell"
+      data-state="review"
+      data-testid="app-root"
+      aria-labelledby="checkout-title"
+    >
+      <header class="merchant-header" aria-label="Merchant">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">NS</span>
+          <span class="brand-name">Northstar Supply</span>
+        </div>
+        <span class="checkout-step">Checkout · Review</span>
+      </header>
+
+      <div class="page-frame">
+        <section class="review-panel" data-testid="checkout-review">
+          <div class="review-heading">
+            <p class="eyebrow">Final step</p>
+            <h1 id="checkout-title">Review and place your order</h1>
+            <p class="intro">
+              Check the delivery and payment details before confirming your purchase.
+            </p>
+          </div>
+
+          <div class="checkout-grid">
+            <div class="details-column">
+              <section class="detail-block" aria-labelledby="delivery-title">
+                <div class="section-heading">
+                  <h2 id="delivery-title">Delivery</h2>
+                  <span class="section-status">Standard</span>
+                </div>
+                <address>
+                  <strong>Jordan Lee</strong><br />
+                  18 Orchard Lane<br />
+                  Portland, OR 97205
+                </address>
+                <p class="detail-note">Arrives in 3–5 business days</p>
+              </section>
+
+              <section class="detail-block" aria-labelledby="payment-title">
+                <div class="section-heading">
+                  <h2 id="payment-title">Payment</h2>
+                  <span class="section-status">Verified</span>
+                </div>
+                <p class="payment-line">
+                  <span class="card-symbol" aria-hidden="true">••••</span>
+                  Visa ending in 4242
+                </p>
+                <p class="detail-note">Billing address matches delivery</p>
+              </section>
+            </div>
+
+            <aside class="order-summary" aria-labelledby="summary-title">
+              <h2 id="summary-title">Order summary</h2>
+              <ul class="line-items" aria-label="Items">
+                <li>
+                  <span>
+                    <strong>Field Notes Set</strong>
+                    <small>Sandstone · Qty 1</small>
+                  </span>
+                  <span>$42.00</span>
+                </li>
+                <li>
+                  <span>
+                    <strong>Studio Pen</strong>
+                    <small>Graphite · Qty 1</small>
+                  </span>
+                  <span>$18.00</span>
+                </li>
+              </ul>
+
+              <dl class="totals">
+                <div>
+                  <dt>Subtotal</dt>
+                  <dd>$60.00</dd>
+                </div>
+                <div>
+                  <dt>Delivery</dt>
+                  <dd>$6.00</dd>
+                </div>
+                <div class="grand-total">
+                  <dt>Total</dt>
+                  <dd>USD $66.00</dd>
+                </div>
+              </dl>
+
+              <button type="button" data-testid="place-order">Place order</button>
+              <p class="terms-note">
+                By placing this order, you agree to the store terms and return policy.
+              </p>
+            </aside>
+          </div>
+        </section>
+
+        <section
+          class="confirmation-panel"
+          data-testid="order-confirmation"
+          tabindex="-1"
+          aria-labelledby="confirmation-title"
+          aria-live="polite"
+          hidden
+        >
+          <span class="confirmation-mark" aria-hidden="true"></span>
+          <p class="eyebrow">Order confirmed</p>
+          <h2 id="confirmation-title">Thanks, Jordan.</h2>
+          <p>Your order is confirmed and will be prepared for delivery.</p>
+          <dl class="confirmation-details">
+            <div>
+              <dt>Order</dt>
+              <dd>NS-1048</dd>
+            </div>
+            <div>
+              <dt>Total</dt>
+              <dd>USD $66.00</dd>
+            </div>
+          </dl>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
