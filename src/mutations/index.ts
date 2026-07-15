@@ -41,10 +41,13 @@ export type {
 } from "./schema.js";
 export {
   applyCompiledMutation,
+  executeMutationFixtureTask,
   loadVerifiedMutationFixtureSourceState,
+  MutationFixtureCheckpointBytes,
   MutationFixtureSession,
   MutationRuntimeError,
   openMutationFixtureSession,
+  prepareMutationFixtureTask,
   probeMutation,
   validateMutationRuntimeBinding,
 } from "./runtime.js";
@@ -52,6 +55,7 @@ export type {
   MutationCleanup,
   MutationFixtureAudit,
   MutationFixtureSourceStateArtifact,
+  MutationFixtureTaskRun,
   MutationFixtureUpstreamEvidence,
   MutationRuntimeBinding,
 } from "./runtime.js";

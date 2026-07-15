@@ -9,11 +9,16 @@ import type { Browser, Page } from "@playwright/test";
 
 import { canonicalizePng } from "../../src/artifacts/png.js";
 import {
+  assertCaptureGraphBindings,
   computeFixtureActionTargetId,
   normalizeAccessibilitySnapshot,
+  parseActionPlan,
+  parseAccessibilitySnapshot,
+  parseLayoutSnapshot,
 } from "../../src/capture/index.js";
 import {
   canonicalJson,
+  computeCheckpointId,
   computeSourceStateId,
   computeTaskId,
   sha256Hex,
@@ -22,9 +27,11 @@ import {
   applyCompiledMutation,
   compileMutation,
   computeMutationTargetNodeId,
+  executeMutationFixtureTask,
   loadVerifiedMutationFixtureSourceState,
   MutationRuntimeError,
   openMutationFixtureSession,
+  prepareMutationFixtureTask,
   probeMutation,
   validateMutationRequest,
   validateMutationRuntimeBinding,
@@ -68,6 +75,7 @@ const actionPlan = Object.freeze({
   ],
 });
 const actionPlanBytes = Buffer.from(canonicalJson(actionPlan), "utf8");
+const parsedActionPlan = parseActionPlan(actionPlanBytes);
 const actionPlanReference = Object.freeze({
   sha256: sha256Hex(actionPlanBytes),
   byte_length: actionPlanBytes.byteLength,
@@ -401,6 +409,188 @@ test("pinned Chromium AX output normalizes through the closed accessibility cont
   } finally {
     await client.detach();
     await closeSession(session);
+  }
+});
+
+test("authenticated task capture emits deterministic canonical checkpoints", async () => {
+  const runs = [];
+  for (let replicate = 0; replicate < 2; replicate += 1) {
+    const session = await fixtureSession();
+    try {
+      await prepareMutationFixtureTask(session);
+      const run = await executeMutationFixtureTask(session);
+      assert.equal(run.task_success, true);
+      assert.equal(run.first_unsatisfied_step_id, null);
+      assert.equal(run.virtual_elapsed_ms, 0);
+      assert.equal(run.checkpoints.length, 2);
+      assert.equal(Object.isFrozen(run), true);
+
+      for (const [ordinal, checkpoint] of run.checkpoints.entries()) {
+        assert.equal(Object.isFrozen(checkpoint), true);
+        assert.equal(checkpoint.ordinal, ordinal);
+        assert.equal(
+          checkpoint.checkpoint_id,
+          computeCheckpointId(actionPlanReference, ordinal),
+        );
+        assert.deepEqual(
+          canonicalizePng(checkpoint.screenshot, viewport).bytes,
+          checkpoint.screenshot,
+        );
+        const accessibility = parseAccessibilitySnapshot(checkpoint.accessibility_tree);
+        const layout = parseLayoutSnapshot(checkpoint.layout_graph);
+        assertCaptureGraphBindings(parsedActionPlan, accessibility, layout);
+        const targets = layout.nodes.filter(
+          (node) => node.action_target_id === primaryActionTargetId,
+        );
+        assert.equal(targets.length, ordinal === 0 ? 1 : 0);
+      }
+      const mutableScreenshot = run.checkpoints[0].screenshot;
+      const mutableAccessibility = run.checkpoints[0].accessibility_tree;
+      const mutableLayout = run.checkpoints[0].layout_graph;
+      mutableScreenshot[0] = 0;
+      mutableAccessibility[0] = 0;
+      mutableLayout[0] = 0;
+      assert.notDeepEqual(mutableScreenshot, run.checkpoints[0].screenshot);
+      assert.notDeepEqual(mutableAccessibility, run.checkpoints[0].accessibility_tree);
+      assert.notDeepEqual(mutableLayout, run.checkpoints[0].layout_graph);
+      canonicalizePng(run.checkpoints[0].screenshot, viewport);
+      parseAccessibilitySnapshot(run.checkpoints[0].accessibility_tree);
+      parseLayoutSnapshot(run.checkpoints[0].layout_graph);
+      runs.push(run);
+    } finally {
+      await closeSession(session);
+    }
+  }
+
+  assert.equal(runs.length, 2);
+  for (const ordinal of [0, 1] as const) {
+    assert.deepEqual(
+      runs[0]?.checkpoints[ordinal].screenshot,
+      runs[1]?.checkpoints[ordinal].screenshot,
+    );
+    assert.deepEqual(
+      runs[0]?.checkpoints[ordinal].accessibility_tree,
+      runs[1]?.checkpoints[ordinal].accessibility_tree,
+    );
+    assert.deepEqual(
+      runs[0]?.checkpoints[ordinal].layout_graph,
+      runs[1]?.checkpoints[ordinal].layout_graph,
+    );
+  }
+});
+
+test("captured task outcomes distinguish preserving and breaking mutations", async () => {
+  for (const [operatorKey, expectedSuccess] of [
+    ["palette_swap", true],
+    ["pointer_interceptor", false],
+  ] as const) {
+    const session = await fixtureSession();
+    let cleanup: MutationCleanup | undefined;
+    try {
+      await prepareMutationFixtureTask(session);
+      const compilation = await applicableCompilation(session, operatorKey);
+      cleanup = await applyCompiledMutation(
+        session,
+        compilation.plan,
+        compilation.preconditions,
+      );
+      const run = await executeMutationFixtureTask(session);
+      assert.equal(run.task_success, expectedSuccess);
+      assert.equal(
+        run.first_unsatisfied_step_id,
+        expectedSuccess ? null : parsedActionPlan.actions[0]?.action_id,
+      );
+
+      const initialLayout = parseLayoutSnapshot(run.checkpoints[0].layout_graph);
+      const finalLayout = parseLayoutSnapshot(run.checkpoints[1].layout_graph);
+      assert.equal(
+        initialLayout.nodes.filter(
+          (node) => node.action_target_id === primaryActionTargetId,
+        ).length,
+        1,
+      );
+      assert.equal(
+        finalLayout.nodes.filter(
+          (node) => node.action_target_id === primaryActionTargetId,
+        ).length,
+        expectedSuccess ? 0 : 1,
+      );
+    } finally {
+      await cleanup?.();
+      await closeSession(session);
+    }
+  }
+});
+
+test("task capture enforces its phase, geometry, plan, and operation lock", async () => {
+  const session = await fixtureSession();
+  try {
+    await expectRuntimeError(
+      executeMutationFixtureTask(session),
+      "mutation.capture_phase",
+    );
+    await prepareMutationFixtureTask(session);
+    await expectRuntimeError(
+      prepareMutationFixtureTask(session),
+      "mutation.capture_phase",
+    );
+
+    const runPromise = executeMutationFixtureTask(session);
+    await expectRuntimeError(
+      probeMutation(session, mutationRequest("palette_swap")),
+      "mutation.concurrent_operation",
+    );
+    assert.equal((await runPromise).task_success, true);
+  } finally {
+    await closeSession(session);
+  }
+
+  const drifted = await fixtureSession();
+  try {
+    await prepareMutationFixtureTask(drifted);
+    await drifted.page.evaluate(() => window.scrollBy(0, -1));
+    await expectRuntimeError(
+      executeMutationFixtureTask(drifted),
+      "mutation.capture_geometry_drift",
+    );
+    await expectRuntimeError(
+      executeMutationFixtureTask(drifted),
+      "mutation.capture_phase",
+    );
+  } finally {
+    await closeSession(drifted);
+  }
+
+  const extraActionPlan = {
+    ...actionPlan,
+    actions: [
+      ...actionPlan.actions,
+      {
+        action_id: id("idst1_", "2"),
+        ordinal: 1,
+        intent: "press_key",
+        target_id: null,
+        value: { kind: "key", key: "Enter" },
+      },
+    ],
+    checkpoints: [
+      { ordinal: 0, after_action_ordinal: -1 },
+      { ordinal: 1, after_action_ordinal: 1 },
+    ],
+  };
+  assert.ok(browser);
+  const unsupported = await openMutationFixtureSession(
+    browser,
+    fixtureDirectory,
+    upstreamEvidenceForActionPlan(extraActionPlan),
+  );
+  try {
+    await expectRuntimeError(
+      prepareMutationFixtureTask(unsupported),
+      "mutation.capture_action_plan",
+    );
+  } finally {
+    await closeSession(unsupported);
   }
 });
 

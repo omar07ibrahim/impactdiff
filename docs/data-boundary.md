@@ -51,11 +51,21 @@ The fixture session belongs to the trusted generator, never to the model-visible
 process. It receives canonical visible action-plan bytes and sealed mutation
 instructions, verifies the fixed fixture resources and browser version, blocks external
 traffic, audits DOM/CSS/CSP/clock state, and requires exact rollback of its owned
-mutation node. The action plan determines `task_id`; mutation family, operator,
-preconditions, cleanup state, and blocked-task result remain generator-side or
+mutation node. Its single-role task executor fixes preparation before mutation, holds
+the authenticated operation lock across both checkpoints and the real coordinate click,
+and returns canonical screenshot, accessibility, and layout bytes only as a complete
+two-checkpoint sequence. The action plan determines `task_id`; mutation family,
+operator, preconditions, cleanup state, and blocked-task result remain generator-side or
 label-side data. Detailed integrity events exist only in bounded in-memory enforcement
 state; a successful close exposes a small generator-side summary, not a durable trace
 for the model.
+
+At this trusted-generator layer, `MutationFixtureTaskRun` still returns copy-on-read
+canonical modalities and the measured task outcome together. It is provisional until
+mutation cleanup and the session-close audit succeed, and is not itself a visible
+artifact. The pending publisher must keep it in private staging, discard it after any
+lifecycle failure, write modality bytes to the visible store, and derive and write
+outcome, trace, intervention, and label artifacts only to the sealed store.
 
 This is not yet the dataset-publication boundary. The session resolves canonical sealed
 source-state bytes and derives `source_state_id`, but still trusts upstream

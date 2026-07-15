@@ -7,17 +7,25 @@ import type {
   Browser,
   BrowserContext,
   BrowserContextOptions,
+  CDPSession,
   ElementHandle,
   JSHandle,
   Page,
 } from "@playwright/test";
 
 import { validateArtifactReference } from "../artifacts/cas.js";
+import { canonicalizePng } from "../artifacts/png.js";
+import {
+  adaptChromiumLayoutSnapshot,
+  chromiumLayoutComputedStyles,
+} from "../capture/chromium-layout.js";
 import { computeFixtureActionTargetId } from "../capture/identity.js";
-import { parseActionPlan } from "../capture/validate.js";
-import type { ActionPlan } from "../capture/schema.js";
+import { normalizeAccessibilitySnapshot } from "../capture/normalize-ax.js";
+import type { ActionPlan, LayoutSnapshot } from "../capture/schema.js";
+import { assertCaptureGraphBindings, parseActionPlan } from "../capture/validate.js";
 import {
   canonicalJson,
+  computeCheckpointId,
   computeSourceStateId,
   computeTaskId,
   sha256Hex,
@@ -59,10 +67,12 @@ const fixtureSessions = new WeakMap<
   MutationFixtureSessionState
 >();
 const sessionConstructorToken = Symbol("impactdiff.mutation-fixture-session");
+const checkpointConstructorToken = Symbol("impactdiff.mutation-fixture-checkpoint");
 const maximumAuditEvents = 256;
 const maximumAuditTextLength = 2_048;
 const maximumActionPlanBytes = 131_072;
 const maximumSourceStateBytes = 1_048_576;
+const fixedCaptureViewport = Object.freeze({ width: 800, height: 600 });
 const closedFixture = Object.freeze({
   fixtureId: "checkout-card-v1",
   revision: "checkout-card-v1.0.0",
@@ -290,6 +300,25 @@ interface LoadedMutationFixture {
 
 type FixtureTaskState = "review" | "confirmed";
 type OwnedMutationKind = "palette" | "pointer";
+type CaptureTaskPhase = "unprepared" | "prepared" | "executing" | "complete" | "failed";
+
+function sameFixtureTaskState(
+  left: FixtureTaskState,
+  right: FixtureTaskState,
+): boolean {
+  return left === right;
+}
+
+interface PreparedCaptureGeometry {
+  readonly scrollX: number;
+  readonly scrollY: number;
+  readonly targetBounds: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
+}
 
 interface IntegrityRecordSummary {
   readonly type: "attributes" | "childList" | "characterData" | "other";
@@ -355,6 +384,8 @@ interface MutationFixtureSessionState {
   readonly audit: MutationFixtureAuditState;
   lastTaskState: FixtureTaskState;
   activeOwnedMutation: ActiveOwnedMutation | null;
+  captureTaskPhase: CaptureTaskPhase;
+  preparedCaptureGeometry: PreparedCaptureGeometry | null;
   operationInProgress: boolean;
   closed: boolean;
 }
@@ -374,6 +405,62 @@ export interface MutationFixtureUpstreamEvidence {
 export interface MutationFixtureSourceStateArtifact {
   readonly reference: ArtifactRef;
   readonly bytes: Uint8Array;
+}
+
+export class MutationFixtureCheckpointBytes {
+  readonly checkpoint_id: string;
+  readonly ordinal: 0 | 1;
+  readonly #screenshot: Buffer;
+  readonly #accessibilityTree: Buffer;
+  readonly #layoutGraph: Buffer;
+
+  constructor(
+    token: symbol,
+    value: {
+      readonly checkpoint_id: string;
+      readonly ordinal: 0 | 1;
+      readonly screenshot: Uint8Array;
+      readonly accessibility_tree: Uint8Array;
+      readonly layout_graph: Uint8Array;
+    },
+  ) {
+    if (token !== checkpointConstructorToken) {
+      fail(
+        "mutation.capture_checkpoint_capability",
+        "fixture checkpoints can only be created by the authenticated executor",
+      );
+    }
+    this.checkpoint_id = value.checkpoint_id;
+    this.ordinal = value.ordinal;
+    this.#screenshot = Buffer.from(value.screenshot);
+    this.#accessibilityTree = Buffer.from(value.accessibility_tree);
+    this.#layoutGraph = Buffer.from(value.layout_graph);
+    Object.freeze(this);
+  }
+
+  get screenshot(): Buffer {
+    return Buffer.from(this.#screenshot);
+  }
+
+  get accessibility_tree(): Buffer {
+    return Buffer.from(this.#accessibilityTree);
+  }
+
+  get layout_graph(): Buffer {
+    return Buffer.from(this.#layoutGraph);
+  }
+}
+
+Object.freeze(MutationFixtureCheckpointBytes.prototype);
+
+export interface MutationFixtureTaskRun {
+  readonly checkpoints: readonly [
+    MutationFixtureCheckpointBytes,
+    MutationFixtureCheckpointBytes,
+  ];
+  readonly task_success: boolean;
+  readonly first_unsatisfied_step_id: string | null;
+  readonly virtual_elapsed_ms: 0;
 }
 
 export interface MutationRuntimeBinding {
@@ -1702,8 +1789,8 @@ export async function openMutationFixtureSession(
   const { binding, actionPlan } = resolveMutationRuntimeBinding(upstreamEvidence);
   const loaded = await loadMutationFixture(fixtureDirectory);
   const contextOptions = {
-    viewport: { width: 800, height: 600 },
-    screen: { width: 800, height: 600 },
+    viewport: fixedCaptureViewport,
+    screen: fixedCaptureViewport,
     deviceScaleFactor: 1,
     locale: "en-US",
     timezoneId: "UTC",
@@ -1910,6 +1997,8 @@ export async function openMutationFixtureSession(
       audit,
       lastTaskState: initialTaskState,
       activeOwnedMutation: null,
+      captureTaskPhase: "unprepared",
+      preparedCaptureGeometry: null,
       operationInProgress: false,
       closed: false,
     };
@@ -1922,6 +2011,470 @@ export async function openMutationFixtureSession(
     await context?.close();
     throw error;
   }
+}
+
+type PointerClickAction = Extract<
+  ActionPlan["actions"][number],
+  { readonly intent: "pointer_click" }
+>;
+
+interface BrowserCaptureGeometry extends PreparedCaptureGeometry {
+  readonly viewportWidth: number;
+  readonly viewportHeight: number;
+  readonly centerHit: boolean;
+}
+
+function fixedCaptureAction(state: MutationFixtureSessionState): PointerClickAction {
+  const action = state.actionPlan.actions[0];
+  const checkpoints = state.actionPlan.checkpoints;
+  if (
+    state.actionPlan.actions.length !== 1 ||
+    action === undefined ||
+    action.ordinal !== 0 ||
+    action.intent !== "pointer_click" ||
+    action.target_id !== state.primaryActionTargetId ||
+    action.value.kind !== "pointer" ||
+    action.value.button !== "primary" ||
+    checkpoints.length !== 2 ||
+    checkpoints[0]?.ordinal !== 0 ||
+    checkpoints[0]?.after_action_ordinal !== -1 ||
+    checkpoints[1]?.ordinal !== 1 ||
+    checkpoints[1]?.after_action_ordinal !== 0
+  ) {
+    fail(
+      "mutation.capture_action_plan",
+      "fixture capture requires one primary pointer click and the exact two-checkpoint schedule",
+    );
+  }
+  return action;
+}
+
+function captureNumber(value: unknown, name: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    fail("mutation.capture_geometry", `${name} must be a finite browser number`);
+  }
+  return value;
+}
+
+async function readBrowserCaptureGeometry(
+  state: MutationFixtureSessionState,
+): Promise<BrowserCaptureGeometry> {
+  const handles = integrityHandles(state);
+  let value: {
+    readonly scrollX: unknown;
+    readonly scrollY: unknown;
+    readonly viewportWidth: unknown;
+    readonly viewportHeight: unknown;
+    readonly centerHit: unknown;
+    readonly targetBounds: {
+      readonly x: unknown;
+      readonly y: unknown;
+      readonly width: unknown;
+      readonly height: unknown;
+    };
+  };
+  try {
+    value = await handles.action.evaluate((action) => {
+      const bounds = action.getBoundingClientRect();
+      const centerX = bounds.x + bounds.width / 2;
+      const centerY = bounds.y + bounds.height / 2;
+      return {
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        centerHit: document.elementFromPoint(centerX, centerY) === action,
+        targetBounds: {
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+        },
+      };
+    });
+  } catch (error) {
+    fail(
+      "mutation.capture_geometry",
+      "the authenticated primary action geometry could not be read",
+      { cause: error },
+    );
+  }
+
+  const geometry = {
+    scrollX: captureNumber(value.scrollX, "scrollX"),
+    scrollY: captureNumber(value.scrollY, "scrollY"),
+    viewportWidth: captureNumber(value.viewportWidth, "viewportWidth"),
+    viewportHeight: captureNumber(value.viewportHeight, "viewportHeight"),
+    centerHit: value.centerHit === true,
+    targetBounds: {
+      x: captureNumber(value.targetBounds.x, "targetBounds.x"),
+      y: captureNumber(value.targetBounds.y, "targetBounds.y"),
+      width: captureNumber(value.targetBounds.width, "targetBounds.width"),
+      height: captureNumber(value.targetBounds.height, "targetBounds.height"),
+    },
+  };
+  const { targetBounds } = geometry;
+  if (
+    geometry.viewportWidth !== fixedCaptureViewport.width ||
+    geometry.viewportHeight !== fixedCaptureViewport.height ||
+    !Number.isSafeInteger(geometry.scrollX) ||
+    !Number.isSafeInteger(geometry.scrollY) ||
+    geometry.scrollX < 0 ||
+    geometry.scrollY < 0 ||
+    targetBounds.width <= 0 ||
+    targetBounds.height <= 0 ||
+    targetBounds.x < 0 ||
+    targetBounds.y < 0 ||
+    targetBounds.x + targetBounds.width > geometry.viewportWidth ||
+    targetBounds.y + targetBounds.height > geometry.viewportHeight
+  ) {
+    fail(
+      "mutation.capture_geometry",
+      "the primary action must have exact finite geometry inside the fixed viewport",
+    );
+  }
+  return Object.freeze({
+    ...geometry,
+    targetBounds: Object.freeze(geometry.targetBounds),
+  });
+}
+
+function samePreparedGeometry(
+  prepared: PreparedCaptureGeometry,
+  current: BrowserCaptureGeometry,
+): boolean {
+  return (
+    prepared.scrollX === current.scrollX &&
+    prepared.scrollY === current.scrollY &&
+    prepared.targetBounds.x === current.targetBounds.x &&
+    prepared.targetBounds.y === current.targetBounds.y &&
+    prepared.targetBounds.width === current.targetBounds.width &&
+    prepared.targetBounds.height === current.targetBounds.height
+  );
+}
+
+async function assertPreparedCaptureGeometry(
+  state: MutationFixtureSessionState,
+  prepared: PreparedCaptureGeometry,
+): Promise<void> {
+  const current = await readBrowserCaptureGeometry(state);
+  if (!samePreparedGeometry(prepared, current)) {
+    fail(
+      "mutation.capture_geometry_drift",
+      "fixture scroll or target geometry changed after deterministic preparation",
+    );
+  }
+}
+
+/**
+ * Performs the fixed initial scroll exactly once, before an optional mutation
+ * is probed and applied. Both baseline and candidate roles use this operation.
+ */
+export async function prepareMutationFixtureTask(
+  session: MutationFixtureSession,
+): Promise<void> {
+  const state = beginSessionOperation(session);
+  try {
+    fixedCaptureAction(state);
+    if (state.captureTaskPhase !== "unprepared") {
+      fail(
+        "mutation.capture_phase",
+        "fixture task preparation is single-use and must precede execution",
+      );
+    }
+    if (state.activeOwnedMutation !== null || occupiedPages.has(state.page)) {
+      fail(
+        "mutation.capture_phase",
+        "fixture task preparation must occur before applying a mutation",
+      );
+    }
+    await assertAuthenticatedDocument(state);
+    if (state.lastTaskState !== "review") {
+      fail(
+        "mutation.capture_initial_state",
+        "fixture capture must begin from the exact review state",
+      );
+    }
+    const handles = integrityHandles(state);
+    await handles.action.scrollIntoViewIfNeeded();
+    await assertAuthenticatedDocument(state);
+    if (state.lastTaskState !== "review") {
+      fail(
+        "mutation.capture_initial_state",
+        "fixture task changed during deterministic preparation",
+      );
+    }
+    const geometry = await readBrowserCaptureGeometry(state);
+    if (!geometry.centerHit) {
+      fail(
+        "mutation.capture_target_occluded",
+        "the unmodified primary action center must be the viewport hit target",
+      );
+    }
+    state.preparedCaptureGeometry = Object.freeze({
+      scrollX: geometry.scrollX,
+      scrollY: geometry.scrollY,
+      targetBounds: Object.freeze({ ...geometry.targetBounds }),
+    });
+    state.captureTaskPhase = "prepared";
+  } finally {
+    endSessionOperation(state);
+  }
+}
+
+function captureProtocolRecord(value: unknown, name: string): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("mutation.capture_protocol", `${name} must be a CDP data object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function captureProtocolInteger(value: unknown, name: string, maximum: number): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 1 ||
+    value > maximum
+  ) {
+    fail("mutation.capture_protocol", `${name} must be a bounded positive integer`);
+  }
+  return value;
+}
+
+async function captureTargetBackendNodeId(client: CDPSession): Promise<number> {
+  const documentResponse = captureProtocolRecord(
+    await client.send("DOM.getDocument", { depth: 0, pierce: false }),
+    "DOM.getDocument response",
+  );
+  const root = captureProtocolRecord(
+    documentResponse.root,
+    "DOM.getDocument response root",
+  );
+  const rootNodeId = captureProtocolInteger(
+    root.nodeId,
+    "document root nodeId",
+    2_147_483_647,
+  );
+  const queryResponse = captureProtocolRecord(
+    await client.send("DOM.querySelectorAll", {
+      nodeId: rootNodeId,
+      selector: '[data-testid="place-order"]',
+    }),
+    "DOM.querySelectorAll response",
+  );
+  const nodeIds = queryResponse.nodeIds;
+  if (!Array.isArray(nodeIds) || nodeIds.length !== 1) {
+    fail(
+      "mutation.capture_target",
+      "the exact primary-action selector must resolve one DOM node",
+    );
+  }
+  const nodeId = captureProtocolInteger(
+    nodeIds[0],
+    "primary action nodeId",
+    2_147_483_647,
+  );
+  const descriptionResponse = captureProtocolRecord(
+    await client.send("DOM.describeNode", { nodeId, depth: 0, pierce: false }),
+    "DOM.describeNode response",
+  );
+  const node = captureProtocolRecord(
+    descriptionResponse.node,
+    "DOM.describeNode response node",
+  );
+  const attributes = node.attributes;
+  if (!Array.isArray(attributes) || attributes.length % 2 !== 0) {
+    fail(
+      "mutation.capture_target",
+      "the primary action must expose a valid CDP attribute vector",
+    );
+  }
+  let testIdMatches = 0;
+  for (let index = 0; index < attributes.length; index += 2) {
+    if (
+      attributes[index] === "data-testid" &&
+      attributes[index + 1] === "place-order"
+    ) {
+      testIdMatches += 1;
+    }
+  }
+  if (testIdMatches !== 1) {
+    fail(
+      "mutation.capture_target",
+      "the resolved primary action must carry the exact fixture test ID",
+    );
+  }
+  return captureProtocolInteger(
+    node.backendNodeId,
+    "primary action backendNodeId",
+    4_294_967_295,
+  );
+}
+
+function assertFixtureCheckpointTarget(
+  state: MutationFixtureSessionState,
+  layout: LayoutSnapshot,
+  ordinal: 0 | 1,
+): void {
+  const actualCount = layout.nodes.filter(
+    (node) => node.action_target_id === state.primaryActionTargetId,
+  ).length;
+  const expectedCount = ordinal === 0 || state.lastTaskState === "review" ? 1 : 0;
+  if (actualCount !== expectedCount) {
+    fail(
+      "mutation.capture_target_binding",
+      `checkpoint ${ordinal} must contain exactly ${expectedCount} authenticated primary-action layout targets`,
+    );
+  }
+}
+
+async function captureMutationCheckpoint(
+  state: MutationFixtureSessionState,
+  client: CDPSession,
+  ordinal: 0 | 1,
+  preparedGeometry: PreparedCaptureGeometry | null,
+): Promise<MutationFixtureCheckpointBytes> {
+  await assertAuthenticatedDocument(state);
+  if (preparedGeometry !== null) {
+    await assertPreparedCaptureGeometry(state, preparedGeometry);
+  }
+  const targetBackendNodeId = await captureTargetBackendNodeId(client);
+  const screenshotInput = await state.page.screenshot({
+    type: "png",
+    fullPage: false,
+    animations: "disabled",
+    caret: "hide",
+    scale: "css",
+    omitBackground: false,
+  });
+  const domSnapshot = await client.send("DOMSnapshot.captureSnapshot", {
+    computedStyles: [...chromiumLayoutComputedStyles],
+    includePaintOrder: true,
+    includeDOMRects: true,
+    includeBlendedBackgroundColors: false,
+    includeTextColorOpacities: false,
+  });
+  const layout = adaptChromiumLayoutSnapshot(domSnapshot, {
+    viewport: fixedCaptureViewport,
+    target: {
+      backendDomNodeId: targetBackendNodeId,
+      actionTargetId: state.primaryActionTargetId,
+    },
+  });
+  const accessibilityInput = await client.send("Accessibility.getFullAXTree");
+  const accessibility = normalizeAccessibilitySnapshot(
+    accessibilityInput,
+    layout.backendDomNodeToLayoutIndex,
+  );
+  assertFixtureCheckpointTarget(state, layout.snapshot, ordinal);
+  assertCaptureGraphBindings(state.actionPlan, accessibility, layout.snapshot);
+  const screenshot = canonicalizePng(screenshotInput, fixedCaptureViewport).bytes;
+  const checkpoint = new MutationFixtureCheckpointBytes(checkpointConstructorToken, {
+    checkpoint_id: computeCheckpointId(state.binding.action_plan, ordinal),
+    ordinal,
+    screenshot,
+    accessibility_tree: Buffer.from(canonicalJson(accessibility), "utf8"),
+    layout_graph: Buffer.from(canonicalJson(layout.snapshot), "utf8"),
+  });
+  await assertAuthenticatedDocument(state);
+  if (preparedGeometry !== null) {
+    await assertPreparedCaptureGeometry(state, preparedGeometry);
+  }
+  return checkpoint;
+}
+
+/**
+ * Captures the exact initial checkpoint, performs the one true coordinate
+ * click, and captures the exact final checkpoint under one authenticated
+ * operation. Technical failures poison this run and never expose a partial
+ * checkpoint sequence.
+ */
+export async function executeMutationFixtureTask(
+  session: MutationFixtureSession,
+): Promise<MutationFixtureTaskRun> {
+  const state = beginSessionOperation(session);
+  let started = false;
+  let client: CDPSession | undefined;
+  let result: MutationFixtureTaskRun | undefined;
+  const errors: unknown[] = [];
+  try {
+    if (
+      state.captureTaskPhase !== "prepared" ||
+      state.preparedCaptureGeometry === null
+    ) {
+      fail(
+        "mutation.capture_phase",
+        "fixture task execution requires one successful deterministic preparation",
+      );
+    }
+    const action = fixedCaptureAction(state);
+    const prepared = state.preparedCaptureGeometry;
+    started = true;
+    state.captureTaskPhase = "executing";
+    await assertAuthenticatedDocument(state);
+    if (state.lastTaskState !== "review") {
+      fail(
+        "mutation.capture_initial_state",
+        "fixture capture must execute from the exact review state",
+      );
+    }
+    await assertPreparedCaptureGeometry(state, prepared);
+    client = await state.page.context().newCDPSession(state.page);
+    const initial = await captureMutationCheckpoint(state, client, 0, prepared);
+
+    const { targetBounds } = prepared;
+    await state.page.mouse.click(
+      targetBounds.x + targetBounds.width / 2,
+      targetBounds.y + targetBounds.height / 2,
+    );
+
+    const final = await captureMutationCheckpoint(state, client, 1, null);
+    const finalTaskState = await readFixtureTaskState(
+      state.page,
+      integrityHandles(state),
+    );
+    if (
+      finalTaskState === null ||
+      !sameFixtureTaskState(finalTaskState, state.lastTaskState)
+    ) {
+      fail(
+        "mutation.capture_result",
+        "the final task outcome does not match the authenticated document state",
+      );
+    }
+    const taskSuccess = finalTaskState === "confirmed";
+    result = Object.freeze({
+      checkpoints: Object.freeze([initial, final] as const),
+      task_success: taskSuccess,
+      first_unsatisfied_step_id: taskSuccess ? null : action.action_id,
+      virtual_elapsed_ms: 0 as const,
+    });
+  } catch (error) {
+    errors.push(error);
+  }
+
+  if (client !== undefined) {
+    try {
+      await client.detach();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (started) {
+    state.captureTaskPhase = errors.length === 0 ? "complete" : "failed";
+  }
+  endSessionOperation(state);
+
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+  if (errors.length > 1) {
+    throw new AggregateError(errors, "fixture task capture and CDP cleanup failed");
+  }
+  if (result === undefined) {
+    fail("mutation.capture_result", "fixture task capture produced no complete result");
+  }
+  return result;
 }
 
 function assertSupportedTarget(request: MutationRequest): void {

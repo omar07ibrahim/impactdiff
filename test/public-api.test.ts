@@ -5,7 +5,9 @@ import * as publicApi from "../src/index.js";
 import type {
   ArtifactRef,
   MutationFixtureAudit,
+  MutationFixtureCheckpointBytes,
   MutationFixtureSourceStateArtifact,
+  MutationFixtureTaskRun,
   ResolvedEvidenceBundle,
   SourceState,
 } from "../src/index.js";
@@ -13,7 +15,9 @@ import type {
 function acceptsPublicTypes(
   _reference: ArtifactRef,
   _audit: MutationFixtureAudit,
+  _checkpoint: MutationFixtureCheckpointBytes,
   _sourceArtifact: MutationFixtureSourceStateArtifact,
+  _taskRun: MutationFixtureTaskRun,
   _bundle: ResolvedEvidenceBundle,
   _sourceState: SourceState,
 ): void {}
@@ -27,10 +31,13 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "canonicalizePng",
     "compileMutation",
     "computeFixtureActionTargetId",
+    "executeMutationFixtureTask",
     "loadVerifiedMutationFixtureSourceState",
+    "MutationFixtureCheckpointBytes",
     "openMutationFixtureSession",
     "parseActionPlan",
     "parseSourceState",
+    "prepareMutationFixtureTask",
     "validateDatasetBundle",
     "validateResolvedEvidenceBundle",
     "validateResolvedInterventionBundle",

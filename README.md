@@ -37,13 +37,15 @@ Implemented today:
   and
 - a verified Chromium mutation session over a deterministic checkout fixture. It binds
   exact action-plan bytes, fixture resources, reported browser version, CSP, virtual
-  time, network policy, DOM/CSS integrity, and exact mutation cleanup. Integration tests
-  exercise the task through real coordinate clicks on the trusted Playwright page.
+  time, network policy, DOM/CSS integrity, and exact mutation cleanup. Its authenticated
+  task executor derives and locks deterministic scroll/target geometry, performs a true
+  coordinate click, then emits two canonical PNG, accessibility-tree, and layout-graph
+  checkpoints without exposing a partial run.
 
 The capture contract pins Playwright 1.61.1 and Chromium revision 1228 (149.0.7827.55).
-The verified session and mutation runtime are implemented; the executor that assembles
-complete paired captures and publishes a dataset is still pending. Learned baselines
-come only after that path is auditable end to end.
+The verified single-role capture path and mutation runtime are implemented; assembling
+baseline and candidate roles into one audited publication is still pending. Learned
+baselines come only after that path is auditable end to end.
 
 ## Architecture
 
@@ -59,10 +61,10 @@ flowchart LR
   probe --> compiler["Reversible mutation compiler"]
   compiler --> runtime["Audited mutation runtime"]
 
-  modalities["Canonical PNG · AX · layout"] --> cas["Codec-bound CAS"]
-  modalities --> resolver["Manifest-bound bundle validator"]
+  modalities["Canonical PNG · AX · layout"] -.->|publisher writes| cas["Codec-bound CAS"]
+  modalities -.->|publisher binds| resolver["Manifest-bound bundle validator"]
 
-  runtime -.->|paired capture assembly| modalities
+  runtime -->|authenticated task capture| modalities
   cas -.->|publication adapter| resolver
   resolver -.->|dataset publication| dataset["Leakage-aware paired dataset"]
   dataset -.->|training + ablations| models["Calibrated multimodal scorer"]

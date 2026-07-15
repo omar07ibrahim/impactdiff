@@ -184,6 +184,37 @@ and transient DOM changes. The runtime applies only the typed operations emitted
 mutation compiler; integration tests exercise the primary task with a real coordinate
 click through the trusted Playwright page.
 
+`prepareMutationFixtureTask` lets the pinned renderer perform its deterministic initial
+scroll, records the resulting scroll and target rectangle, and then rejects geometry
+drift before execution. This happens before an optional mutation is probed or applied;
+the runtime does not yet compare that geometry to a capture-spec or golden artifact.
+`executeMutationFixtureTask` owns one serialized operation from the initial checkpoint
+through the true coordinate click and final checkpoint. Caller code cannot select a
+role, checkpoint ordinal, locator, or coordinate. The executor accepts only one primary
+pointer action with checkpoints before and after it, captures screenshot, DOM snapshot,
+and full accessibility tree in a fixed order, and exposes copy-on-read canonical
+modality bytes only after both checkpoints succeed. The initial layout must contain
+exactly one authenticated action target; the final target presence must match the
+measured closed task state. A failed technical capture poisons that run and cannot
+expose or retry a partial sequence. Chromium does not provide an atomic transaction
+spanning those three modalities. Their fixed sequential reads are justified only by the
+paused clock, blocked network, cooperative closed fixture, and authentication audits
+before and after each checkpoint.
+
+The returned task run is provisional generator state until an active mutation cleanup
+and `MutationFixtureSession.close()` both succeed. The future publisher must retain it
+only in private staging until those lifecycle audits pass; a cleanup or close failure
+invalidates all checkpoint bytes from that role.
+
+The Chromium layout adapter strictly decodes one exact-origin document, removes pseudo
+subtrees, collapses non-layout ancestors, translates document coordinates by the actual
+scroll offset, reconstructs overflow clips from local client rectangles, and links the
+one CDP-resolved action target through an internal backend-node map. Raw browser node
+IDs, selectors, attributes, and CDP string tables do not enter serialized layout or
+accessibility payloads. Fresh-session integration tests require byte-identical baseline
+modalities and distinguish the successful palette candidate from the blocked pointer
+candidate without treating task failure as an executor error.
+
 This boundary is intentionally narrower than a browser sandbox. `source_state_id` is no
 longer trusted upstream: it is derived from resolved sealed provenance. `environment_id`
 remains a trusted upstream input, and the session does not yet resolve the capture
@@ -213,10 +244,10 @@ sealed provenance and never substitutes for the measured execution label.
 ## What remains unproven
 
 The repository does not yet assemble and mount a complete read-only visible dataset for
-an isolated feature process. The paired-capture executor, full oracle/trace codecs,
-changed-surface validation, and versioned scorer are also still incomplete. The scorer
-must recompute severity, failed-step membership, and localization from resolved oracle,
-trace, action-plan, and policy artifacts.
+an isolated feature process. Cross-session pair assembly, full oracle/trace codecs,
+changed-surface validation, and the versioned scorer are also still incomplete. The
+scorer must recompute severity, failed-step membership, and localization from resolved
+oracle, trace, action-plan, and policy artifacts.
 
 Until the full generation and scoring path is exercised on a released corpus, this
 repository makes no benchmark-quality, leakage-safety, or model-accuracy claim.
