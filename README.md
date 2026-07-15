@@ -69,8 +69,16 @@ Implemented today:
   manifest binds an independently designed 800 by 600 Thread & Tally UI, two four-action
   workflows, the shared mutation ABI, exact resource provenance, a canonical
   SourceState, and two derived ActionPlans without creating identity cycles. The loader
-  is deliberately `official: false` and has no execution, outcome, capture, or label
-  API.
+  is deliberately `official: false` and has no outcome, capture, or label surface; and
+- a separate Pilot browser-authoring runtime for that package. It snapshots the audited
+  fixture bytes before launch, binds them to the pinned Chromium and CaptureSpec, and
+  replays either workflow in a fresh isolated context. The replay closes request, CSP,
+  WebRTC, shadow-root, custom-font, readiness, ABI, action, bounded live-document, and
+  lifecycle audits around a raw source-center click, then returns only a success audit
+  marked `official: false`. It attests reviewed, repository-authored fixture code rather
+  than hostile page code. It does not run mutation operators, collect
+  PNG/accessibility/layout modalities, derive outcomes or labels, create a generation
+  plan, or publish a benchmark row.
 
 The capture contract names the exact installed file trees for `@playwright/test`,
 `playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
@@ -165,8 +173,9 @@ recovery rules, and unsupported filesystem adversaries. The
 split, metric hierarchy, claim gate, release artifacts, and explicit non-claims before
 the corpus exists. The
 [market-basket authoring note](docs/pilot-v0.1-market-basket-authoring.md) documents the
-first fixture's two tasks, closed ABI, acyclic source/task identity graph, and the
-deliberate boundary before browser authoring execution.
+first fixture's two tasks, closed ABI, acyclic source/task identity graph, verified
+baseline browser replay, and the remaining boundary before mutation execution and
+checkpoint capture.
 
 ## Repository map
 
@@ -185,6 +194,8 @@ deliberate boundary before browser authoring execution.
 - `src/benchmark/` — the machine-validated frozen Pilot v0.1 research protocol;
 - `src/pilot/fixture/` — authoring-only Pilot fixture manifests, package verification,
   source-state derivation, and in-memory ActionPlan construction;
+- `src/pilot/runtime/` — the isolated, success-only Pilot baseline browser-authoring
+  environment and workflow replay;
 - `src/cli/` — the bounded development-release command; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
   capture tests; and

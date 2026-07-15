@@ -68,6 +68,18 @@ test("provenance trees are globally sorted and independent of creation order", a
     assert.equal("set" in first.captures, false);
     assert.ok(Object.isFrozen(first.directories));
 
+    const capturedTree = await auditProvenanceFileTree(firstRoot, {
+      ...options,
+      capturePaths: new Set(),
+      captureBytePaths: new Set(),
+      captureAllFileBytes: true,
+    });
+    assert.deepEqual([...capturedTree.captures.keys()], ["a.txt", "a/z.txt", "z.txt"]);
+    assert.deepEqual(
+      capturedTree.captures.get("a/z.txt")?.bytes,
+      Buffer.from("nested"),
+    );
+
     await writeFile(join(secondRoot, "a.txt"), "changed", "utf8");
     const changed = await auditProvenanceFileTree(secondRoot, options);
     assert.notDeepEqual(first.files, changed.files);
@@ -138,6 +150,7 @@ test("provenance trees reject malformed and aggregate byte budgets", async () =>
       { ...options, maximumFileBytes: Number.NaN },
       { ...options, maximumTreeBytes: Number.POSITIVE_INFINITY },
       { ...options, maximumTreeBytes: -1 },
+      { ...options, captureAllFileBytes: "yes" as unknown as boolean },
     ]) {
       await expectRuntimeError(
         auditProvenanceFileTree(root, malformedOptions),

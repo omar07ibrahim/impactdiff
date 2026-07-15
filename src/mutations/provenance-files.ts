@@ -39,6 +39,7 @@ export interface ProvenanceFileTreeOptions {
   readonly maximumTreeBytes: number;
   readonly capturePaths: ReadonlySet<string>;
   readonly captureBytePaths: ReadonlySet<string>;
+  readonly captureAllFileBytes?: boolean;
 }
 
 function fail(code: string, message: string, options?: ErrorOptions): never {
@@ -182,7 +183,9 @@ export async function auditProvenanceFileTree(
     !Number.isSafeInteger(options.maximumFileBytes) ||
     options.maximumFileBytes < 0 ||
     !Number.isSafeInteger(options.maximumTreeBytes) ||
-    options.maximumTreeBytes < 0
+    options.maximumTreeBytes < 0 ||
+    (options.captureAllFileBytes !== undefined &&
+      typeof options.captureAllFileBytes !== "boolean")
   ) {
     fail(
       "mutation.environment_tree",
@@ -317,7 +320,8 @@ export async function auditProvenanceFileTree(
       const result = await readStableProvenanceFile(
         absolutePath,
         options.maximumFileBytes,
-        options.captureBytePaths.has(manifestPath),
+        options.captureAllFileBytes === true ||
+          options.captureBytePaths.has(manifestPath),
         stats,
       );
       totalBytes += result.byteLength;
@@ -334,7 +338,10 @@ export async function auditProvenanceFileTree(
           sha256: result.sha256,
         }),
       );
-      if (options.capturePaths.has(manifestPath)) {
+      if (
+        options.captureAllFileBytes === true ||
+        options.capturePaths.has(manifestPath)
+      ) {
         captures.set(manifestPath, result);
       }
     }
@@ -369,9 +376,12 @@ export async function auditProvenanceFileTree(
   }
   files.sort((left, right) => codeUnitCompare(left.path, right.path));
   directories.sort(codeUnitCompare);
+  const sortedCaptures = new Map(
+    [...captures].sort(([left], [right]) => codeUnitCompare(left, right)),
+  );
   return Object.freeze({
     directories: Object.freeze(directories),
     files: Object.freeze(files),
-    captures: new ImmutableMapView(captures),
+    captures: new ImmutableMapView(sortedCaptures),
   });
 }

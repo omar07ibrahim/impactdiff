@@ -19,6 +19,12 @@ export interface PilotFixtureActionPlanArtifact {
   readonly task_id: string;
 }
 
+function standaloneBytes(bytes: Uint8Array): Uint8Array {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy;
+}
+
 function actionLocator(
   workflow: PilotFixtureWorkflow,
   recipe: PilotFixtureActionRecipe,
@@ -72,7 +78,7 @@ function immutableArtifact(
     bytes: {
       configurable: false,
       enumerable: true,
-      get: () => Buffer.from(privateBytes),
+      get: () => standaloneBytes(privateBytes),
     },
     reference: {
       configurable: false,

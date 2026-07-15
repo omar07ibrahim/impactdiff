@@ -23,6 +23,8 @@ type DeepMutable<Value> = Value extends readonly (infer Item)[]
     : Value;
 
 const manifestPath = resolve("fixtures/pilot-market-basket-v1/fixture.json");
+const expectedContentSecurityPolicy =
+  "default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-src 'none'; img-src 'self'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'nonce-aW1wYWN0ZGlmZi1tYXJrZXQtYmFza2V0LXYx'; webrtc 'block'; worker-src 'none'";
 const rawManifestBytes = await readFile(manifestPath);
 assert.equal(rawManifestBytes.at(-1), 0x0a, "fixture manifest must end in one LF");
 assert.notEqual(
@@ -111,7 +113,8 @@ test("the canonical market-basket manifest binds the exact Pilot authoring slice
   assert.equal(manifest.application_catalog_id, pilotV01ApplicationCatalogId);
   assert.equal(manifest.application_key, "market_basket");
   assert.equal(manifest.fixture_key, "pilot-market-basket-v1");
-  assert.equal(manifest.revision, "pilot-market-basket-v1.0.0-authoring.1");
+  assert.equal(manifest.revision, "pilot-market-basket-v1.0.0-authoring.2");
+  assert.equal(manifest.content_security_policy, expectedContentSecurityPolicy);
   assert.deepEqual(
     manifest.workflows.map((workflow) => workflow.workflow_key),
     ["add_bundle", "choose_pickup"],
@@ -255,6 +258,13 @@ test("resource membership is safe, complete, unique, and strictly ordered", () =
 });
 
 test("CSP, environment, and readiness are exact", () => {
+  const missingWebRtc = mutableManifest();
+  missingWebRtc.content_security_policy = missingWebRtc.content_security_policy.replace(
+    "; webrtc 'block'",
+    "",
+  );
+  expectIssue(missingWebRtc, "pilot_fixture.content_security_policy");
+
   const csp = mutableManifest();
   csp.content_security_policy += "; connect-src 'self'";
   expectIssue(csp, "pilot_fixture.content_security_policy");

@@ -80,7 +80,7 @@ const expectedCheckpoints = Object.freeze([
 
 function expectedContentSecurityPolicy(styleNonce: string): string {
   const encodedNonce = Buffer.from(styleNonce, "utf8").toString("base64");
-  return `default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-src 'none'; img-src 'self'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'nonce-${encodedNonce}'; worker-src 'none'`;
+  return `default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-src 'none'; img-src 'self'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'nonce-${encodedNonce}'; webrtc 'block'; worker-src 'none'`;
 }
 
 function unsafeRelativePath(path: string): boolean {
