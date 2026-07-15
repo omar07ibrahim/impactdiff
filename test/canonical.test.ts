@@ -76,6 +76,18 @@ test("strict decoding rejects invalid Unicode and UTF-8", () => {
   expectCanonicalError(new Uint8Array([0xff]), "json.utf8");
   expectCanonicalError('{"a":"\\ud800"}', "json.unpaired_surrogate");
   expectCanonicalError('{"a":"é"}', "json.non_nfc_string");
+
+  const ResizableArrayBuffer = ArrayBuffer as unknown as new (
+    byteLength: number,
+    options: { readonly maxByteLength: number },
+  ) => ArrayBuffer;
+  const resizable = new Uint8Array(new ResizableArrayBuffer(2, { maxByteLength: 4 }));
+  resizable.set(new TextEncoder().encode("{}"));
+  expectCanonicalError(resizable, "json.input");
+
+  const shared = new Uint8Array(new SharedArrayBuffer(2));
+  shared.set(new TextEncoder().encode("{}"));
+  expectCanonicalError(shared, "json.input");
 });
 
 test("contract numbers are exact safe integers", () => {
@@ -100,6 +112,15 @@ test("decoder resource limits fail closed", () => {
     () => parseCanonicalJson("[0,1]", { maximumValues: 2 }),
     (error: unknown) =>
       error instanceof CanonicalJsonError && error.code === "json.value_count",
+  );
+
+  const shadowedLength = new Uint8Array(5);
+  shadowedLength.set(new TextEncoder().encode("null "));
+  Object.defineProperty(shadowedLength, "byteLength", { value: 1 });
+  assert.throws(
+    () => parseCanonicalJson(shadowedLength, { maximumBytes: 4 }),
+    (error: unknown) =>
+      error instanceof CanonicalJsonError && error.code === "json.byte_length",
   );
 });
 
