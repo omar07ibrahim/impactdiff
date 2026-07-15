@@ -50,6 +50,8 @@ test("provenance trees are globally sorted and independent of creation order", a
     const second = await auditProvenanceFileTree(secondRoot, options);
 
     assert.deepEqual(first.files, second.files);
+    assert.deepEqual(first.directories, second.directories);
+    assert.deepEqual(first.directories, ["a"]);
     assert.deepEqual(
       first.files.map((file) => file.path),
       ["a.txt", "a/z.txt", "z.txt"],
@@ -64,6 +66,7 @@ test("provenance trees are globally sorted and independent of creation order", a
     assert.deepEqual(secondCapture, Buffer.from("a"));
     assert.deepEqual(first.captures.get("a.txt")?.bytes, Buffer.from("a"));
     assert.equal("set" in first.captures, false);
+    assert.ok(Object.isFrozen(first.directories));
 
     await writeFile(join(secondRoot, "a.txt"), "changed", "utf8");
     const changed = await auditProvenanceFileTree(secondRoot, options);

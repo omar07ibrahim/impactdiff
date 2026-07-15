@@ -4,3 +4,4 @@ package-lock.json
 artifacts/generated/
 datasets/generated/
 checkpoints/
+fixtures/pilot-market-basket-v1/fixture.json

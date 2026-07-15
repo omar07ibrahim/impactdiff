@@ -13,6 +13,9 @@ import type {
   PairedReleaseArtifactInput,
   PairedReleaseInput,
   PilotApplicationGroupIdentityInput,
+  PilotFixtureActionStepIdentity,
+  PilotFixtureAuthoringPackage,
+  PilotFixtureManifest,
   PilotGenerationPlan,
   PilotMutationFamilyKey,
   PilotMutationOperatorCatalog,
@@ -38,6 +41,9 @@ function acceptsPublicTypes(
   _publicationArtifact: PairedReleaseArtifactInput,
   _publicationInput: PairedReleaseInput,
   _pilotApplicationGroupIdentity: PilotApplicationGroupIdentityInput,
+  _pilotFixtureActionStepIdentity: PilotFixtureActionStepIdentity,
+  _pilotFixtureAuthoringPackage: PilotFixtureAuthoringPackage,
+  _pilotFixtureManifest: PilotFixtureManifest,
   _pilotGenerationPlan: PilotGenerationPlan,
   _pilotMutationFamilyKey: PilotMutationFamilyKey,
   _pilotMutationOperatorCatalog: PilotMutationOperatorCatalog,
@@ -66,17 +72,20 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "computePilotSplitPlanId",
     "computePilotWorkflowId",
     "computeFixtureActionTargetId",
+    "computePilotFixtureActionStepId",
     "executeMutationFixtureTask",
     "FixturePairGenerationError",
     "loadVerifiedMutationFixtureSourceState",
     "launchMutationFixtureEnvironment",
     "loadVerifiedMutationFixtureActionPlan",
+    "loadPilotFixtureAuthoringPackage",
     "MutationFixtureCheckpointBytes",
     "MutationFixtureEnvironment",
     "openMutationFixtureSession",
     "PairedPublicationError",
     "PairedReleasePublisher",
     "parseActionPlan",
+    "parsePilotFixtureManifest",
     "parsePilotGenerationPlan",
     "parsePilotMutationOperatorCatalog",
     "parsePilotMutationOperatorDefinition",
@@ -85,6 +94,7 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "publishFreshMutationFixturePair",
     "validateDatasetBundle",
     "validatePilotGenerationPlan",
+    "validatePilotFixtureManifest",
     "validatePilotMutationOperatorCatalog",
     "validatePilotMutationOperatorDefinition",
     "validatePilotMutationOperatorDefinitionSet",
@@ -99,6 +109,12 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     assert.equal(typeof publicApi[name], "function", `${name} must be exported`);
   }
 
+  assert.equal(
+    "buildPilotFixtureActionPlanArtifacts" in publicApi,
+    false,
+    "unchecked ActionPlan construction must remain package-internal",
+  );
+
   assert.equal(publicApi.contractVersion, 1);
   assert.equal(publicApi.evidenceContract, "impactdiff.evidence");
   assert.equal(
@@ -106,6 +122,11 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "impactdiff.pilot-generation-plan",
   );
   assert.equal(publicApi.pilotGenerationPlanVersion, 1);
+  assert.equal(
+    publicApi.pilotFixtureManifestContract,
+    "impactdiff.pilot-fixture-manifest",
+  );
+  assert.equal(publicApi.pilotFixtureManifestVersion, 1);
   assert.equal(publicApi.pilotMutationOperatorVersion, 1);
   assert.equal(publicApi.pilotMutationOperatorCatalogVersion, 1);
   assert.equal(publicApi.pilotV01MutationOperatorDefinitions.length, 16);
