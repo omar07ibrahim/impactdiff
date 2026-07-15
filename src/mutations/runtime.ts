@@ -18,6 +18,7 @@ import {
   adaptChromiumLayoutSnapshot,
   chromiumLayoutComputedStyles,
 } from "../capture/chromium-layout.js";
+import { assertClosedChromiumFonts } from "../capture/chromium-fonts.js";
 import { computeFixtureActionTargetId } from "../capture/identity.js";
 import { normalizeAccessibilitySnapshot } from "../capture/normalize-ax.js";
 import type { ActionPlan, CaptureSpec, LayoutSnapshot } from "../capture/schema.js";
@@ -1953,7 +1954,10 @@ export async function openMutationFixtureSession(
       { timeout: captureSpec.budgets.readiness_timeout_ms },
     );
     await assertFixtureReadiness(page, binding, captureSpec);
-    await assertClosedFixtureFonts(page);
+    await assertClosedChromiumFonts(page, {
+      expectedPlatformFamilyName: "Noto Sans",
+      createError: fixtureFontAuditError,
+    });
     const now = await page.evaluate(() => Date.now());
     if (now !== captureSpec.clock.epoch_ms) {
       fail("mutation.clock_drift", "fixture virtual clock did not pause exactly");
@@ -2430,7 +2434,10 @@ async function captureMutationCheckpoint(
   if (preparedGeometry !== null) {
     await assertPreparedCaptureGeometry(state, preparedGeometry);
   }
-  await assertClosedFixtureFonts(state.page);
+  await assertClosedChromiumFonts(state.page, {
+    expectedPlatformFamilyName: "Noto Sans",
+    createError: fixtureFontAuditError,
+  });
   const targetBackendNodeId = await captureTargetBackendNodeId(client);
   const screenshotInput = await state.page.screenshot({
     type: state.captureSpec.screenshot.format,
@@ -2739,85 +2746,11 @@ async function assertFixtureReadiness(
   }
 }
 
-async function assertClosedFixtureFonts(page: Page): Promise<void> {
-  const client = await page.context().newCDPSession(page);
-  let auditFailure: { readonly error: unknown } | undefined;
-  try {
-    await client.send("DOM.enable");
-    await client.send("CSS.enable");
-    const document = await client.send("DOM.getDocument", {
-      depth: 1,
-      pierce: false,
-    });
-    const matches = await client.send("DOM.querySelectorAll", {
-      nodeId: document.root.nodeId,
-      selector: "body, body *",
-    });
-    let glyphCount = 0;
-    for (const nodeId of matches.nodeIds) {
-      const usage = await client.send("CSS.getPlatformFontsForNode", { nodeId });
-      for (const font of usage.fonts) {
-        glyphCount += font.glyphCount;
-        if (font.isCustomFont !== true || font.familyName !== "Noto Sans") {
-          fail(
-            "mutation.fixture_font_fallback",
-            "fixture text used a font outside the exact custom WOFF2 bundle",
-          );
-        }
-      }
-    }
-    if (glyphCount < 1) {
-      fail(
-        "mutation.fixture_font_fallback",
-        "fixture font audit observed no rendered custom glyphs",
-      );
-    }
-  } catch (error) {
-    auditFailure = { error };
-  }
-  let detachFailure: { readonly error: unknown } | undefined;
-  try {
-    await client.detach();
-  } catch (error) {
-    detachFailure = { error };
-  }
-  if (auditFailure !== undefined) {
-    if (auditFailure.error instanceof MutationRuntimeError) {
-      if (detachFailure === undefined) {
-        throw auditFailure.error;
-      }
-      throw new MutationRuntimeError(
-        auditFailure.error.code,
-        auditFailure.error.message,
-        {
-          cause: new AggregateError(
-            [auditFailure.error, detachFailure.error],
-            "fixture font audit and CDP cleanup both failed",
-          ),
-        },
-      );
-    }
-    fail(
-      "mutation.fixture_font_fallback",
-      "fixture platform-font usage could not be audited",
-      {
-        cause:
-          detachFailure === undefined
-            ? auditFailure.error
-            : new AggregateError(
-                [auditFailure.error, detachFailure.error],
-                "fixture font audit and CDP cleanup both failed",
-              ),
-      },
-    );
-  }
-  if (detachFailure !== undefined) {
-    fail(
-      "mutation.fixture_font_fallback",
-      "fixture platform-font audit session could not be detached",
-      { cause: detachFailure.error },
-    );
-  }
+function fixtureFontAuditError(
+  message: string,
+  options?: ErrorOptions,
+): MutationRuntimeError {
+  return new MutationRuntimeError("mutation.fixture_font_fallback", message, options);
 }
 
 function roundNearestTiesToEven(value: number): number {

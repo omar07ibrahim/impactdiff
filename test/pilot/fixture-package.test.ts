@@ -26,6 +26,7 @@ import {
   pilotFixtureNotoSansSha256,
   pilotFixtureOflLicenseSha256,
 } from "../../src/pilot/index.js";
+import { loadPilotFixtureAuthoringSnapshot } from "../../src/pilot/fixture/package.js";
 import { parseSourceState } from "../../src/source/validate.js";
 
 const fixtureDirectory = resolve("fixtures/pilot-market-basket-v1");
@@ -421,6 +422,27 @@ test("authoring package emits only frozen, non-official source and task artifact
   assert.notEqual(pristineActionBytes, mutableActionBytes);
   mutableActionBytes[0] = 0;
   assert.deepEqual(firstWorkflow.action_plan.bytes, pristineActionBytes);
+});
+
+test("browser authoring resources come from one defensive audited byte snapshot", async () => {
+  const snapshot = await loadPilotFixtureAuthoringSnapshot(fixtureDirectory);
+  assert.deepEqual(snapshot.resources.paths, expectedResourcePaths);
+  assert.ok(Object.isFrozen(snapshot));
+  assert.ok(Object.isFrozen(snapshot.resources));
+  assert.ok(Object.isFrozen(snapshot.resources.paths));
+  assert.equal("resources" in snapshot.authoring_package, false);
+
+  for (const resource of snapshot.authoring_package.manifest.resources) {
+    const first = snapshot.resources.read(resource.path);
+    const second = snapshot.resources.read(resource.path);
+    assert.ok(first !== undefined && second !== undefined);
+    assert.notEqual(first, second);
+    assert.deepEqual(first, await readFile(join(fixtureDirectory, resource.path)));
+    first[0] = first[0] === 0 ? 1 : 0;
+    assert.deepEqual(snapshot.resources.read(resource.path), second);
+  }
+  assert.equal(snapshot.resources.read("fixture.json"), undefined);
+  assert.equal(snapshot.resources.read("unlisted.txt"), undefined);
 });
 
 test("market source, catalog, CSP, shared bytes, and near-duplicate budget stay closed", async () => {

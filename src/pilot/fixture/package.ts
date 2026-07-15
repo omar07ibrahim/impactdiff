@@ -60,6 +60,18 @@ export interface PilotFixtureAuthoringPackage {
   readonly workflows: readonly PilotFixtureAuthoringWorkflow[];
 }
 
+/** @internal Browser authoring serves only this audited byte snapshot. */
+export interface PilotFixtureResourceSnapshot {
+  readonly paths: readonly string[];
+  readonly read: (path: string) => Buffer | undefined;
+}
+
+/** @internal Kept out of the package root because resource bytes are runtime-only. */
+export interface PilotFixtureAuthoringSnapshot {
+  readonly authoring_package: PilotFixtureAuthoringPackage;
+  readonly resources: PilotFixtureResourceSnapshot;
+}
+
 function fail(code: string, message: string, options?: ErrorOptions): never {
   throw new PilotFixtureAuthoringError(code, message, options);
 }
@@ -223,13 +235,42 @@ function workflowPackage(
   });
 }
 
+function resourceSnapshot(
+  manifest: PilotFixtureManifest,
+  treeFiles: readonly ProvenanceTreeFile[],
+  captures: ReadonlyMap<string, { readonly bytes?: Buffer }>,
+): PilotFixtureResourceSnapshot {
+  const auditedPaths = new Set(treeFiles.map(({ path }) => path));
+  const privateBytes = new Map<string, Buffer>();
+  for (const resource of manifest.resources) {
+    const bytes = captures.get(resource.path)?.bytes;
+    if (bytes === undefined || !auditedPaths.has(resource.path)) {
+      fail(
+        "pilot_fixture.snapshot",
+        `resource ${resource.path} is absent from the audited byte snapshot`,
+      );
+    }
+    privateBytes.set(resource.path, Buffer.from(bytes));
+  }
+  const paths = Object.freeze([...privateBytes.keys()]);
+  return Object.freeze({
+    paths,
+    read: (path: string) => {
+      const bytes = privateBytes.get(path);
+      return bytes === undefined ? undefined : Buffer.from(bytes);
+    },
+  });
+}
+
 /**
- * Resolves one pre-release Pilot fixture into canonical authoring artifacts. This
- * function performs no browser execution and cannot emit outcomes or official rows.
+ * Captures one authoritative fixture snapshot for the internal browser authoring
+ * runtime. The browser never receives a path back to the live directory.
+ *
+ * @internal Not exported from the package root.
  */
-export async function loadPilotFixtureAuthoringPackage(
+export async function loadPilotFixtureAuthoringSnapshot(
   fixtureDirectory: string,
-): Promise<PilotFixtureAuthoringPackage> {
+): Promise<PilotFixtureAuthoringSnapshot> {
   if (
     typeof fixtureDirectory !== "string" ||
     fixtureDirectory.length < 1 ||
@@ -246,6 +287,7 @@ export async function loadPilotFixtureAuthoringPackage(
       maximumTreeBytes: maximumFixtureTreeBytes,
       capturePaths: new Set([fixtureManifestPath]),
       captureBytePaths: new Set([fixtureManifestPath]),
+      captureAllFileBytes: true,
     });
   } catch (error) {
     fail("pilot_fixture.tree", "fixture file-tree audit failed", { cause: error });
@@ -296,12 +338,27 @@ export async function loadPilotFixtureAuthoringPackage(
     capturedManifest.sha256,
   ).map(workflowPackage);
 
-  return Object.freeze({
+  const authoringPackage = Object.freeze({
     kind: "pilot_fixture_authoring_package",
     official: false,
     manifest,
     source_state: source.artifact,
     source_state_id: source.sourceStateId,
     workflows: Object.freeze(plans),
+  }) satisfies PilotFixtureAuthoringPackage;
+  return Object.freeze({
+    authoring_package: authoringPackage,
+    resources: resourceSnapshot(manifest, tree.files, tree.captures),
   });
+}
+
+/**
+ * Resolves one pre-release Pilot fixture into canonical authoring artifacts. This
+ * function performs no browser execution and cannot emit outcomes or official rows.
+ */
+export async function loadPilotFixtureAuthoringPackage(
+  fixtureDirectory: string,
+): Promise<PilotFixtureAuthoringPackage> {
+  const snapshot = await loadPilotFixtureAuthoringSnapshot(fixtureDirectory);
+  return snapshot.authoring_package;
 }
