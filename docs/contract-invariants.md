@@ -111,6 +111,31 @@ proof that its two roles came from fresh browser sessions and not process-level 
 isolation. The exact topology, recovery rules, capacity, and threat model are documented
 in [paired publication](paired-publication.md).
 
+### Fixed fresh-pair assembler
+
+`publishFreshMutationFixturePair` snapshots its closed options and preflights the
+private publication topology before launching Chromium. For the exact checkout fixture,
+it loads runtime-owned source and action artifacts, constructs one mutation request with
+replicate zero before either role, and executes baseline and candidate in distinct
+sequential `MutationFixtureSession`s under one `MutationFixtureEnvironment`.
+
+Baseline must prepare, execute, and close cleanly. Candidate must prepare, live-probe,
+compile to an applicable plan, apply, execute, clean up, and close cleanly. Any
+operation, cleanup, close, blocked-external-request, or environment-shutdown failure
+prevents derivation and publication. Only after browser shutdown does the assembler
+derive references and IDs, changed surface, oracle and trace records, optional
+localization, development labels and grouping, run full resolved-record replay, and call
+the publisher.
+
+Fresh roles use distinct sequential browser contexts/sessions under one shared verified
+browser environment. This neither proves process-level separation nor guarantees process
+reuse or renderer topology. The guarantee composes trusted same-process runtime
+capabilities for one cooperative fixture; it is not hostile-JavaScript sandboxing,
+loaded-memory or kernel attestation, OCI attestation, inter-process writer defense,
+read-only model-mount isolation, or a multi-pair dataset guarantee. The publisher
+remains generic and does not independently prove role freshness. See
+[fresh-pair generation](fresh-pair-generation.md) for the complete lifecycle.
+
 ## Canonical capture payloads
 
 The registered production codecs cover source-state provenance, action plan, capture
@@ -223,6 +248,11 @@ and resource audit and returns a fresh copy of the canonical source-state bytes 
 their reference. Generator code therefore does not duplicate the runtime's private
 fixture description when preparing the sealed artifact.
 
+`loadVerifiedMutationFixtureActionPlan` constructs the module-owned canonical
+one-action, two-checkpoint plan and returns defensive bytes plus its reference. Its
+action ID is domain-separated over the exact fixture identity, locator, intent, and
+pointer value; generator callers cannot replace the plan or checkpoint schedule.
+
 The returned `MutationFixtureSession` is branded in a module-private `WeakMap`; copied
 objects and transplanted Playwright pages fail provenance checks. Operations are
 serialized so close cannot race a probe or mutation, and the environment permits only
@@ -255,9 +285,9 @@ sequential reads are justified only by the paused clock, blocked network, cooper
 closed fixture, and authentication audits before and after each checkpoint.
 
 The returned task run is provisional generator state until an active mutation cleanup
-and `MutationFixtureSession.close()` both succeed. The pending pair assembler must
-retain it only in trusted generator state until those lifecycle audits pass; a cleanup
-or close failure invalidates all checkpoint bytes from that role.
+and `MutationFixtureSession.close()` both succeed. The pair assembler retains it only in
+trusted generator state until those lifecycle audits pass; a cleanup or close failure
+invalidates all checkpoint bytes from that role.
 
 The Chromium layout adapter strictly decodes one exact-origin document, removes pseudo
 subtrees, collapses non-layout ancestors, translates document coordinates by the actual
@@ -280,7 +310,8 @@ whole-phase deadlines for raw CDP or coordinate input. The public `session.page`
 a trusted same-process capability: code that controls it, or hostile page code that
 replaces JavaScript intrinsics and listener state, may evade page-realm checks. The
 runtime therefore attests the exact fixture and its cooperative audited execution, not
-arbitrary JavaScript pages. Complete paired-capture assembly is still pending.
+arbitrary JavaScript pages. Complete pair assembly is implemented for this closed
+fixture path; general-page capture is outside that claim.
 
 ## Reversible mutation compilation
 
@@ -298,13 +329,31 @@ handle. They accept only a bounded `test_id` locator and fixed opcodes—no arbi
 JavaScript, CSS, selectors, or free-form mutation payload. Expected task relation is
 sealed provenance and never substitutes for the measured execution label.
 
+### Development-only grouping and labels
+
+Generation uses one code-owned development policy. Its domain-separated `idlp1_`
+identifier commits to baseline-failure invalidity, the regression condition, and pass
+and regression severity ordinals `0` and `4`. Failed-step and localization requirements
+are enforced separately by derivation and record contracts; they are not fields in the
+current policy digest. Development grouping IDs derive from authenticated fixture,
+source, task, manifest, and mutation-family identities. These deterministic outputs are
+not evidence of semantic clustering quality, calibrated impact, benchmark ground truth,
+or model output.
+
+The policy body is code-owned rather than a separately resolved publication artifact.
+The record carries its `label_policy_id`, but resolved-record replay does not resolve
+and independently execute the policy body. A future scorer must independently replay the
+eventual benchmark policy.
+
 ## What remains unproven
 
 The repository does not yet assemble and mount a complete read-only visible dataset for
-an isolated feature process. Cross-session pair assembly, dataset-level publication, the
-isolated feature runner, and the versioned scorer are still incomplete. The scorer must
+an isolated feature process. Multi-pair dataset-level publication, the isolated feature
+runner, and the general versioned scorer are still incomplete. That scorer must
 recompute severity, failed-step membership, and localization from resolved oracle,
-trace, action-plan, and policy artifacts.
+trace, action-plan, and a future versioned policy definition. The current severity `4`
+is a narrow development decision for a candidate that blocks this fixture's primary
+checkout action, not a universal benchmark scale.
 
 Until the full generation and scoring path is exercised on a released corpus, this
 repository makes no benchmark-quality, leakage-safety, or model-accuracy claim.

@@ -12,9 +12,10 @@ bytes, and the composition of supported resolved evidence and intervention bundl
 also provides a private registered-codec content-addressed store, a paired
 visible/sealed audit, and a verified Chromium session for the closed local fixture. An
 atomic publisher now materializes and reopens one complete visible/sealed pair. The
-fresh-session pair assembler, multi-pair dataset builder, read-only process mounts, and
-scorer are not complete, so the project does not yet claim that a released corpus is
-leakage-safe model input.
+fixed development assembler now supplies it from two distinct sequential runtime
+sessions. Multi-pair dataset construction, read-only feature-process mounts, and an
+independent benchmark scorer remain incomplete, so the project does not yet claim that a
+released corpus is leakage-safe model input.
 
 ## Storage roots
 
@@ -69,17 +70,20 @@ not a durable trace for the model.
 At this trusted-generator layer, `MutationFixtureTaskRun` returns copy-on-read canonical
 modalities and the measured task outcome together. It is provisional until mutation
 cleanup and the session-close audit succeed, and is not itself a visible artifact. The
-pending pair assembler must discard it after any lifecycle failure, derive outcome,
-trace, intervention, and label payloads only after both roles close, and then submit the
-complete visible/sealed input to the publisher.
+pair assembler discards it after any lifecycle failure, blocked external request, or
+failed environment shutdown. It uses distinct sequential BrowserContext sessions for
+baseline and candidate inside one verified Chromium environment, derives outcome, trace,
+intervention, and label payloads only after both role sessions and that environment have
+closed, and then submits the complete visible/sealed input to the publisher.
 
 This is not yet the complete dataset boundary. The launcher verifies project-pinned
 installed bytes and the live process command line under a trusted same-process,
 non-hostile filesystem boundary; host mode does not attest loaded process memory, the
 Node binary, kernel or system libraries. The session also exposes a same-process
 Playwright `Page` capability to trusted generator code. The publisher stores complete
-inputs under exact references and audits both stores, but a generator must still prove
-fresh role lifecycles and an isolated feature runner must mount only `visible/`.
+inputs under exact references and audits both stores. The fixture assembler now proves
+fresh role lifecycles for its closed shared-browser path, but an isolated feature runner
+must still mount only `visible/`.
 
 ## Visible evidence manifest
 
@@ -89,11 +93,12 @@ baseline/candidate checkpoints. Each checkpoint has exactly the same three modal
 canonical PNG screenshot, normalized accessibility tree, and bounded normalized layout
 graph.
 
-The pending pair assembler must fix the action plan before either execution. The plan
-may contain action intents and opaque target IDs, but never actual status, retry, error,
-duration, recovery, oracle, or failed-step fields. Baseline and candidate captures must
-have the same checkpoint IDs, ordinals, counts, and modalities. An incomplete pair is
-invalid and is not made visible as a shorter candidate sequence.
+The runtime-owned canonical action plan is fixed before the request and before either
+role executes. Its action ID commits to the exact fixture identity, locator, intent, and
+pointer value. The assembler uses the same artifact for both roles; outcome fields never
+become action inputs. Baseline and candidate captures must have the same checkpoint IDs,
+ordinals, counts, and modalities. An incomplete pair is invalid and is not made visible
+as a shorter candidate sequence.
 
 Every model-visible routing identity is derived with a domain-separated hash from a
 label-free canonical body. Source-state identity is the one cross-boundary case: its
@@ -135,10 +140,14 @@ references a typed mutation plan and precondition report; those payloads embed a
 the exact pre-outcome request/source probe. A scorer derives validity, task regression,
 severity, failed step, and localization from the record under a versioned label policy.
 
-The current record validator checks consistency among stored scalar outcomes and labels;
-the scorer that replays the versioned policy against resolved trace and oracle artifacts
-has not landed yet. Severity should therefore be read as contract data, not as a
-validated benchmark claim.
+The assembler applies one domain-separated development policy: a failed baseline is
+invalid, a successful candidate is a non-regression with severity `0`, and a failed
+candidate after a successful baseline is a regression with severity `4` plus required
+localization. That last ordinal is intentionally specific to this fixture's blocked
+primary action. Resolved replay verifies the stored oracle, trace, localization, and
+label consistency, but it does not resolve and independently execute the policy body.
+The general benchmark scorer has not landed; these labels are not a calibrated severity
+scale or a validated benchmark claim.
 
 If the baseline task fails, the sample is invalid. Its outcome remains useful for
 generator diagnostics, but it cannot become a negative benchmark item.
@@ -176,8 +185,9 @@ Screenshots are decoded under fixed resource limits and deterministically re-enc
 RGBA PNG. This discards ancillary chunks and clears invisible RGB values beneath zero
 alpha before hashing, closing two channels that metadata-only stripping would leave.
 
-See [contract invariants](contract-invariants.md) for the implemented codec checks, CAS
-threat boundary, and remaining end-to-end materialization work.
+See [contract invariants](contract-invariants.md) for the implemented codec checks and
+CAS threat boundary, and [fresh-pair generation](fresh-pair-generation.md) for lifecycle
+and development-policy details.
 
 ## Versioning
 

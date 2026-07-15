@@ -90,5 +90,6 @@ The fsync ordering is designed for local durable filesystems, but this protocol 
 claim a portable power-loss guarantee for NFS, FUSE, or hardware that violates its own
 flush contract. It also does not provide process-level mount isolation, construct a
 three-way train/validation/test dataset, or prove that baseline and candidate were
-captured in fresh sessions. Those are responsibilities of the pending pair assembler,
-dataset builder, and isolated feature runner.
+captured in fresh sessions. The separate fixture pair assembler now supplies that
+lifecycle proof for its closed shared-browser development path; dataset construction and
+an isolated feature runner remain separate responsibilities.

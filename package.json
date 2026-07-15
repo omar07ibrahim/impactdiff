@@ -26,6 +26,7 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test --test-concurrency=1 'dist/test/**/*.test.js'",
     "coverage": "npm run build && node --test --test-concurrency=1 --experimental-test-coverage 'dist/test/**/*.test.js'",
+    "release:dev": "npm run build && node dist/src/cli/development-release.js",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

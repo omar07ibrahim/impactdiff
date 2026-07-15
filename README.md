@@ -45,7 +45,12 @@ Implemented today:
   integrity, and exact mutation cleanup. Its authenticated task executor derives and
   locks deterministic scroll/target geometry, performs a true coordinate click, then
   emits two canonical PNG, accessibility-tree, and layout-graph checkpoints without
-  exposing a partial run; and
+  exposing a partial run;
+- a fixed fresh-pair assembler for `checkout-card-v1`. It commits replicate zero before
+  execution, runs baseline and candidate sequentially in distinct browser contexts under
+  one verified Chromium environment, requires cleanup, audited session closes, an empty
+  blocked-external-request audit, and browser shutdown, then derives and replays the
+  complete pair before publication; and
 - an append-only paired-release publisher. It snapshots caller bytes before its first
   asynchronous operation, builds independent visible and sealed CAS roots in one private
   staging directory, verifies exact topology and full semantic replay, writes a commit
@@ -58,11 +63,12 @@ The capture contract names the exact installed file trees for `@playwright/test`
 complete installation tree, source revision, and normalized launch profile; every
 render-font file; and an honest Linux host or an OCI shape reserved for external
 attestation verification. The current launcher produces a host capability only. The
-verified single-role capture path, mutation runtime, and generic paired-release
-transaction are implemented. The generator that executes baseline and candidate in fresh
-sessions, closes both lifecycle capabilities, derives their sealed results, and submits
-the complete pair is still pending. Learned baselines come only after that end-to-end
-path is auditable.
+verified single-role runtime, fixed fresh-pair assembler, and paired-release transaction
+are implemented for the closed checkout fixture. Real-browser integration covers the
+task-breaking pointer interceptor and task-preserving palette swap. This is a
+development path, not a corpus generator: multi-pair dataset construction,
+process-isolated feature loading, general scoring, training, and learned baselines
+remain future work.
 
 ## Architecture
 
@@ -79,7 +85,8 @@ flowchart LR
   probe --> compiler["Reversible mutation compiler"]
   compiler --> runtime["Audited mutation runtime"]
 
-  modalities["Canonical PNG · AX · layout"] -.->|fresh pair assembler pending| publisher["Atomic paired publisher"]
+  modalities["Canonical PNG · AX · layout"] --> assembler["Fresh-pair assembler"]
+  assembler -->|derive + replay complete pair| publisher["Atomic paired publisher"]
   publisher -->|exact visible + sealed membership| cas["Codec-bound CAS"]
   publisher -->|replay before + after rename| resolver["Manifest-bound bundle validator"]
 
@@ -130,6 +137,8 @@ criteria, and non-goals. The [data-boundary contract](docs/data-boundary.md) sep
 model-visible evidence from outcomes and mutation metadata. The
 [contract invariants](docs/contract-invariants.md) document canonical payloads, resolved
 artifact checks, and the v1 artifact-store threat boundary. The
+[fresh-pair generation protocol](docs/fresh-pair-generation.md) documents lifecycle
+closure, the narrow development label policy, and its non-claims. The
 [paired-publication protocol](docs/paired-publication.md) documents its commit point,
 recovery rules, and unsupported filesystem adversaries.
 
@@ -142,9 +151,12 @@ recovery rules, and unsupported filesystem adversaries.
   target identities;
 - `src/mutations/` — mutation identities, sealed plans, compiler, and verified Chromium
   runtime;
+- `src/generation/` — fixed fresh-pair orchestration, development grouping and label
+  policy, pair derivation, and resolved replay before publication;
 - `src/sealed/` — oracle, trace, changed-surface, and localization contracts;
 - `src/publication/` — paired commits, input snapshots, atomic publication, recovery,
-  and strict reopen verification; and
+  and strict reopen verification;
+- `src/cli/` — the bounded development-release command; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
   capture tests.
 
@@ -169,6 +181,18 @@ npm test
 On a fresh Linux runner, Playwright may also need its distribution packages; CI installs
 them with `npx playwright install --with-deps chromium`. `npm run coverage` executes the
 same suite with Node's source-coverage report.
+
+To build one real pointer-interceptor development release, provide a pre-existing
+private root. Generated releases are intentionally ignored by Git:
+
+```bash
+install -d -m 0700 artifacts/generated/dev-pointer-v1
+npm run --silent release:dev -- --root artifacts/generated/dev-pointer-v1
+```
+
+Success prints one JSON receipt. The command fixes the operator to `pointer_interceptor`
+and replicate index to `0`; the public TypeScript API also supports the `palette_swap`
+development case.
 
 ## Engineering constraints
 
