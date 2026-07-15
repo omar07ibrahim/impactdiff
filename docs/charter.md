@@ -81,10 +81,11 @@ fail-closed manifest rules.
 ## Splits
 
 Random item splits are insufficient because screenshots from the same application are
-highly correlated. Pilot v0.1 therefore uses one primary application-disjoint split,
-frozen at 10 training, 5 validation, and 5 test applications before outcomes are seen.
-Mutation-family and joint holdouts are exploratory stress views only; they cannot
-support a headline claim unless their predeclared group and class-count gates pass.
+highly correlated. Pilot v0.1 therefore preassigns four blocks of five applications and
+rotates them through four grouped outer folds. Every fold has 10 training, 5 validation,
+and 5 test applications; every application contributes outer-test predictions exactly
+once. Mutation-family and joint slices are diagnostics and are not claim-eligible in
+v0.1.
 
 Near-duplicate source states and shared assets are grouped before splitting. All split
 manifests are immutable and content-addressed.
@@ -117,14 +118,13 @@ accurate method cannot hide an impractical capture or inference cost.
 
 The central multimodal claim is supported only when the lower bound of the paired 95%
 application-cluster bootstrap interval is above zero for both fused-minus-pixel and
-fused-minus-structured average precision on the primary test split. It is not supported
-if any of the following holds:
+fused-minus-structured average precision on the concatenated outer-test predictions. It
+is not supported if any of the following holds:
 
 - a simple unimodal baseline matches the fused model within the predeclared confidence
   interval;
 - gains disappear after grouping confidence intervals by application;
-- performance depends on mutation metadata or another leakage channel;
-- the false-positive rate on benign controls makes the operating point unusable.
+- performance depends on mutation metadata or another leakage channel.
 
 The report will state such outcomes directly rather than changing the split or metric
 after observing results.

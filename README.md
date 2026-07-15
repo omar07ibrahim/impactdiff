@@ -128,14 +128,15 @@ labels must still come from execution outcomes.
 
 ## Evaluation plan
 
-Pilot v0.1 freezes 20 independently authored local mini-applications, two declared
-workflows per application, eight causal mutation families, and matched task-breaking and
-task-preserving variants. Replicate zero produces exactly 640 planned pairs. The primary
-application split is fixed at 10/5/5 applications, or 320/160/160 records, before
-capture outcomes are inspected. Average precision is primary; AUROC, recall at a 5%
-benign false-positive rate, Brier score, calibration error, per-group results, and
-resource cost are supporting measurements. Family and joint holdouts are exploratory
-stress views and cannot support a headline claim when their sample gates fail.
+Pilot v0.1 freezes 20 separately designed and implemented local mini-applications, two
+declared workflows per application, eight causal mutation families, and matched
+task-breaking and task-preserving variants. Replicate zero produces exactly 640 planned
+pairs. Four predeclared five-application blocks rotate through grouped outer folds; each
+fold uses 10/5/5 training, validation, and test applications, and every application
+contributes outer-test predictions exactly once. Average precision is primary; AUROC,
+recall at a 5% benign false-positive rate, Brier score, calibration error, per-group
+results, and resource cost are supporting measurements. Family and joint slices are
+diagnostics, not claim-eligible holdouts in v0.1.
 
 See [the research charter](docs/charter.md) for hypotheses, metrics, falsification
 criteria, and non-goals. The [data-boundary contract](docs/data-boundary.md) separates
