@@ -12,6 +12,7 @@ import type {
   MutationFixtureTaskRun,
   PairedReleaseArtifactInput,
   PairedReleaseInput,
+  PilotProtocol,
   ResolvedEvidenceBundle,
   SourceState,
   VerifiedPairedRelease,
@@ -29,6 +30,7 @@ function acceptsPublicTypes(
   _sourceState: SourceState,
   _publicationArtifact: PairedReleaseArtifactInput,
   _publicationInput: PairedReleaseInput,
+  _pilotProtocol: PilotProtocol,
   _verifiedRelease: VerifiedPairedRelease,
 ): void {}
 
@@ -40,6 +42,7 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "canonicalJson",
     "canonicalizePng",
     "compileMutation",
+    "computePilotProtocolId",
     "computeFixtureActionTargetId",
     "executeMutationFixtureTask",
     "FixturePairGenerationError",
@@ -56,6 +59,7 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "prepareMutationFixtureTask",
     "publishFreshMutationFixturePair",
     "validateDatasetBundle",
+    "validatePilotProtocol",
     "validateResolvedEvidenceBundle",
     "validateResolvedInterventionBundle",
     "validateResolvedEvidenceRecordBundle",
@@ -68,6 +72,11 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
 
   assert.equal(publicApi.contractVersion, 1);
   assert.equal(publicApi.evidenceContract, "impactdiff.evidence");
+  assert.equal(publicApi.pilotProtocolContract, "impactdiff.pilot-protocol");
+  assert.equal(publicApi.pilotProtocolRelease, "pilot-v0.1");
+  assert.equal(publicApi.pilotProtocolVersion, 1);
+  assert.equal(publicApi.pilotV01Protocol.protocol_id, publicApi.pilotV01ProtocolId);
+  assert.equal(typeof publicApi.pilotV01ProtocolCanonicalJson, "string");
   assert.equal(typeof publicApi.actionPlanCodec, "object");
   assert.equal(typeof publicApi.sourceStateCodec, "object");
   assert.equal(typeof publicApi.ARTIFACT_STORE_V1_THREAT_MODEL, "object");

@@ -8,9 +8,9 @@ damages accessibility, and which visible or structural evidence supports that
 conclusion.
 
 The planned benchmark input is a matched before/after capture containing screenshots,
-accessibility trees, bounded layout graphs, and a fixed action plan. The intended model
-output is a calibrated regression score, severity, the affected UI node and region, and
-an evidence trail back to the failed task step.
+accessibility trees, bounded layout graphs, and a fixed action plan. Pilot v0.1 narrows
+the learned task to a calibrated binary task-regression score. Ordinal severity and
+learned localization remain later research questions rather than promised outputs.
 
 ## Current status
 
@@ -97,14 +97,16 @@ flowchart LR
 
 ## Research question
 
-Can a model that aligns pixels with accessibility and interaction evidence distinguish
-task-breaking changes from benign redesigns better than screenshot, tree, or DOM diffing
-alone when both the application and mutation family are held out?
+On application-disjoint synthetic workflows, can a model that combines pixel and
+structured accessibility/layout evidence detect task-breaking changes better than both
+learned unimodal baselines? The comparison is supported only when the lower bound of a
+paired 95% application-cluster bootstrap interval for each average-precision difference
+is above zero.
 
 ImpactDiff will test that question with paired interventions. Each source state will be
 rendered both unchanged and under a controlled mutation. Mutation metadata will be
 retained for scoring and audit but excluded from model features. Scripted task outcomes
-will provide the primary severity signal.
+will provide the binary measured label.
 
 ## Intended evidence bundle
 
@@ -126,11 +128,15 @@ labels must still come from execution outcomes.
 
 ## Evaluation plan
 
-The benchmark will use application-disjoint and mutation-family-disjoint test sets.
-Planned comparisons include pixel distance, SSIM, DOM-tree distance, screenshot-only
-models, accessibility-only models, and a fused multimodal model. Detection,
-localization, severity, calibration, and false-positive rate on benign redesigns will be
-reported separately.
+Pilot v0.1 freezes 20 separately designed and implemented local mini-applications, two
+declared workflows per application, eight causal mutation families, and matched
+task-breaking and task-preserving variants. Replicate zero produces exactly 640 planned
+pairs. Four predeclared five-application blocks rotate through grouped outer folds; each
+fold uses 10/5/5 training, validation, and test applications, and every application
+contributes outer-test predictions exactly once. Average precision is primary; AUROC,
+recall at a 5% benign false-positive rate, Brier score, calibration error, per-group
+results, and resource cost are supporting measurements. Family and joint slices are
+diagnostics, not claim-eligible holdouts in v0.1.
 
 See [the research charter](docs/charter.md) for hypotheses, metrics, falsification
 criteria, and non-goals. The [data-boundary contract](docs/data-boundary.md) separates
@@ -140,7 +146,10 @@ artifact checks, and the v1 artifact-store threat boundary. The
 [fresh-pair generation protocol](docs/fresh-pair-generation.md) documents lifecycle
 closure, the narrow development label policy, and its non-claims. The
 [paired-publication protocol](docs/paired-publication.md) documents its commit point,
-recovery rules, and unsupported filesystem adversaries.
+recovery rules, and unsupported filesystem adversaries. The
+[Pilot v0.1 protocol](docs/pilot-v0.1-protocol.md) freezes the corpus matrix, primary
+split, metric hierarchy, claim gate, release artifacts, and explicit non-claims before
+the corpus exists.
 
 ## Repository map
 
@@ -156,6 +165,7 @@ recovery rules, and unsupported filesystem adversaries.
 - `src/sealed/` — oracle, trace, changed-surface, and localization contracts;
 - `src/publication/` — paired commits, input snapshots, atomic publication, recovery,
   and strict reopen verification;
+- `src/benchmark/` — the machine-validated frozen Pilot v0.1 research protocol;
 - `src/cli/` — the bounded development-release command; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
   capture tests.
