@@ -11,6 +11,7 @@ import { assertNoIssues, issue } from "../contracts/errors.js";
 import type { ContractIssue } from "../contracts/errors.js";
 import { normalizedSchemaValue } from "../contracts/input.js";
 import { computeMutationFamilyId } from "../mutations/identity.js";
+import { pilotV01MutationOperatorCatalog } from "../mutations/catalog/pilot-v01.js";
 import {
   pilotV01ApplicationBlockIds,
   pilotV01ApplicationCatalogEntries,
@@ -263,6 +264,7 @@ function familyAndOperatorIssues(
     const relationIndex = index % pilotGenerationPlanRelationVariants.length;
     const expectedFamily = plan.mutation_families[familyIndex];
     const expectedRelation = pilotGenerationPlanRelationVariants[relationIndex];
+    const exactCatalogBinding = pilotV01MutationOperatorCatalog.operators[index];
     if (
       expectedFamily === undefined ||
       operator.mutation_family_id !== expectedFamily.mutation_family_id ||
@@ -273,6 +275,18 @@ function familyAndOperatorIssues(
           "pilot_generation.operator_catalog",
           `/operators/${index}`,
           "operators must contain one global binding per family and relation in frozen order",
+        ),
+      );
+    }
+    if (
+      exactCatalogBinding === undefined ||
+      canonicalJson(operator) !== canonicalJson(exactCatalogBinding)
+    ) {
+      issues.push(
+        issue(
+          "pilot_generation.operator_definition_catalog",
+          `/operators/${index}`,
+          "operator binding must equal the exact code-owned Pilot definition reference",
         ),
       );
     }

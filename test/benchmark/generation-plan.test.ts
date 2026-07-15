@@ -22,6 +22,7 @@ import {
   pilotV01ApplicationBlockIds,
   pilotV01ApplicationCatalogEntries,
   pilotV01ApplicationCatalogId,
+  pilotV01MutationOperatorCatalog,
   pilotV01ProtocolId,
   validatePilotGenerationPlan,
 } from "../../src/index.js";
@@ -112,23 +113,7 @@ function createValidPlan(): PilotGenerationPlan {
     family_key: familyKey,
     mutation_family_id: computeMutationFamilyId(familyKey),
   }));
-  const operators = mutationFamilies.flatMap((family) =>
-    pilotGenerationPlanRelationVariants.map((relation) => {
-      const operator = {
-        mutation_family_id: family.mutation_family_id,
-        declared_relation_variant: relation,
-        operator_version: 1,
-        operator_definition: artifact(
-          "application/vnd.impactdiff.mutation-operator+json",
-          `operator-definition:${family.family_key}:${relation}`,
-        ),
-      } as const;
-      return {
-        ...operator,
-        operator_id: computePilotMutationOperatorId(operator),
-      };
-    }),
-  );
+  const operators = structuredClone(pilotV01MutationOperatorCatalog.operators);
   const applicationBlocks = pilotV01ApplicationBlockIds.map((blockId) => ({
     block_id: blockId,
     application_group_ids: pilotV01ApplicationCatalogEntries
@@ -520,6 +505,19 @@ test("family and global operator catalogs reject identity and relation confounds
     digest("substituted-operator-definition"),
   );
   expectIssue(reidentify(definition), "pilot_generation.operator_identity");
+
+  const reboundDefinition = mutablePlan();
+  const reboundOperator = structuredClone(validPlan.operators[0]);
+  assert.ok(reboundOperator !== undefined);
+  reboundOperator.operator_definition.sha256 = digest(
+    "syntactically-valid-substituted-definition",
+  );
+  reboundOperator.operator_id = computePilotMutationOperatorId(reboundOperator);
+  replaceAtPath(reboundDefinition, ["operators", 0], reboundOperator);
+  expectIssue(
+    reidentify(reboundDefinition),
+    "pilot_generation.operator_definition_catalog",
+  );
 
   const duplicateFamily = mutablePlan();
   replaceAtPath(
