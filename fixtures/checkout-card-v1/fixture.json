@@ -1,0 +1,61 @@
+{
+  "contract": "impactdiff.fixture-manifest",
+  "version": 1,
+  "fixture_id": "checkout-card-v1",
+  "revision": "checkout-card-v1.0.0",
+  "title": "Northstar checkout review",
+  "license": "Apache-2.0",
+  "entrypoint": "index.html",
+  "resources": [
+    {
+      "path": "index.html",
+      "media_type": "text/html; charset=utf-8",
+      "sha256": "325a67d957557b9e766c23f53f6d8c71e64f03cea06f1f752ae1a6195efdfd40"
+    },
+    {
+      "path": "styles.css",
+      "media_type": "text/css; charset=utf-8",
+      "sha256": "ea32617a0be3b2d3c73dae0a31a7d198e2e0f758f0d0c18a9bc60e7f793fcb9d"
+    },
+    {
+      "path": "app.js",
+      "media_type": "text/javascript; charset=utf-8",
+      "sha256": "9e63523f982ff8f71276ed7137f098198750f2cdde2a811fcd1678087aa4bf60"
+    },
+    {
+      "path": "fonts/noto-sans-latin-standard-normal.woff2",
+      "media_type": "font/woff2",
+      "sha256": "df8c8215937ab2a4270c0cd997101b3fb8cdd444c9903d342200d6179ebcc097"
+    },
+    {
+      "path": "fonts/OFL-1.1.txt",
+      "media_type": "text/plain; charset=utf-8",
+      "sha256": "54ec7b5a35310ad66f9f3091426f7028484cbf9ae1ab5da30122ee412a3009e1"
+    }
+  ],
+  "readiness": {
+    "global": "__impactdiffFixtureV1",
+    "ready": true,
+    "pendingRequests": 0
+  },
+  "targets": {
+    "root": "app-root",
+    "primary_action": "place-order",
+    "success_state": "order-confirmation"
+  },
+  "network_policy": {
+    "connect": "deny",
+    "external_resources": "deny",
+    "service_worker": "absent"
+  },
+  "mutation_policy": {
+    "style_nonce": "impactdiff-checkout-v1",
+    "inline_styles": "nonce-only"
+  },
+  "font": {
+    "family": "ImpactDiff Noto Sans",
+    "source_package": "@fontsource-variable/noto-sans@5.2.10",
+    "license": "OFL-1.1",
+    "sha256": "df8c8215937ab2a4270c0cd997101b3fb8cdd444c9903d342200d6179ebcc097"
+  }
+}

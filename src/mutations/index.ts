@@ -39,3 +39,17 @@ export type {
   PreconditionReport,
   SourceProbe,
 } from "./schema.js";
+export {
+  applyCompiledMutation,
+  MutationFixtureSession,
+  MutationRuntimeError,
+  openMutationFixtureSession,
+  probeMutation,
+  validateMutationRuntimeBinding,
+} from "./runtime.js";
+export type {
+  MutationCleanup,
+  MutationFixtureAudit,
+  MutationFixtureUpstreamEvidence,
+  MutationRuntimeBinding,
+} from "./runtime.js";

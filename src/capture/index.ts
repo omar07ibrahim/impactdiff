@@ -41,3 +41,5 @@ export {
   maximumCapturePixels,
   maximumCapturePngBytes,
 } from "./limits.js";
+export { computeFixtureActionTargetId } from "./identity.js";
+export type { FixtureActionTargetIdentity } from "./identity.js";
