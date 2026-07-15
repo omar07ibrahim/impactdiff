@@ -9,26 +9,27 @@ evaluation rather than a storage claim.
 
 The current implementation validates manifests, cross-record relationships, canonical
 bytes, and the composition of supported resolved evidence and intervention bundles. It
-also provides a private registered-codec content-addressed store and a paired
-visible/sealed store audit, plus a verified Chromium session for the closed local
-fixture. The end-to-end dataset publisher, read-only process mounts, and scorer are not
-complete, so the project does not yet claim that a released corpus is leakage-safe model
-input.
+also provides a private registered-codec content-addressed store, a paired
+visible/sealed audit, and a verified Chromium session for the closed local fixture. An
+atomic publisher now materializes and reopens one complete visible/sealed pair. The
+fixed development assembler now supplies it from two distinct sequential runtime
+sessions. Multi-pair dataset construction, read-only feature-process mounts, and an
+independent benchmark scorer remain incomplete, so the project does not yet claim that a
+released corpus is leakage-safe model input.
 
 ## Storage roots
 
-The intended publisher layout uses independent content-addressed stores:
+Each committed pair uses independent content-addressed stores:
 
 ```text
-visible/
-  evidence/
-  cas/sha256/
-  splits/
-
-sealed/
-  records/
-  cas/sha256/
-  split-audits/
+releases/<evidence_id>/
+  COMMIT.json
+  visible/
+    evidence/<evidence_id>.json
+    cas/sha256/
+  sealed/
+    records/<sealed_record_id>.json
+    cas/sha256/
 ```
 
 The future feature and model processes receive `visible/` read-only and do not receive a
@@ -37,33 +38,52 @@ a digest, byte length, media type, and format version. A loader derives the CAS 
 from the digest, so a filename cannot smuggle a label such as `clipped-submit` into the
 feature process.
 
-`ArtifactStore` already enforces the storage-side subset of this boundary. Visible and
-sealed roots must be distinct and non-nested; pair audit rejects shared content digests
-or inodes and requires exact membership. Each supported media type has one codec that
-canonicalizes and validates on write, read, and audit. This proves neither mount
-isolation nor resistance to another same-uid process: v1 supports one process, one store
-instance per private root, and one logical writer. The complete threat boundary is
-documented in [contract invariants](contract-invariants.md).
+`ArtifactStore` and `PairedReleasePublisher` enforce the storage-side subset of this
+boundary. Visible and sealed roots must be distinct and non-nested; pair audit rejects
+shared content digests or inodes and requires exact membership. The publisher commits a
+complete pair with one directory rename only after fixed-codec audit and full resolved
+replay, then repeats verification from the final path. This proves neither mount
+isolation nor resistance to another same-uid process: v1 supports one process and one
+logical writer per private root. The complete protocol is documented in
+[paired publication](paired-publication.md).
 
 ## Generation-side browser boundary
 
 The fixture session belongs to the trusted generator, never to the model-visible feature
-process. It receives canonical visible action-plan bytes and sealed mutation
-instructions, verifies the fixed fixture resources and browser version, blocks external
-traffic, audits DOM/CSS/CSP/clock state, and requires exact rollback of its owned
-mutation node. The action plan determines `task_id`; mutation family, operator,
-preconditions, cleanup state, and blocked-task result remain generator-side or
-label-side data. Detailed integrity events exist only in bounded in-memory enforcement
-state; a successful close exposes a small generator-side summary, not a durable trace
-for the model.
+process. Its launcher owns the Chromium process and creates canonical CaptureSpec bytes
+only after hashing the installed Playwright roots, complete browser installation, live
+executable/command line, and exact declared font, and requiring the software
+measurements to equal project pins. The session resolves exact source-state,
+action-plan, and CaptureSpec artifacts; derives `source_state_id`, `task_id`, and
+`environment_id` from their references; blocks external traffic; audits actual
+custom-font use at initialization and every checkpoint plus DOM/CSS/CSP/clock state; and
+requires exact rollback of its owned mutation node. It allows one active branded session
+lease and poisons the environment after any unconfirmed context cleanup. Its single-role
+task executor fixes preparation before mutation, holds the authenticated operation lock
+across both checkpoints and the real coordinate click, and returns canonical screenshot,
+accessibility, and layout bytes only as a complete two-checkpoint sequence. Mutation
+family, operator, preconditions, cleanup state, and blocked-task result remain
+generator-side or label-side data. Detailed integrity events exist only in bounded
+in-memory enforcement state; a successful close exposes a small generator-side summary,
+not a durable trace for the model.
 
-This is not yet the dataset-publication boundary. The session trusts upstream
-`source_state_id` and `environment_id`, cannot attest the hash of a Browser process that
-is already running, and exposes a same-process Playwright `Page` capability to trusted
-generator code. A complete publisher must still bind the captured modalities to the
-canonical capture specification, store them under their exact visible references, move
-traces and outcomes to the sealed root, audit both stores, and mount only the visible
-root into an isolated feature process.
+At this trusted-generator layer, `MutationFixtureTaskRun` returns copy-on-read canonical
+modalities and the measured task outcome together. It is provisional until mutation
+cleanup and the session-close audit succeed, and is not itself a visible artifact. The
+pair assembler discards it after any lifecycle failure, blocked external request, or
+failed environment shutdown. It uses distinct sequential BrowserContext sessions for
+baseline and candidate inside one verified Chromium environment, derives outcome, trace,
+intervention, and label payloads only after both role sessions and that environment have
+closed, and then submits the complete visible/sealed input to the publisher.
+
+This is not yet the complete dataset boundary. The launcher verifies project-pinned
+installed bytes and the live process command line under a trusted same-process,
+non-hostile filesystem boundary; host mode does not attest loaded process memory, the
+Node binary, kernel or system libraries. The session also exposes a same-process
+Playwright `Page` capability to trusted generator code. The publisher stores complete
+inputs under exact references and audits both stores. The fixture assembler now proves
+fresh role lifecycles for its closed shared-browser path, but an isolated feature runner
+must still mount only `visible/`.
 
 ## Visible evidence manifest
 
@@ -73,40 +93,61 @@ baseline/candidate checkpoints. Each checkpoint has exactly the same three modal
 canonical PNG screenshot, normalized accessibility tree, and bounded normalized layout
 graph.
 
-The future publisher must fix the action plan before either execution. The plan may
-contain action intents and opaque target IDs, but never actual status, retry, error,
-duration, recovery, oracle, or failed-step fields. Baseline and candidate captures must
-have the same checkpoint IDs, ordinals, counts, and modalities. An incomplete pair is
-invalid and is not made visible as a shorter candidate sequence.
+The runtime-owned canonical action plan is fixed before the request and before either
+role executes. Its action ID commits to the exact fixture identity, locator, intent, and
+pointer value. The assembler uses the same artifact for both roles; outcome fields never
+become action inputs. Baseline and candidate captures must have the same checkpoint IDs,
+ordinals, counts, and modalities. An incomplete pair is invalid and is not made visible
+as a shorter candidate sequence.
 
-Every model-visible routing identity is derived with a domain-separated hash from its
-label-free canonical body. Once that body is accepted, the ID cannot be assigned
-independently; this does not prove that a producer selected the body before observing an
-outcome. Feature code will consume ordered modality payloads, not routing IDs, content
-digests, or manifest filenames as learned features.
+Every model-visible routing identity is derived with a domain-separated hash from a
+label-free canonical body. Source-state identity is the one cross-boundary case: its
+body is a sealed artifact reference, so standalone evidence validation checks only its
+shape and visible/sealed pair validation proves its derivation. This does not prove that
+a producer selected any body before observing an outcome. Feature code will consume
+ordered modality payloads, not routing IDs, content digests, or manifest filenames as
+learned features.
 
-The capture specification describes only the renderer and environment: pinned browser
-and package builds, container/platform, font bundle, viewport, locale, timezone, media,
-virtual clock, screenshot policy, network policy, budgets, and geometry quantization. It
-intentionally contains neither source revision nor mutation operator. Source-state
-identity and the task reference are separate visible fields, while operator
-identity/version stay in the sealed record. The current fixture runtime independently
-verifies its revision/resource manifest; the future publisher must still bind that
-source manifest into dataset reconstruction provenance.
+The capture specification describes only the renderer and environment: exact installed
+Playwright file trees, browser distribution/executable/source revision/launch profile,
+the browser's complete installation file tree, an honest host or OCI execution shape
+reserved for external verification, a closed list of exact render-font files, viewport,
+locale, timezone, media, virtual clock, screenshot policy, network policy, budgets, and
+geometry quantization. It intentionally contains neither application source revision nor
+mutation operator. Source-state identity and the task reference are separate visible
+fields, while operator identity/version stay in the sealed record. The sealed record
+references a canonical source-state artifact with the fixture revision, raw manifest
+digest, resource set, and initial-state policy. The runtime resolves that artifact and
+matches it to the exact fixture package; the publisher permits it only in the sealed
+store.
+
+Host execution records only `linux/amd64` and makes no container-image claim; it is a
+development capture mode, not a reproducible base-image attestation. OCI execution
+instead names the immutable base image before the repository, fixture, or CaptureSpec is
+mounted, and is acceptable only after an external trusted orchestrator verifies the
+referenced in-toto subject and exact statement bytes. Today that branch is structural
+and reserved: the launcher emits host mode, the host capability rejects a different OCI
+CaptureSpec, and schema validation alone does not verify an attestation. This split
+avoids both fictitious host digests and an image that would need to contain its own
+hash.
 
 ## Sealed record
 
 `impactdiff.sealed-record` binds to the exact evidence manifest digest. It contains
-grouping keys, intervention provenance, raw baseline and candidate outcomes, oracle
-results, execution traces, and labels. Its intervention references a typed mutation plan
-and precondition report; those payloads embed and bind the exact pre-outcome
-request/source probe. A scorer derives validity, task regression, severity, failed step,
-and localization from the record under a versioned label policy.
+source-state provenance, grouping keys, intervention provenance, raw baseline and
+candidate outcomes, oracle results, execution traces, and labels. Its intervention
+references a typed mutation plan and precondition report; those payloads embed and bind
+the exact pre-outcome request/source probe. A scorer derives validity, task regression,
+severity, failed step, and localization from the record under a versioned label policy.
 
-The current record validator checks consistency among stored scalar outcomes and labels;
-the scorer that replays the versioned policy against resolved trace and oracle artifacts
-has not landed yet. Severity should therefore be read as contract data, not as a
-validated benchmark claim.
+The assembler applies one domain-separated development policy: a failed baseline is
+invalid, a successful candidate is a non-regression with severity `0`, and a failed
+candidate after a successful baseline is a regression with severity `4` plus required
+localization. That last ordinal is intentionally specific to this fixture's blocked
+primary action. Resolved replay verifies the stored oracle, trace, localization, and
+label consistency, but it does not resolve and independently execute the policy body.
+The general benchmark scorer has not landed; these labels are not a calibrated severity
+scale or a validated benchmark claim.
 
 If the baseline task fails, the sample is invalid. Its outcome remains useful for
 generator diagnostics, but it cannot become a negative benchmark item.
@@ -144,8 +185,9 @@ Screenshots are decoded under fixed resource limits and deterministically re-enc
 RGBA PNG. This discards ancillary chunks and clears invisible RGB values beneath zero
 alpha before hashing, closing two channels that metadata-only stripping would leave.
 
-See [contract invariants](contract-invariants.md) for the implemented codec checks, CAS
-threat boundary, and remaining end-to-end materialization work.
+See [contract invariants](contract-invariants.md) for the implemented codec checks and
+CAS threat boundary, and [fresh-pair generation](fresh-pair-generation.md) for lifecycle
+and development-policy details.
 
 ## Versioning
 
@@ -153,3 +195,11 @@ Version 1 has no extension maps or optional free-form metadata. Unknown keys, ne
 modalities, and new artifact formats fail closed. Adding a model-visible field requires
 a new evidence contract and feature-profile ID, followed by a fresh leakage audit and
 benchmark split.
+
+The repository remains at `0.0.0` and has not released a corpus. Moving
+`source_state_id` from the former task/environment/baseline-derived prototype to the
+sealed source-state reference, and replacing the former ambiguous capture-environment
+hashes, are explicit pre-release v1 identity resets—not compatible migrations for
+artifacts produced by earlier commits. New capture-spec bytes also reset their artifact
+reference, environment ID, feature-profile ID, evidence ID, and every downstream
+identity that commits to those values.

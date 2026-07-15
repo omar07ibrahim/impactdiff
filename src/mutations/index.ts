@@ -40,16 +40,29 @@ export type {
   SourceProbe,
 } from "./schema.js";
 export {
+  launchMutationFixtureEnvironment,
+  MutationFixtureEnvironment,
+} from "./environment.js";
+export type { MutationFixtureCaptureSpecArtifact } from "./environment.js";
+export {
   applyCompiledMutation,
+  executeMutationFixtureTask,
+  loadVerifiedMutationFixtureActionPlan,
+  loadVerifiedMutationFixtureSourceState,
+  MutationFixtureCheckpointBytes,
   MutationFixtureSession,
   MutationRuntimeError,
   openMutationFixtureSession,
+  prepareMutationFixtureTask,
   probeMutation,
   validateMutationRuntimeBinding,
 } from "./runtime.js";
 export type {
   MutationCleanup,
+  MutationFixtureActionPlanArtifact,
   MutationFixtureAudit,
+  MutationFixtureSourceStateArtifact,
+  MutationFixtureTaskRun,
   MutationFixtureUpstreamEvidence,
   MutationRuntimeBinding,
 } from "./runtime.js";

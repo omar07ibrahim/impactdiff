@@ -1,13 +1,15 @@
 import { createHash, randomBytes } from "node:crypto";
 import { constants } from "node:fs";
-import type { BigIntStats } from "node:fs";
+import type { BigIntStats, Dir } from "node:fs";
 import {
+  chmod,
   lstat,
   mkdir,
   open,
-  readdir,
+  opendir,
   realpath,
   rename,
+  rmdir,
   unlink,
 } from "node:fs/promises";
 import type { FileHandle } from "node:fs/promises";
@@ -46,6 +48,13 @@ interface RegisteredCodec<T = unknown> {
   readonly maximumBytes: number;
   readonly canonicalize: ArtifactCodec<T>["canonicalize"];
   readonly validate: ArtifactCodec<T>["validate"];
+}
+
+interface BoundedDirectoryEntry {
+  readonly name: string;
+  readonly isDirectory: boolean;
+  readonly isFile: boolean;
+  readonly isSymbolicLink: boolean;
 }
 
 /**
@@ -91,6 +100,67 @@ export interface ArtifactStoreAudit {
 
 function fail(code: string, message: string, options?: ErrorOptions): never {
   throw new ArtifactStoreError(code, message, options);
+}
+
+async function readBoundedDirectoryEntries(
+  path: string,
+  maximumEntries: number,
+): Promise<readonly BoundedDirectoryEntry[]> {
+  if (!Number.isSafeInteger(maximumEntries) || maximumEntries < 0) {
+    fail("cas.directory_budget", "directory entry budget is invalid");
+  }
+  let directory: Dir;
+  try {
+    directory = await opendir(path);
+  } catch (error) {
+    fail("cas.directory_entries", "artifact directory cannot be opened", {
+      cause: error,
+    });
+  }
+  let primaryError: unknown;
+  try {
+    const entries: BoundedDirectoryEntry[] = [];
+    while (true) {
+      const entry = await directory.read();
+      if (entry === null) {
+        break;
+      }
+      entries.push(
+        Object.freeze({
+          name: entry.name,
+          isDirectory: entry.isDirectory(),
+          isFile: entry.isFile(),
+          isSymbolicLink: entry.isSymbolicLink(),
+        }),
+      );
+      if (entries.length > maximumEntries) {
+        fail(
+          "cas.directory_budget",
+          "artifact directory exceeds its expected membership bound",
+        );
+      }
+    }
+    return Object.freeze(entries);
+  } catch (error) {
+    primaryError = error;
+    if (error instanceof ArtifactStoreError) {
+      throw error;
+    }
+    fail("cas.directory_entries", "artifact directory cannot be enumerated", {
+      cause: error,
+    });
+  } finally {
+    try {
+      await directory.close();
+    } catch (error) {
+      if (primaryError === undefined) {
+        fail("cas.directory_close", "artifact directory cannot be closed", {
+          cause: error,
+        });
+      }
+    }
+  }
+  fail("cas.directory_entries", "artifact directory enumeration did not complete");
 }
 
 function errorCode(error: unknown): string | undefined {
@@ -276,11 +346,63 @@ async function ensurePrivateDirectory(path: string, parent: string): Promise<voi
       });
     }
   }
-  await inspectPrivateDirectory(path, "cas.directory");
-  if (created) {
+  if (!created) {
+    await inspectPrivateDirectory(path, "cas.directory");
+    return;
+  }
+  try {
+    const initial = await lstat(path, { bigint: true });
+    if (
+      initial.isSymbolicLink() ||
+      !initial.isDirectory() ||
+      initial.nlink < 1n ||
+      initial.uid !== currentUid()
+    ) {
+      fail("cas.directory", "new artifact store path is not an owned real directory");
+    }
+    await chmod(path, privateDirectoryMode);
+    await inspectPrivateDirectory(path, "cas.directory");
     // Persist the empty child before persisting its name in the parent.
     await syncDirectory(path);
     await syncDirectory(parent);
+  } catch (error) {
+    try {
+      let failed: BigIntStats | undefined;
+      try {
+        failed = await lstat(path, { bigint: true });
+      } catch (inspectionError) {
+        if (errorCode(inspectionError) !== "ENOENT") {
+          throw inspectionError;
+        }
+      }
+      if (failed !== undefined) {
+        if (
+          failed.isSymbolicLink() ||
+          !failed.isDirectory() ||
+          failed.uid !== currentUid()
+        ) {
+          fail(
+            "cas.directory_create_uncertain",
+            "failed artifact directory cannot be identified for rollback",
+          );
+        }
+        await chmod(path, privateDirectoryMode);
+        await rmdir(path);
+      }
+      await syncDirectory(parent);
+    } catch (cleanupError) {
+      throw new ArtifactStoreError(
+        "cas.directory_create_uncertain",
+        "artifact directory creation failed and rollback is unconfirmed",
+        {
+          cause: new AggregateError(
+            [error, cleanupError],
+            "CAS directory creation failure and rollback failure",
+          ),
+        },
+      );
+    }
+    throw error;
   }
 }
 
@@ -757,6 +879,26 @@ export class ArtifactStore {
     return artifact.bytes;
   }
 
+  /**
+   * Reads a reference through the exact media-type codec registered when the
+   * store was opened. This is the publication-side counterpart to readBytes:
+   * callers that already hold a closed manifest cannot substitute a different
+   * codec object while reconstructing its resolved bundle.
+   */
+  async readReferencedBytes(input: unknown): Promise<Buffer> {
+    const reference = validateArtifactReference(input, this.maximumArtifactBytes);
+    const registered = this.#codecForMediaType(reference.media_type);
+    if (reference.byte_length > registered.maximumBytes) {
+      fail("cas.byte_length", "artifact reference exceeds its codec byte budget");
+    }
+    const artifact = await this.#verifiedArtifact(
+      reference.sha256,
+      reference.byte_length,
+    );
+    await this.#validateStoredCanonical(artifact.bytes, registered);
+    return artifact.bytes;
+  }
+
   async resolve<T>(input: unknown, codec: ArtifactCodec<T>): Promise<T> {
     const registered = this.#registeredCodec(codec);
     const byteBudget = Math.min(registered.maximumBytes, this.maximumArtifactBytes);
@@ -807,8 +949,21 @@ export class ArtifactStore {
     const expectedShards = new Set(
       [...expected.keys()].map((digest) => digest.slice(0, 2)),
     );
-    const rootEntries = await readdir(this.rootPath, { withFileTypes: true });
-    if (rootEntries.some((entry) => entry.name !== "sha256" || !entry.isDirectory())) {
+    const expectedLeavesByShard = new Map<string, number>();
+    for (const digest of expected.keys()) {
+      const shard = digest.slice(0, 2);
+      expectedLeavesByShard.set(shard, (expectedLeavesByShard.get(shard) ?? 0) + 1);
+    }
+    const rootEntries = await readBoundedDirectoryEntries(this.rootPath, 2);
+    if (
+      rootEntries.some(
+        (entry) =>
+          entry.name !== "sha256" ||
+          !entry.isDirectory ||
+          entry.isFile ||
+          entry.isSymbolicLink,
+      )
+    ) {
       fail("cas.unexpected_entry", "artifact store root contains an unexpected entry");
     }
     if (expected.size === 0 && rootEntries.length !== 0) {
@@ -825,10 +980,18 @@ export class ArtifactStore {
     const algorithmDirectory = join(this.rootPath, "sha256");
     if (rootEntries.length !== 0) {
       await inspectPrivateDirectory(algorithmDirectory, "cas.algorithm_directory");
-      const shards = await readdir(algorithmDirectory, { withFileTypes: true });
+      const shards = await readBoundedDirectoryEntries(
+        algorithmDirectory,
+        expectedShards.size + 1,
+      );
       const actualShards = new Set<string>();
       for (const shard of shards) {
-        if (!shardPattern.test(shard.name) || !shard.isDirectory()) {
+        if (
+          !shardPattern.test(shard.name) ||
+          !shard.isDirectory ||
+          shard.isFile ||
+          shard.isSymbolicLink
+        ) {
           fail("cas.unexpected_entry", "artifact store contains an invalid shard");
         }
         if (!expectedShards.has(shard.name)) {
@@ -837,12 +1000,17 @@ export class ArtifactStore {
         actualShards.add(shard.name);
         const shardDirectory = join(algorithmDirectory, shard.name);
         await inspectPrivateDirectory(shardDirectory, "cas.shard_directory");
-        const leaves = await readdir(shardDirectory, { withFileTypes: true });
+        const leaves = await readBoundedDirectoryEntries(
+          shardDirectory,
+          (expectedLeavesByShard.get(shard.name) ?? 0) + 1,
+        );
         for (const leaf of leaves) {
           if (
             !sha256Pattern.test(leaf.name) ||
             !leaf.name.startsWith(shard.name) ||
-            !leaf.isFile()
+            !leaf.isFile ||
+            leaf.isDirectory ||
+            leaf.isSymbolicLink
           ) {
             fail("cas.unexpected_entry", "artifact store contains an invalid leaf");
           }

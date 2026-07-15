@@ -150,10 +150,11 @@ not execute third-party scripts or send captured data to hosted vision services.
 ## Reproducibility and data rights
 
 Only fixtures created in this repository or compatible open-source applications with
-recorded license and revision may enter a public dataset. The current closed-fixture
-runtime verifies its exact revision and resource manifest, but the evidence schema does
-not yet bind that source manifest into a published dataset. The future publisher must
-add that reconstruction link while keeping the model-visible capture specification
-limited to renderer/environment provenance and operator identity/version in sealed
-intervention data. Supported emitted artifacts are content-addressed. Generated datasets
-must remain rebuildable and are not committed wholesale to Git.
+recorded license and revision may enter a public dataset. The sealed source-state
+contract now binds the exact fixture revision, raw manifest, normalized resource table,
+license, and initial state; the runtime resolves and matches those canonical bytes. The
+paired publisher materializes that artifact only in the sealed store while keeping the
+model-visible capture specification limited to renderer/environment provenance and
+operator identity/version in sealed intervention data. Supported emitted artifacts are
+content-addressed. Generated datasets must remain rebuildable and are not committed
+wholesale to Git.

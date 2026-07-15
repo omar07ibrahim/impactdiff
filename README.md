@@ -32,18 +32,43 @@ Implemented today:
 - resolved evidence/intervention validators that bind every supplied payload to its
   manifest reference, checkpoint schedule, viewport, graph links, and sealed mutation
   provenance;
+- closed changed-surface, executable-oracle, raw-trace, and localization payloads, plus
+  resolved-record replay that derives outcomes from captured task state instead of
+  trusting stored labels;
 - a typed, reversible mutation compiler for a contrast-safe palette swap and a pointer
   interceptor expected to break the task, with source probes and derived preconditions;
-  and
-- a verified Chromium mutation session over a deterministic checkout fixture. It binds
-  exact action-plan bytes, fixture resources, reported browser version, CSP, virtual
-  time, network policy, DOM/CSS integrity, and exact mutation cleanup. Integration tests
-  exercise the task through real coordinate clicks on the trusted Playwright page.
+- a runtime-owned Chromium mutation environment over a deterministic checkout fixture.
+  It derives environment identity from canonical CaptureSpec bytes that bind installed
+  Playwright and browser trees, the project-pinned live executable and launch profile,
+  declared font bytes, and capture settings. The session separately verifies fixture
+  resources, CSP, actual custom-font use, virtual time, network policy, DOM/CSS
+  integrity, and exact mutation cleanup. Its authenticated task executor derives and
+  locks deterministic scroll/target geometry, performs a true coordinate click, then
+  emits two canonical PNG, accessibility-tree, and layout-graph checkpoints without
+  exposing a partial run;
+- a fixed fresh-pair assembler for `checkout-card-v1`. It commits replicate zero before
+  execution, runs baseline and candidate sequentially in distinct browser contexts under
+  one verified Chromium environment, requires cleanup, audited session closes, an empty
+  blocked-external-request audit, and browser shutdown, then derives and replays the
+  complete pair before publication; and
+- an append-only paired-release publisher. It snapshots caller bytes before its first
+  asynchronous operation, builds independent visible and sealed CAS roots in one private
+  staging directory, verifies exact topology and full semantic replay, writes a commit
+  binding both canonical records, and exposes the pair with one same-parent directory
+  rename. Startup recovers only reserved owned stages; committed releases are idempotent
+  and immutable.
 
-The capture contract pins Playwright 1.61.1 and Chromium revision 1228 (149.0.7827.55).
-The verified session and mutation runtime are implemented; the executor that assembles
-complete paired captures and publishes a dataset is still pending. Learned baselines
-come only after that path is auditable end to end.
+The capture contract names the exact installed file trees for `@playwright/test`,
+`playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
+complete installation tree, source revision, and normalized launch profile; every
+render-font file; and an honest Linux host or an OCI shape reserved for external
+attestation verification. The current launcher produces a host capability only. The
+verified single-role runtime, fixed fresh-pair assembler, and paired-release transaction
+are implemented for the closed checkout fixture. Real-browser integration covers the
+task-breaking pointer interceptor and task-preserving palette swap. This is a
+development path, not a corpus generator: multi-pair dataset construction,
+process-isolated feature loading, general scoring, training, and learned baselines
+remain future work.
 
 ## Architecture
 
@@ -52,17 +77,20 @@ pipeline, not a claim about shipped data or models.
 
 ```mermaid
 flowchart LR
-  fixture["Pinned fixture bytes"] --> session["Verified Chromium session"]
+  fixture["Pinned fixture bytes"] --> environment["Owned capture environment"]
+  environment -->|"branded browser + CaptureSpec"| session["Verified Chromium session"]
+  source["Sealed source-state provenance"] --> session
   actions["Canonical action plan"] --> session
   session --> probe["Live source probe"]
   probe --> compiler["Reversible mutation compiler"]
   compiler --> runtime["Audited mutation runtime"]
 
-  modalities["Canonical PNG · AX · layout"] --> cas["Codec-bound CAS"]
-  modalities --> resolver["Manifest-bound bundle validator"]
+  modalities["Canonical PNG · AX · layout"] --> assembler["Fresh-pair assembler"]
+  assembler -->|derive + replay complete pair| publisher["Atomic paired publisher"]
+  publisher -->|exact visible + sealed membership| cas["Codec-bound CAS"]
+  publisher -->|replay before + after rename| resolver["Manifest-bound bundle validator"]
 
-  runtime -.->|paired capture assembly| modalities
-  cas -.->|publication adapter| resolver
+  runtime -->|authenticated task capture| modalities
   resolver -.->|dataset publication| dataset["Leakage-aware paired dataset"]
   dataset -.->|training + ablations| models["Calibrated multimodal scorer"]
 ```
@@ -108,7 +136,11 @@ See [the research charter](docs/charter.md) for hypotheses, metrics, falsificati
 criteria, and non-goals. The [data-boundary contract](docs/data-boundary.md) separates
 model-visible evidence from outcomes and mutation metadata. The
 [contract invariants](docs/contract-invariants.md) document canonical payloads, resolved
-artifact checks, and the v1 artifact-store threat boundary.
+artifact checks, and the v1 artifact-store threat boundary. The
+[fresh-pair generation protocol](docs/fresh-pair-generation.md) documents lifecycle
+closure, the narrow development label policy, and its non-claims. The
+[paired-publication protocol](docs/paired-publication.md) documents its commit point,
+recovery rules, and unsupported filesystem adversaries.
 
 ## Repository map
 
@@ -118,7 +150,13 @@ artifact checks, and the v1 artifact-store threat boundary.
 - `src/capture/` — capture payload schemas, validators, normalizers, and stable fixture
   target identities;
 - `src/mutations/` — mutation identities, sealed plans, compiler, and verified Chromium
-  runtime; and
+  runtime;
+- `src/generation/` — fixed fresh-pair orchestration, development grouping and label
+  policy, pair derivation, and resolved replay before publication;
+- `src/sealed/` — oracle, trace, changed-surface, and localization contracts;
+- `src/publication/` — paired commits, input snapshots, atomic publication, recovery,
+  and strict reopen verification;
+- `src/cli/` — the bounded development-release command; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
   capture tests.
 
@@ -143,6 +181,18 @@ npm test
 On a fresh Linux runner, Playwright may also need its distribution packages; CI installs
 them with `npx playwright install --with-deps chromium`. `npm run coverage` executes the
 same suite with Node's source-coverage report.
+
+To build one real pointer-interceptor development release, provide a pre-existing
+private root. Generated releases are intentionally ignored by Git:
+
+```bash
+install -d -m 0700 artifacts/generated/dev-pointer-v1
+npm run --silent release:dev -- --root artifacts/generated/dev-pointer-v1
+```
+
+Success prints one JSON receipt. The command fixes the operator to `pointer_interceptor`
+and replicate index to `0`; the public TypeScript API also supports the `palette_swap`
+development case.
 
 ## Engineering constraints
 

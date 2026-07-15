@@ -40,6 +40,7 @@ import {
   id,
   outcome,
   sealedRecord,
+  sourceState,
   splitAssignment,
   splitAudit,
 } from "./fixtures.js";
@@ -72,7 +73,14 @@ const reidentifyEvidence = (value: object): EvidenceManifest => {
   return { ...draft, evidence_id: computeEvidenceId(draft) };
 };
 
-const rederiveEvidence = (value: EvidenceManifest): EvidenceManifest => {
+const sourceStateRefsById = new Map<string, typeof sourceState>([
+  [computeSourceStateId(sourceState), sourceState],
+]);
+
+const rederiveEvidence = (
+  value: EvidenceManifest,
+  sourceStateReference: typeof sourceState = sourceState,
+): EvidenceManifest => {
   const baselineDraft = {
     ...value.pair.baseline,
     capture_id: id("idcp1_", "0"),
@@ -93,7 +101,7 @@ const rederiveEvidence = (value: EvidenceManifest): EvidenceManifest => {
     ...value,
     evidence_id: id("idev1_", "0"),
     feature_profile_id: computeFeatureProfileId(value.environment.capture_spec),
-    source_state_id: id("idss1_", "0"),
+    source_state_id: computeSourceStateId(sourceStateReference),
     task: {
       ...value.task,
       task_id: computeTaskId(value.task.action_plan),
@@ -113,14 +121,9 @@ const rederiveEvidence = (value: EvidenceManifest): EvidenceManifest => {
       },
     },
   } satisfies EvidenceManifest;
-  const withSourceIdentity = {
-    ...draft,
-    source_state_id: computeSourceStateId(draft),
-  };
-  return {
-    ...withSourceIdentity,
-    evidence_id: computeEvidenceId(withSourceIdentity),
-  };
+  const identified = { ...draft, evidence_id: computeEvidenceId(draft) };
+  sourceStateRefsById.set(identified.source_state_id, sourceStateReference);
+  return identified;
 };
 
 const reidentifyRecord = (value: SealedRecord): SealedRecord => {
@@ -157,30 +160,38 @@ const disjointSplitAuditDraft = {
 };
 const disjointSplitAudit = reidentifyAudit(disjointSplitAuditDraft);
 
-const evidenceFor = (discriminator: string): EvidenceManifest =>
-  rederiveEvidence({
-    ...evidence,
-    pair: {
-      baseline: {
-        ...evidence.pair.baseline,
-        checkpoints: [
-          {
-            ...checkpoint(`${discriminator}:baseline`),
-            screenshot: artifact("image/png", `${discriminator}:baseline`, 4_096),
-          },
-        ],
-      },
-      candidate: {
-        ...evidence.pair.candidate,
-        checkpoints: [
-          {
-            ...checkpoint(`${discriminator}:candidate`),
-            screenshot: artifact("image/png", `${discriminator}:candidate`, 4_096),
-          },
-        ],
+const evidenceFor = (discriminator: string): EvidenceManifest => {
+  const sourceStateReference = artifact(
+    "application/vnd.impactdiff.source-state+json",
+    `${discriminator}:source-state`,
+  );
+  return rederiveEvidence(
+    {
+      ...evidence,
+      pair: {
+        baseline: {
+          ...evidence.pair.baseline,
+          checkpoints: [
+            {
+              ...checkpoint(`${discriminator}:baseline`),
+              screenshot: artifact("image/png", `${discriminator}:baseline`, 4_096),
+            },
+          ],
+        },
+        candidate: {
+          ...evidence.pair.candidate,
+          checkpoints: [
+            {
+              ...checkpoint(`${discriminator}:candidate`),
+              screenshot: artifact("image/png", `${discriminator}:candidate`, 4_096),
+            },
+          ],
+        },
       },
     },
-  });
+    sourceStateReference,
+  );
+};
 
 const recordFor = (
   manifest: EvidenceManifest,
@@ -189,10 +200,15 @@ const recordFor = (
   familyCharacter: string,
 ): SealedRecord => {
   const recordFamilyId = id("idmf1_", familyCharacter);
+  const sourceStateReference = sourceStateRefsById.get(manifest.source_state_id);
+  assert.ok(sourceStateReference, "test manifest source provenance must be known");
   return reidentifyRecord({
     ...sealedRecord,
     evidence_id: manifest.evidence_id,
     evidence_manifest_sha256: canonicalSha256(manifest),
+    provenance: {
+      source_state: sourceStateReference,
+    },
     grouping: {
       ...itemGrouping,
       source_state_group_id: computeSourceStateGroupId(manifest.source_state_id),
@@ -398,6 +414,20 @@ test("visible and sealed stores cannot reference the same object", () => {
     () => validateEvidenceRecordPair(evidence, overlappingRecord),
     "pair.cas_overlap",
   );
+
+  const overlappingSource = reidentifyRecord({
+    ...sealedRecord,
+    provenance: {
+      source_state: {
+        ...sealedRecord.provenance.source_state,
+        sha256: evidence.task.action_plan.sha256,
+      },
+    },
+  });
+  expectIssue(
+    () => validateEvidenceRecordPair(evidence, overlappingSource),
+    "pair.cas_overlap",
+  );
 });
 
 test("an evidence ID cannot cross assignment partitions", () => {
@@ -523,6 +553,24 @@ test("sealed labels bind the exact canonical visible manifest", () => {
   expectIssue(
     () => validateEvidenceRecordPair(evidence, wrongDigest),
     "pair.manifest_digest",
+  );
+});
+
+test("source identity is resolved at the visible-sealed pair boundary", () => {
+  const changedProvenance = reidentifyRecord({
+    ...sealedRecord,
+    provenance: {
+      source_state: {
+        ...sealedRecord.provenance.source_state,
+        sha256: id("", "f"),
+      },
+    },
+  });
+
+  assert.deepEqual(validateEvidenceManifest(evidence), evidence);
+  expectIssue(
+    () => validateEvidenceRecordPair(evidence, changedProvenance),
+    "pair.source_state_identity",
   );
 });
 

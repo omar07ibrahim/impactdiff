@@ -35,6 +35,8 @@ import type {
   PreconditionReport,
   SourceProbe,
 } from "../mutations/schema.js";
+import { parseSourceState } from "../source/validate.js";
+import type { SourceState } from "../source/schema.js";
 
 const resolvedEvidenceContract = "impactdiff.resolved-evidence/v1";
 const resolvedInterventionContract = "impactdiff.resolved-intervention/v1";
@@ -46,12 +48,14 @@ const layoutMediaType = "application/vnd.impactdiff.layout+json";
 const mutationPlanMediaType = "application/vnd.impactdiff.intervention-parameters+json";
 const preconditionMediaType =
   "application/vnd.impactdiff.intervention-preconditions+json";
+const sourceStateMediaType = "application/vnd.impactdiff.source-state+json";
 const actionPlanMaximumBytes = 131_072;
 const captureSpecMaximumBytes = 65_536;
 const screenshotMaximumBytes = 8_388_608;
 const accessibilityMaximumBytes = 2_097_152;
 const layoutMaximumBytes = 4_194_304;
 const mutationMaximumBytes = 131_072;
+const sourceStateMaximumBytes = 1_048_576;
 const evidenceMaximumUniqueBytes = 67_108_864;
 const interventionMaximumUniqueBytes = 8_388_608;
 
@@ -90,6 +94,7 @@ interface DeferredResolvedEvidence {
 interface DeferredResolvedIntervention {
   readonly manifest: unknown;
   readonly sealed_record: unknown;
+  readonly source_state: DeferredArtifact;
   readonly mutation_plan: DeferredArtifact;
   readonly precondition_report: DeferredArtifact;
 }
@@ -119,6 +124,7 @@ export interface ResolvedEvidenceBundle {
 export interface ResolvedInterventionBundle {
   readonly manifest: EvidenceManifest;
   readonly sealed_record: SealedRecord;
+  readonly source_state: SourceState;
   readonly mutation_plan: MutationPlan;
   readonly precondition_report: PreconditionReport;
   readonly probe: SourceProbe;
@@ -462,13 +468,25 @@ function resolvedInterventionInput(
 ): DeferredResolvedIntervention | undefined {
   const root = closedRecord(
     value,
-    ["manifest", "sealed_record", "mutation_plan", "precondition_report"],
+    [
+      "manifest",
+      "sealed_record",
+      "source_state",
+      "mutation_plan",
+      "precondition_report",
+    ],
     "",
     issues,
   );
   if (root === undefined) {
     return undefined;
   }
+  const sourceState = deferredArtifact(
+    root.source_state,
+    "/source_state",
+    sourceStateMaximumBytes,
+    issues,
+  );
   const mutationPlan = deferredArtifact(
     root.mutation_plan,
     "/mutation_plan",
@@ -481,12 +499,17 @@ function resolvedInterventionInput(
     mutationMaximumBytes,
     issues,
   );
-  if (mutationPlan === undefined || preconditionReport === undefined) {
+  if (
+    sourceState === undefined ||
+    mutationPlan === undefined ||
+    preconditionReport === undefined
+  ) {
     return undefined;
   }
   return Object.freeze({
     manifest: root.manifest,
     sealed_record: root.sealed_record,
+    source_state: sourceState,
     mutation_plan: mutationPlan,
     precondition_report: preconditionReport,
   });
@@ -1090,6 +1113,13 @@ export function validateResolvedInterventionBundle(
 
   const pair = validateEvidenceRecordPair(input.manifest, input.sealed_record);
   const resolver = new ArtifactResolver(interventionMaximumUniqueBytes);
+  const sourceStateBytes = resolver.resolve(
+    input.source_state,
+    pair.sealedRecord.provenance.source_state,
+    sourceStateMediaType,
+    "/sealed_record/provenance/source_state",
+    issues,
+  );
   const mutationPlanBytes = resolver.resolve(
     input.mutation_plan,
     pair.sealedRecord.intervention.parameters,
@@ -1105,10 +1135,20 @@ export function validateResolvedInterventionBundle(
     issues,
   );
   assertNoIssues(resolvedInterventionContract, issues);
-  if (mutationPlanBytes === undefined || preconditionBytes === undefined) {
+  if (
+    sourceStateBytes === undefined ||
+    mutationPlanBytes === undefined ||
+    preconditionBytes === undefined
+  ) {
     throw new Error("unreachable resolved intervention reference state");
   }
 
+  const sourceState = parsePayload(
+    parseSourceState,
+    sourceStateBytes,
+    "/source_state",
+    issues,
+  );
   const plan = parsePayload(
     parseMutationPlan,
     mutationPlanBytes,
@@ -1131,13 +1171,19 @@ export function validateResolvedInterventionBundle(
     issues.push(...mutationBindingIssues(pair.evidence, pair.sealedRecord, plan));
   }
   assertNoIssues(resolvedInterventionContract, issues);
-  if (plan === undefined || preconditions === undefined || probe === undefined) {
+  if (
+    sourceState === undefined ||
+    plan === undefined ||
+    preconditions === undefined ||
+    probe === undefined
+  ) {
     throw new Error("unreachable resolved intervention payload state");
   }
 
   // Re-encoding here is an explicit assertion that the accepted parsed values are
   // represented by exactly the bytes whose references were checked above.
   if (
+    canonicalJson(sourceState) !== sourceStateBytes.toString("utf8") ||
     canonicalJson(plan) !== mutationPlanBytes.toString("utf8") ||
     canonicalJson(preconditions) !== preconditionBytes.toString("utf8")
   ) {
@@ -1147,6 +1193,7 @@ export function validateResolvedInterventionBundle(
   return Object.freeze({
     manifest: pair.evidence,
     sealed_record: pair.sealedRecord,
+    source_state: sourceState,
     mutation_plan: plan,
     precondition_report: preconditions,
     probe,

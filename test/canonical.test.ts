@@ -29,6 +29,7 @@ import {
   familyId,
   grouping,
   sealedRecord,
+  sourceState,
   splitAssignment,
   splitAudit,
 } from "./fixtures.js";
@@ -191,7 +192,11 @@ test("domain-separated identities bind their canonical bodies", () => {
     computeCaptureId(evidence.pair.baseline),
     evidence.pair.baseline.capture_id,
   );
-  assert.equal(computeSourceStateId(evidence), evidence.source_state_id);
+  assert.equal(computeSourceStateId(sourceState), evidence.source_state_id);
+  assert.notEqual(
+    computeSourceStateId({ ...sourceState, sha256: "f".repeat(64) }),
+    evidence.source_state_id,
+  );
   assert.equal(
     computeSourceStateGroupId(evidence.source_state_id),
     grouping.source_state_group_id,

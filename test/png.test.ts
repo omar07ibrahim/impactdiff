@@ -348,3 +348,13 @@ test("the production PNG codec canonicalizes and validates its bound dimensions"
       error instanceof ArtifactPayloadError && error.code === "png.dimension_mismatch",
   );
 });
+
+test("the production PNG codec can bootstrap publication verification without dimensions", async () => {
+  const image = rgbaPng(2, 1, [255, 0, 0, 255, 0, 0, 255, 255]);
+  const codec = pngCodec();
+  const canonical = await codec.canonicalize(image);
+  const parsed = await codec.validate(Buffer.from(canonical));
+
+  assert.equal(parsed.width, 2);
+  assert.equal(parsed.height, 1);
+});

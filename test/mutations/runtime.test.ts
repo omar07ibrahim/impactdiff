@@ -4,16 +4,22 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { after, before, test } from "node:test";
 
-import { chromium } from "@playwright/test";
-import type { Browser, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { canonicalizePng } from "../../src/artifacts/png.js";
 import {
+  assertCaptureGraphBindings,
   computeFixtureActionTargetId,
   normalizeAccessibilitySnapshot,
+  parseActionPlan,
+  parseAccessibilitySnapshot,
+  parseLayoutSnapshot,
 } from "../../src/capture/index.js";
 import {
   canonicalJson,
+  computeCheckpointId,
+  computeEnvironmentId,
+  computeSourceStateId,
   computeTaskId,
   sha256Hex,
 } from "../../src/contracts/canonical.js";
@@ -21,8 +27,12 @@ import {
   applyCompiledMutation,
   compileMutation,
   computeMutationTargetNodeId,
+  executeMutationFixtureTask,
+  launchMutationFixtureEnvironment,
+  loadVerifiedMutationFixtureSourceState,
   MutationRuntimeError,
   openMutationFixtureSession,
+  prepareMutationFixtureTask,
   probeMutation,
   validateMutationRequest,
   validateMutationRuntimeBinding,
@@ -30,7 +40,9 @@ import {
 import type {
   MutationCleanup,
   MutationCompileResult,
+  MutationFixtureEnvironment,
   MutationFixtureSession,
+  MutationFixtureUpstreamEvidence,
   MutationRequest,
 } from "../../src/mutations/index.js";
 
@@ -66,27 +78,99 @@ const actionPlan = Object.freeze({
   ],
 });
 const actionPlanBytes = Buffer.from(canonicalJson(actionPlan), "utf8");
+const parsedActionPlan = parseActionPlan(actionPlanBytes);
 const actionPlanReference = Object.freeze({
   sha256: sha256Hex(actionPlanBytes),
   byte_length: actionPlanBytes.byteLength,
   media_type: "application/vnd.impactdiff.action-plan+json",
   format_version: 1 as const,
 });
-const upstreamEvidence = Object.freeze({
-  source_state_id: id("idss1_", "1"),
-  environment_id: id("iden1_", "3"),
-  action_plan: Object.freeze({
-    reference: actionPlanReference,
-    bytes: actionPlanBytes,
+const sourceState = Object.freeze({
+  contract: "impactdiff.source-state",
+  version: 1,
+  source: Object.freeze({
+    kind: "closed_fixture",
+    fixture_id: "checkout-card-v1",
+    revision: "checkout-card-v1.0.0",
+    license: "Apache-2.0",
+    entrypoint: "index.html",
+    raw_manifest: Object.freeze({
+      sha256: "3b8a3f79a15969e575e0d4ace4a98b7a89704840cb1b2a818c06e03e5cc4e9ea",
+      byte_length: 1_819,
+    }),
+    resources: [
+      {
+        path: "app.js",
+        media_type: "text/javascript; charset=utf-8",
+        sha256: "9e63523f982ff8f71276ed7137f098198750f2cdde2a811fcd1678087aa4bf60",
+        byte_length: 1_185,
+        license: "Apache-2.0",
+      },
+      {
+        path: "fonts/OFL-1.1.txt",
+        media_type: "text/plain; charset=utf-8",
+        sha256: "54ec7b5a35310ad66f9f3091426f7028484cbf9ae1ab5da30122ee412a3009e1",
+        byte_length: 4_518,
+        license: "OFL-1.1",
+      },
+      {
+        path: "fonts/noto-sans-latin-standard-normal.woff2",
+        media_type: "font/woff2",
+        sha256: "df8c8215937ab2a4270c0cd997101b3fb8cdd444c9903d342200d6179ebcc097",
+        byte_length: 59_928,
+        license: "OFL-1.1",
+      },
+      {
+        path: "index.html",
+        media_type: "text/html; charset=utf-8",
+        sha256: "325a67d957557b9e766c23f53f6d8c71e64f03cea06f1f752ae1a6195efdfd40",
+        byte_length: 4_899,
+        license: "Apache-2.0",
+      },
+      {
+        path: "styles.css",
+        media_type: "text/css; charset=utf-8",
+        sha256: "ea32617a0be3b2d3c73dae0a31a7d198e2e0f758f0d0c18a9bc60e7f793fcb9d",
+        byte_length: 6_349,
+        license: "Apache-2.0",
+      },
+    ],
+  }),
+  initial_state: Object.freeze({
+    kind: "fixture_default",
+    route: "/",
+    storage: "empty",
   }),
 });
+const sourceStateBytes = Buffer.from(canonicalJson(sourceState), "utf8");
+const sourceStateReference = Object.freeze({
+  sha256: sha256Hex(sourceStateBytes),
+  byte_length: sourceStateBytes.byteLength,
+  media_type: "application/vnd.impactdiff.source-state+json",
+  format_version: 1 as const,
+});
+const sourceStateId = computeSourceStateId(sourceStateReference);
 const taskId = computeTaskId(actionPlanReference);
 
+let environment: MutationFixtureEnvironment | undefined;
+let upstreamEvidence: MutationFixtureUpstreamEvidence | undefined;
+
+function runtimeEnvironment(): MutationFixtureEnvironment {
+  assert.ok(environment, "capture environment must be launched before the test");
+  return environment;
+}
+
+function runtimeUpstream(): MutationFixtureUpstreamEvidence {
+  assert.ok(upstreamEvidence, "runtime artifacts must be prepared before the test");
+  return upstreamEvidence;
+}
+
 function upstreamEvidenceForActionPlan(value: unknown) {
+  const upstream = runtimeUpstream();
   const bytes = Buffer.from(canonicalJson(value), "utf8");
   return {
-    source_state_id: upstreamEvidence.source_state_id,
-    environment_id: upstreamEvidence.environment_id,
+    source_state: upstream.source_state,
+    capture_spec: upstream.capture_spec,
     action_plan: {
       reference: {
         sha256: sha256Hex(bytes),
@@ -118,26 +202,32 @@ interface RawAxNode {
   readonly properties?: readonly RawAxProperty[];
 }
 
-let browser: Browser | undefined;
-
 before(async () => {
-  browser = await chromium.launch({ headless: true });
-  assert.equal(browser.version(), "149.0.7827.55");
+  environment = await launchMutationFixtureEnvironment(fixtureDirectory);
+  upstreamEvidence = Object.freeze({
+    source_state: Object.freeze({
+      reference: sourceStateReference,
+      bytes: sourceStateBytes,
+    }),
+    action_plan: Object.freeze({
+      reference: actionPlanReference,
+      bytes: actionPlanBytes,
+    }),
+    capture_spec: environment.capture_spec,
+  });
 });
 
 after(async () => {
-  await browser?.close();
+  await environment?.close();
 });
 
 async function fixtureSession(): Promise<MutationFixtureSession> {
-  assert.ok(browser, "Chromium must be launched before a fixture session");
-  return openMutationFixtureSession(browser, fixtureDirectory, upstreamEvidence);
+  return openMutationFixtureSession(runtimeEnvironment(), runtimeUpstream());
 }
 
 function mutationRequest(
   operatorKey: MutationRequest["operator_key"],
 ): MutationRequest {
-  const sourceStateId = id("idss1_", "1");
   const locator = {
     strategy: "test_id" as const,
     value: operatorKey === "palette_swap" ? "app-root" : "place-order",
@@ -147,7 +237,7 @@ function mutationRequest(
     version: 1,
     source_state_id: sourceStateId,
     task_id: taskId,
-    environment_id: id("iden1_", "3"),
+    environment_id: computeEnvironmentId(runtimeUpstream().capture_spec.reference),
     operator_key: operatorKey,
     operator_version: 1,
     replicate_index: 0,
@@ -272,6 +362,16 @@ test("baseline task uses a true coordinate click and the fixture route aborts ex
     assert.ok(Object.isFrozen(session.binding.action_plan));
     assert.equal(session.binding.task_id, taskId);
     assert.deepEqual(session.binding.action_plan, actionPlanReference);
+    assert.equal(session.binding.source_state_id, sourceStateId);
+    assert.deepEqual(session.binding.source_state, sourceStateReference);
+    assert.deepEqual(
+      session.binding.capture_spec,
+      runtimeUpstream().capture_spec.reference,
+    );
+    assert.equal(
+      session.binding.environment_id,
+      computeEnvironmentId(runtimeUpstream().capture_spec.reference),
+    );
     assert.equal(session.binding.primary_action_target_id, primaryActionTargetId);
     const firstTime = await session.page.evaluate(() => Date.now());
     await new Promise<void>((resolveDelay) => {
@@ -288,12 +388,14 @@ test("baseline task uses a true coordinate click and the fixture route aborts ex
 
     const externalPage = await session.page.context().newPage();
     try {
-      await assert.rejects(externalPage.goto("https://outside.impactdiff.invalid/"));
+      await assert.rejects(
+        externalPage.goto("https://outside.impactdiff.invalid/baseline"),
+      );
     } finally {
       await externalPage.close();
     }
   } finally {
-    await closeSession(session, ["https://outside.impactdiff.invalid/"]);
+    await closeSession(session, ["https://outside.impactdiff.invalid/baseline"]);
   }
 });
 
@@ -333,8 +435,187 @@ test("pinned Chromium AX output normalizes through the closed accessibility cont
   }
 });
 
+test("authenticated task capture emits deterministic canonical checkpoints", async () => {
+  const runs = [];
+  for (let replicate = 0; replicate < 2; replicate += 1) {
+    const session = await fixtureSession();
+    try {
+      await prepareMutationFixtureTask(session);
+      const run = await executeMutationFixtureTask(session);
+      assert.equal(run.task_success, true);
+      assert.equal(run.first_unsatisfied_step_id, null);
+      assert.equal(run.virtual_elapsed_ms, 0);
+      assert.equal(run.checkpoints.length, 2);
+      assert.equal(Object.isFrozen(run), true);
+
+      for (const [ordinal, checkpoint] of run.checkpoints.entries()) {
+        assert.equal(Object.isFrozen(checkpoint), true);
+        assert.equal(checkpoint.ordinal, ordinal);
+        assert.equal(
+          checkpoint.checkpoint_id,
+          computeCheckpointId(actionPlanReference, ordinal),
+        );
+        assert.deepEqual(
+          canonicalizePng(checkpoint.screenshot, viewport).bytes,
+          checkpoint.screenshot,
+        );
+        const accessibility = parseAccessibilitySnapshot(checkpoint.accessibility_tree);
+        const layout = parseLayoutSnapshot(checkpoint.layout_graph);
+        assertCaptureGraphBindings(parsedActionPlan, accessibility, layout);
+        const targets = layout.nodes.filter(
+          (node) => node.action_target_id === primaryActionTargetId,
+        );
+        assert.equal(targets.length, ordinal === 0 ? 1 : 0);
+      }
+      const mutableScreenshot = run.checkpoints[0].screenshot;
+      const mutableAccessibility = run.checkpoints[0].accessibility_tree;
+      const mutableLayout = run.checkpoints[0].layout_graph;
+      mutableScreenshot[0] = 0;
+      mutableAccessibility[0] = 0;
+      mutableLayout[0] = 0;
+      assert.notDeepEqual(mutableScreenshot, run.checkpoints[0].screenshot);
+      assert.notDeepEqual(mutableAccessibility, run.checkpoints[0].accessibility_tree);
+      assert.notDeepEqual(mutableLayout, run.checkpoints[0].layout_graph);
+      canonicalizePng(run.checkpoints[0].screenshot, viewport);
+      parseAccessibilitySnapshot(run.checkpoints[0].accessibility_tree);
+      parseLayoutSnapshot(run.checkpoints[0].layout_graph);
+      runs.push(run);
+    } finally {
+      await closeSession(session);
+    }
+  }
+
+  assert.equal(runs.length, 2);
+  for (const ordinal of [0, 1] as const) {
+    assert.deepEqual(
+      runs[0]?.checkpoints[ordinal].screenshot,
+      runs[1]?.checkpoints[ordinal].screenshot,
+    );
+    assert.deepEqual(
+      runs[0]?.checkpoints[ordinal].accessibility_tree,
+      runs[1]?.checkpoints[ordinal].accessibility_tree,
+    );
+    assert.deepEqual(
+      runs[0]?.checkpoints[ordinal].layout_graph,
+      runs[1]?.checkpoints[ordinal].layout_graph,
+    );
+  }
+});
+
+test("captured task outcomes distinguish preserving and breaking mutations", async () => {
+  for (const [operatorKey, expectedSuccess] of [
+    ["palette_swap", true],
+    ["pointer_interceptor", false],
+  ] as const) {
+    const session = await fixtureSession();
+    let cleanup: MutationCleanup | undefined;
+    try {
+      await prepareMutationFixtureTask(session);
+      const compilation = await applicableCompilation(session, operatorKey);
+      cleanup = await applyCompiledMutation(
+        session,
+        compilation.plan,
+        compilation.preconditions,
+      );
+      const run = await executeMutationFixtureTask(session);
+      assert.equal(run.task_success, expectedSuccess);
+      assert.equal(
+        run.first_unsatisfied_step_id,
+        expectedSuccess ? null : parsedActionPlan.actions[0]?.action_id,
+      );
+
+      const initialLayout = parseLayoutSnapshot(run.checkpoints[0].layout_graph);
+      const finalLayout = parseLayoutSnapshot(run.checkpoints[1].layout_graph);
+      assert.equal(
+        initialLayout.nodes.filter(
+          (node) => node.action_target_id === primaryActionTargetId,
+        ).length,
+        1,
+      );
+      assert.equal(
+        finalLayout.nodes.filter(
+          (node) => node.action_target_id === primaryActionTargetId,
+        ).length,
+        expectedSuccess ? 0 : 1,
+      );
+    } finally {
+      await cleanup?.();
+      await closeSession(session);
+    }
+  }
+});
+
+test("task capture enforces its phase, geometry, plan, and operation lock", async () => {
+  const session = await fixtureSession();
+  try {
+    await expectRuntimeError(
+      executeMutationFixtureTask(session),
+      "mutation.capture_phase",
+    );
+    await prepareMutationFixtureTask(session);
+    await expectRuntimeError(
+      prepareMutationFixtureTask(session),
+      "mutation.capture_phase",
+    );
+
+    const runPromise = executeMutationFixtureTask(session);
+    await expectRuntimeError(
+      probeMutation(session, mutationRequest("palette_swap")),
+      "mutation.concurrent_operation",
+    );
+    assert.equal((await runPromise).task_success, true);
+  } finally {
+    await closeSession(session);
+  }
+
+  const drifted = await fixtureSession();
+  try {
+    await prepareMutationFixtureTask(drifted);
+    await drifted.page.evaluate(() => window.scrollBy(0, -1));
+    await expectRuntimeError(
+      executeMutationFixtureTask(drifted),
+      "mutation.capture_geometry_drift",
+    );
+    await expectRuntimeError(
+      executeMutationFixtureTask(drifted),
+      "mutation.capture_phase",
+    );
+  } finally {
+    await closeSession(drifted);
+  }
+
+  const extraActionPlan = {
+    ...actionPlan,
+    actions: [
+      ...actionPlan.actions,
+      {
+        action_id: id("idst1_", "2"),
+        ordinal: 1,
+        intent: "press_key",
+        target_id: null,
+        value: { kind: "key", key: "Enter" },
+      },
+    ],
+    checkpoints: [
+      { ordinal: 0, after_action_ordinal: -1 },
+      { ordinal: 1, after_action_ordinal: 1 },
+    ],
+  };
+  const unsupported = await openMutationFixtureSession(
+    runtimeEnvironment(),
+    upstreamEvidenceForActionPlan(extraActionPlan),
+  );
+  try {
+    await expectRuntimeError(
+      prepareMutationFixtureTask(unsupported),
+      "mutation.capture_action_plan",
+    );
+  } finally {
+    await closeSession(unsupported);
+  }
+});
+
 test("factory rejects changed manifest bytes, resources, and directory members", async () => {
-  assert.ok(browser);
   for (const [name, mutate, code] of [
     [
       "manifest",
@@ -366,27 +647,33 @@ test("factory rejects changed manifest bytes, resources, and directory members",
   ] as const) {
     const temporaryRoot = await mkdtemp(join(tmpdir(), `impactdiff-${name}-`));
     const copied = join(temporaryRoot, "fixture");
+    let copiedEnvironment: MutationFixtureEnvironment | undefined;
     try {
       await cp(fixtureDirectory, copied, { recursive: true });
+      copiedEnvironment = await launchMutationFixtureEnvironment(copied);
+      const copiedUpstream = {
+        ...runtimeUpstream(),
+        capture_spec: copiedEnvironment.capture_spec,
+      };
       await mutate(copied);
       await expectRuntimeError(
-        openMutationFixtureSession(browser, copied, upstreamEvidence),
+        openMutationFixtureSession(copiedEnvironment, copiedUpstream),
         code,
       );
     } finally {
+      await copiedEnvironment?.close();
       await rm(temporaryRoot, { recursive: true, force: true });
     }
   }
 });
 
 test("factory binds task identity to exact canonical action-plan bytes and target mapping", async () => {
-  assert.ok(browser);
+  const upstream = runtimeUpstream();
   const wrongTargetPlan = structuredClone(actionPlan);
   wrongTargetPlan.actions[0]!.target_id = id("idat1_", "f");
   await expectRuntimeError(
     openMutationFixtureSession(
-      browser,
-      fixtureDirectory,
+      runtimeEnvironment(),
       upstreamEvidenceForActionPlan(wrongTargetPlan),
     ),
     "mutation.action_plan_target",
@@ -395,15 +682,15 @@ test("factory binds task identity to exact canonical action-plan bytes and targe
   const wrongBytes = Buffer.from(actionPlanBytes);
   wrongBytes[wrongBytes.byteLength - 1] = 0x20;
   await expectRuntimeError(
-    openMutationFixtureSession(browser, fixtureDirectory, {
-      ...upstreamEvidence,
+    openMutationFixtureSession(runtimeEnvironment(), {
+      ...upstream,
       action_plan: { reference: actionPlanReference, bytes: wrongBytes },
     }),
     "mutation.action_plan_reference",
   );
   await expectRuntimeError(
-    openMutationFixtureSession(browser, fixtureDirectory, {
-      ...upstreamEvidence,
+    openMutationFixtureSession(runtimeEnvironment(), {
+      ...upstream,
       action_plan: {
         reference: { ...actionPlanReference, sha256: hex("f") },
         bytes: actionPlanBytes,
@@ -414,7 +701,7 @@ test("factory binds task identity to exact canonical action-plan bytes and targe
   assert.throws(
     () =>
       validateMutationRuntimeBinding({
-        ...upstreamEvidence,
+        ...upstream,
         task_id: id("idtk1_", "f"),
       }),
     (error: unknown) =>
@@ -422,14 +709,182 @@ test("factory binds task identity to exact canonical action-plan bytes and targe
   );
 });
 
+test("factory derives source identity from exact sealed provenance bytes", async () => {
+  const upstream = runtimeUpstream();
+  const wrongBytes = Buffer.from(sourceStateBytes);
+  wrongBytes[wrongBytes.byteLength - 1] = 0x20;
+  await expectRuntimeError(
+    openMutationFixtureSession(runtimeEnvironment(), {
+      ...upstream,
+      source_state: { reference: sourceStateReference, bytes: wrongBytes },
+    }),
+    "mutation.source_state_reference",
+  );
+
+  const changedState = {
+    ...sourceState,
+    initial_state: { ...sourceState.initial_state, route: "/changed" },
+  };
+  const changedBytes = Buffer.from(canonicalJson(changedState), "utf8");
+  const changedReference = {
+    ...sourceStateReference,
+    sha256: sha256Hex(changedBytes),
+    byte_length: changedBytes.byteLength,
+  };
+  await expectRuntimeError(
+    openMutationFixtureSession(runtimeEnvironment(), {
+      ...upstream,
+      source_state: { reference: changedReference, bytes: changedBytes },
+    }),
+    "mutation.source_state_fixture",
+  );
+
+  assert.throws(
+    () =>
+      validateMutationRuntimeBinding({
+        ...upstream,
+        source_state_id: id("idss1_", "f"),
+      }),
+    (error: unknown) =>
+      error instanceof MutationRuntimeError && error.code === "mutation.binding_shape",
+  );
+});
+
+test("factory derives environment identity from exact canonical CaptureSpec bytes", async () => {
+  const upstream = runtimeUpstream();
+  const environment = runtimeEnvironment();
+  const captureBytes = Buffer.from(upstream.capture_spec.bytes);
+
+  assert.throws(
+    () =>
+      validateMutationRuntimeBinding({
+        ...upstream,
+        environment_id: id("iden1_", "3"),
+      }),
+    (error: unknown) =>
+      error instanceof MutationRuntimeError && error.code === "mutation.binding_shape",
+  );
+
+  await expectRuntimeError(
+    openMutationFixtureSession(environment, {
+      ...upstream,
+      capture_spec: {
+        reference: {
+          ...upstream.capture_spec.reference,
+          media_type: "application/json",
+        },
+        bytes: captureBytes,
+      },
+    }),
+    "mutation.capture_spec_reference",
+  );
+
+  const changedBytes = Buffer.from(captureBytes);
+  changedBytes[changedBytes.byteLength - 1] = 0x20;
+  await expectRuntimeError(
+    openMutationFixtureSession(environment, {
+      ...upstream,
+      capture_spec: {
+        reference: upstream.capture_spec.reference,
+        bytes: changedBytes,
+      },
+    }),
+    "mutation.capture_spec_reference",
+  );
+
+  const parsed = JSON.parse(captureBytes.toString("utf8")) as Record<string, unknown>;
+  const noncanonical = Buffer.from(JSON.stringify(parsed, null, 2), "utf8");
+  await expectRuntimeError(
+    openMutationFixtureSession(environment, {
+      ...upstream,
+      capture_spec: {
+        reference: {
+          ...upstream.capture_spec.reference,
+          sha256: sha256Hex(noncanonical),
+          byte_length: noncanonical.byteLength,
+        },
+        bytes: noncanonical,
+      },
+    }),
+    "mutation.capture_spec_bytes",
+  );
+
+  const alternate = structuredClone(parsed) as {
+    budgets: { action_timeout_ms: number };
+  } & Record<string, unknown>;
+  alternate.budgets.action_timeout_ms = 1_999;
+  const alternateBytes = Buffer.from(canonicalJson(alternate), "utf8");
+  await expectRuntimeError(
+    openMutationFixtureSession(environment, {
+      ...upstream,
+      capture_spec: {
+        reference: {
+          ...upstream.capture_spec.reference,
+          sha256: sha256Hex(alternateBytes),
+          byte_length: alternateBytes.byteLength,
+        },
+        bytes: alternateBytes,
+      },
+    }),
+    "mutation.environment_binding",
+  );
+
+  const oci = structuredClone(parsed) as Record<string, unknown>;
+  oci.execution = {
+    kind: "oci",
+    platform: "linux/amd64",
+    image_digest: `sha256:${"4".repeat(64)}`,
+    attestation: {
+      kind: "trusted-orchestrator",
+      statement_format: "in-toto-statement-v1",
+      statement_sha256: "5".repeat(64),
+    },
+  };
+  const ociBytes = Buffer.from(canonicalJson(oci), "utf8");
+  await expectRuntimeError(
+    openMutationFixtureSession(environment, {
+      ...upstream,
+      capture_spec: {
+        reference: {
+          ...upstream.capture_spec.reference,
+          sha256: sha256Hex(ociBytes),
+          byte_length: ociBytes.byteLength,
+        },
+        bytes: ociBytes,
+      },
+    }),
+    "mutation.environment_binding",
+  );
+});
+
+test("verified fixture loader emits the exact reusable source-state artifact", async () => {
+  const artifact = await loadVerifiedMutationFixtureSourceState(fixtureDirectory);
+  assert.deepEqual(artifact.reference, sourceStateReference);
+  assert.deepEqual(artifact.bytes, sourceStateBytes);
+  assert.equal(artifact.reference.byte_length, 1_322);
+  assert.equal(
+    artifact.reference.sha256,
+    "dfb68f22b93c901389d52a57275e5bfa3cd52113b637e0cf94f54289b909d891",
+  );
+  assert.equal(
+    computeSourceStateId(artifact.reference),
+    "idss1_141b99be1e1955be93cffe9b90a5574d3519c060ee020e988abcc8abc662e66b",
+  );
+  assert.notEqual(artifact.bytes, sourceStateBytes);
+  assert.ok(Object.isFrozen(artifact));
+
+  const copiedBytes = artifact.bytes as Uint8Array;
+  copiedBytes[copiedBytes.byteLength - 1] = 0x20;
+  const second = await loadVerifiedMutationFixtureSourceState(fixtureDirectory);
+  assert.deepEqual(second.bytes, sourceStateBytes);
+});
+
 test("runtime provenance rejects unbranded sessions, caller targets, and mismatched IDs", async () => {
   const session = await fixtureSession();
-  assert.ok(browser);
-  const unbrandedPage = await browser.newPage();
   try {
     const pointerRequest = mutationRequest("pointer_interceptor");
     await expectRuntimeError(
-      probeMutation(unbrandedPage as unknown as MutationFixtureSession, pointerRequest),
+      probeMutation({} as MutationFixtureSession, pointerRequest),
       "mutation.untrusted_session",
     );
     const forgedSession = Object.assign(
@@ -444,7 +899,7 @@ test("runtime provenance rejects unbranded sessions, caller targets, and mismatc
     assert.throws(
       () =>
         validateMutationRuntimeBinding({
-          ...upstreamEvidence,
+          ...runtimeUpstream(),
           task_relevant_target_node_ids: [pointerRequest.target.node_id],
         }),
       (error: unknown) =>
@@ -499,7 +954,6 @@ test("runtime provenance rejects unbranded sessions, caller targets, and mismatc
       "mutation.unsupported_target",
     );
   } finally {
-    await unbrandedPage.close();
     await closeSession(session);
   }
 });
@@ -516,6 +970,33 @@ test("session serializes operations so close cannot race an in-flight audit", as
   const probe = await inFlightProbe;
   assert.equal(probe.target.used_by_task, true);
   await closeSession(session);
+});
+
+test("failed context cleanup poisons the owned capture environment", async () => {
+  const isolatedEnvironment = await launchMutationFixtureEnvironment(fixtureDirectory);
+  const upstream = {
+    ...runtimeUpstream(),
+    capture_spec: isolatedEnvironment.capture_spec,
+  };
+  const session = await openMutationFixtureSession(isolatedEnvironment, upstream);
+  const context = session.page.context();
+  const closeContext = context.close.bind(context);
+  Object.defineProperty(context, "close", {
+    configurable: true,
+    value: async () => {
+      throw new Error("injected context close failure");
+    },
+  });
+  try {
+    await expectRuntimeError(session.close(), "mutation.session_tainted");
+    await expectRuntimeError(
+      openMutationFixtureSession(isolatedEnvironment, upstream),
+      "mutation.environment_poisoned",
+    );
+  } finally {
+    await closeContext().catch(() => undefined);
+    await isolatedEnvironment.close();
+  }
 });
 
 test("session audit records external aborts and rejects internal network taint", async (t) => {

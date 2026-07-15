@@ -4,19 +4,36 @@ import { open, readdir, stat } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import type {
-  Browser,
   BrowserContext,
   BrowserContextOptions,
+  CDPSession,
   ElementHandle,
   JSHandle,
   Page,
 } from "@playwright/test";
 
 import { validateArtifactReference } from "../artifacts/cas.js";
+import { canonicalizePng } from "../artifacts/png.js";
+import {
+  adaptChromiumLayoutSnapshot,
+  chromiumLayoutComputedStyles,
+} from "../capture/chromium-layout.js";
 import { computeFixtureActionTargetId } from "../capture/identity.js";
-import { parseActionPlan } from "../capture/validate.js";
-import type { ActionPlan } from "../capture/schema.js";
-import { canonicalJson, computeTaskId, sha256Hex } from "../contracts/canonical.js";
+import { normalizeAccessibilitySnapshot } from "../capture/normalize-ax.js";
+import type { ActionPlan, CaptureSpec, LayoutSnapshot } from "../capture/schema.js";
+import {
+  assertCaptureGraphBindings,
+  parseActionPlan,
+  parseCaptureSpec,
+} from "../capture/validate.js";
+import {
+  canonicalJson,
+  computeCheckpointId,
+  computeEnvironmentId,
+  computeSourceStateId,
+  computeTaskId,
+  sha256Hex,
+} from "../contracts/canonical.js";
 import type { ArtifactRef } from "../contracts/artifacts.js";
 import {
   intrinsicUint8ArrayByteLength,
@@ -44,6 +61,15 @@ import type {
   MutationRequest,
   SourceProbe,
 } from "./schema.js";
+import { parseSourceState } from "../source/validate.js";
+import type { SourceState } from "../source/schema.js";
+import {
+  acquireMutationFixtureEnvironment,
+  type MutationFixtureEnvironment,
+} from "./environment.js";
+import { MutationRuntimeError } from "./errors.js";
+
+export { MutationRuntimeError } from "./errors.js";
 
 const occupiedPages = new WeakSet<Page>();
 const pageSessions = new WeakMap<Page, MutationFixtureSessionState>();
@@ -52,18 +78,19 @@ const fixtureSessions = new WeakMap<
   MutationFixtureSessionState
 >();
 const sessionConstructorToken = Symbol("impactdiff.mutation-fixture-session");
+const checkpointConstructorToken = Symbol("impactdiff.mutation-fixture-checkpoint");
 const maximumAuditEvents = 256;
 const maximumAuditTextLength = 2_048;
 const maximumActionPlanBytes = 131_072;
+const maximumCaptureSpecBytes = 65_536;
+const maximumSourceStateBytes = 1_048_576;
 const closedFixture = Object.freeze({
   fixtureId: "checkout-card-v1",
   revision: "checkout-card-v1.0.0",
   manifestSha256: "3b8a3f79a15969e575e0d4ace4a98b7a89704840cb1b2a818c06e03e5cc4e9ea",
   manifestByteLength: 1_819,
   styleNonceValue: "impactdiff-checkout-v1",
-  browserVersion: "149.0.7827.55",
   origin: "https://fixture.impactdiff.invalid",
-  fixedEpochMs: 1_735_689_600_000,
 });
 const fixtureUrl = `${closedFixture.origin}/`;
 const fixtureStyleNonce = Buffer.from(closedFixture.styleNonceValue, "utf8").toString(
@@ -78,6 +105,7 @@ const fixtureResources = Object.freeze([
     sha256: "325a67d957557b9e766c23f53f6d8c71e64f03cea06f1f752ae1a6195efdfd40",
     byteLength: 4_899,
     served: true,
+    license: "Apache-2.0",
   }),
   Object.freeze({
     path: "styles.css",
@@ -85,6 +113,7 @@ const fixtureResources = Object.freeze([
     sha256: "ea32617a0be3b2d3c73dae0a31a7d198e2e0f758f0d0c18a9bc60e7f793fcb9d",
     byteLength: 6_349,
     served: true,
+    license: "Apache-2.0",
   }),
   Object.freeze({
     path: "app.js",
@@ -92,6 +121,7 @@ const fixtureResources = Object.freeze([
     sha256: "9e63523f982ff8f71276ed7137f098198750f2cdde2a811fcd1678087aa4bf60",
     byteLength: 1_185,
     served: true,
+    license: "Apache-2.0",
   }),
   Object.freeze({
     path: "fonts/noto-sans-latin-standard-normal.woff2",
@@ -99,6 +129,7 @@ const fixtureResources = Object.freeze([
     sha256: "df8c8215937ab2a4270c0cd997101b3fb8cdd444c9903d342200d6179ebcc097",
     byteLength: 59_928,
     served: true,
+    license: "OFL-1.1",
   }),
   Object.freeze({
     path: "fonts/OFL-1.1.txt",
@@ -106,8 +137,52 @@ const fixtureResources = Object.freeze([
     sha256: "54ec7b5a35310ad66f9f3091426f7028484cbf9ae1ab5da30122ee412a3009e1",
     byteLength: 4_518,
     served: false,
+    license: "OFL-1.1",
   }),
 ]);
+
+const exactSourceState = Object.freeze({
+  contract: "impactdiff.source-state",
+  version: 1,
+  source: Object.freeze({
+    kind: "closed_fixture",
+    fixture_id: closedFixture.fixtureId,
+    revision: closedFixture.revision,
+    license: "Apache-2.0",
+    entrypoint: "index.html",
+    raw_manifest: Object.freeze({
+      sha256: closedFixture.manifestSha256,
+      byte_length: closedFixture.manifestByteLength,
+    }),
+    resources: Object.freeze(
+      fixtureResources
+        .map((resource) =>
+          Object.freeze({
+            path: resource.path,
+            media_type: resource.mediaType,
+            sha256: resource.sha256,
+            byte_length: resource.byteLength,
+            license: resource.license,
+          }),
+        )
+        .sort((left, right) =>
+          left.path < right.path ? -1 : left.path > right.path ? 1 : 0,
+        ),
+    ),
+  }),
+  initial_state: Object.freeze({
+    kind: "fixture_default",
+    route: "/",
+    storage: "empty",
+  }),
+});
+const exactSourceStateBytes = Buffer.from(canonicalJson(exactSourceState), "utf8");
+const exactSourceStateReference = Object.freeze({
+  sha256: sha256Hex(exactSourceStateBytes),
+  byte_length: exactSourceStateBytes.byteLength,
+  media_type: "application/vnd.impactdiff.source-state+json",
+  format_version: 1 as const,
+});
 
 const exactFixtureManifest = Object.freeze({
   contract: "impactdiff.fixture-manifest",
@@ -158,6 +233,57 @@ const primaryActionTargetId = computeFixtureActionTargetId({
   fixture_revision: closedFixture.revision,
   fixture_manifest_sha256: closedFixture.manifestSha256,
   locator: primaryActionLocator,
+});
+const primaryActionValue = Object.freeze({
+  kind: "pointer" as const,
+  button: "primary" as const,
+});
+const primaryActionId = (() => {
+  const hash = createHash("sha256");
+  hash.update("impactdiff:fixture-action-step:v1", "utf8");
+  hash.update("\0", "utf8");
+  hash.update(
+    canonicalJson({
+      fixture_id: closedFixture.fixtureId,
+      fixture_revision: closedFixture.revision,
+      fixture_manifest_sha256: closedFixture.manifestSha256,
+      locator: primaryActionLocator,
+      intent: "pointer_click",
+      value: primaryActionValue,
+    }),
+    "utf8",
+  );
+  return `idst1_${hash.digest("hex")}`;
+})();
+const exactActionPlanBytes = (() => {
+  const bytes = Buffer.from(
+    canonicalJson({
+      contract: "impactdiff.action-plan",
+      version: 1,
+      actions: [
+        {
+          action_id: primaryActionId,
+          ordinal: 0,
+          intent: "pointer_click",
+          target_id: primaryActionTargetId,
+          value: primaryActionValue,
+        },
+      ],
+      checkpoints: [
+        { ordinal: 0, after_action_ordinal: -1 },
+        { ordinal: 1, after_action_ordinal: 0 },
+      ],
+    }),
+    "utf8",
+  );
+  parseActionPlan(bytes);
+  return bytes;
+})();
+const exactActionPlanReference = Object.freeze({
+  sha256: sha256Hex(exactActionPlanBytes),
+  byte_length: exactActionPlanBytes.byteLength,
+  media_type: "application/vnd.impactdiff.action-plan+json",
+  format_version: 1 as const,
 });
 
 const supportedTargets = Object.freeze({
@@ -234,6 +360,25 @@ interface LoadedMutationFixture {
 
 type FixtureTaskState = "review" | "confirmed";
 type OwnedMutationKind = "palette" | "pointer";
+type CaptureTaskPhase = "unprepared" | "prepared" | "executing" | "complete" | "failed";
+
+function sameFixtureTaskState(
+  left: FixtureTaskState,
+  right: FixtureTaskState,
+): boolean {
+  return left === right;
+}
+
+interface PreparedCaptureGeometry {
+  readonly scrollX: number;
+  readonly scrollY: number;
+  readonly targetBounds: {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+  };
+}
 
 interface IntegrityRecordSummary {
   readonly type: "attributes" | "childList" | "characterData" | "other";
@@ -278,6 +423,9 @@ interface MutationFixtureSessionState {
   readonly page: Page;
   readonly binding: MutationRuntimeBinding;
   readonly actionPlan: ActionPlan;
+  readonly captureSpec: CaptureSpec;
+  readonly releaseEnvironment: () => void;
+  readonly invalidateEnvironment: () => void;
   readonly primaryActionTargetId: string;
   readonly documentElement: ElementHandle<HTMLElement>;
   readonly criticalElements: readonly {
@@ -299,17 +447,91 @@ interface MutationFixtureSessionState {
   readonly audit: MutationFixtureAuditState;
   lastTaskState: FixtureTaskState;
   activeOwnedMutation: ActiveOwnedMutation | null;
+  captureTaskPhase: CaptureTaskPhase;
+  preparedCaptureGeometry: PreparedCaptureGeometry | null;
   operationInProgress: boolean;
   closed: boolean;
 }
 
 export interface MutationFixtureUpstreamEvidence {
-  readonly source_state_id: string;
-  readonly environment_id: string;
+  readonly source_state: {
+    readonly reference: ArtifactRef;
+    readonly bytes: Uint8Array;
+  };
   readonly action_plan: {
     readonly reference: ArtifactRef;
     readonly bytes: Uint8Array;
   };
+  readonly capture_spec: {
+    readonly reference: ArtifactRef;
+    readonly bytes: Uint8Array;
+  };
+}
+
+export interface MutationFixtureSourceStateArtifact {
+  readonly reference: ArtifactRef;
+  readonly bytes: Uint8Array;
+}
+
+export interface MutationFixtureActionPlanArtifact {
+  readonly reference: ArtifactRef;
+  readonly bytes: Uint8Array;
+}
+
+export class MutationFixtureCheckpointBytes {
+  readonly checkpoint_id: string;
+  readonly ordinal: 0 | 1;
+  readonly #screenshot: Buffer;
+  readonly #accessibilityTree: Buffer;
+  readonly #layoutGraph: Buffer;
+
+  constructor(
+    token: symbol,
+    value: {
+      readonly checkpoint_id: string;
+      readonly ordinal: 0 | 1;
+      readonly screenshot: Uint8Array;
+      readonly accessibility_tree: Uint8Array;
+      readonly layout_graph: Uint8Array;
+    },
+  ) {
+    if (token !== checkpointConstructorToken) {
+      fail(
+        "mutation.capture_checkpoint_capability",
+        "fixture checkpoints can only be created by the authenticated executor",
+      );
+    }
+    this.checkpoint_id = value.checkpoint_id;
+    this.ordinal = value.ordinal;
+    this.#screenshot = Buffer.from(value.screenshot);
+    this.#accessibilityTree = Buffer.from(value.accessibility_tree);
+    this.#layoutGraph = Buffer.from(value.layout_graph);
+    Object.freeze(this);
+  }
+
+  get screenshot(): Buffer {
+    return Buffer.from(this.#screenshot);
+  }
+
+  get accessibility_tree(): Buffer {
+    return Buffer.from(this.#accessibilityTree);
+  }
+
+  get layout_graph(): Buffer {
+    return Buffer.from(this.#layoutGraph);
+  }
+}
+
+Object.freeze(MutationFixtureCheckpointBytes.prototype);
+
+export interface MutationFixtureTaskRun {
+  readonly checkpoints: readonly [
+    MutationFixtureCheckpointBytes,
+    MutationFixtureCheckpointBytes,
+  ];
+  readonly task_success: boolean;
+  readonly first_unsatisfied_step_id: string | null;
+  readonly virtual_elapsed_ms: 0;
 }
 
 export interface MutationRuntimeBinding {
@@ -319,7 +541,9 @@ export interface MutationRuntimeBinding {
   readonly fixture_id: "checkout-card-v1";
   readonly fixture_revision: "checkout-card-v1.0.0";
   readonly fixture_manifest_sha256: string;
+  readonly source_state: ArtifactRef;
   readonly action_plan: ArtifactRef;
+  readonly capture_spec: ArtifactRef;
   readonly primary_action_target_id: string;
 }
 
@@ -361,16 +585,6 @@ export class MutationFixtureSession {
 
 Object.freeze(MutationFixtureSession.prototype);
 
-export class MutationRuntimeError extends Error {
-  readonly code: string;
-
-  constructor(code: string, message: string, options?: ErrorOptions) {
-    super(message, options);
-    this.name = "MutationRuntimeError";
-    this.code = code;
-  }
-}
-
 export type MutationCleanup = () => Promise<void>;
 
 function fail(code: string, message: string, options?: ErrorOptions): never {
@@ -408,16 +622,6 @@ function bindingValue(record: Record<string, unknown>, key: string): unknown {
   return descriptor.value;
 }
 
-function bindingString(value: unknown, name: string, pattern: RegExp): string {
-  if (typeof value !== "string" || !pattern.test(value)) {
-    fail(
-      "mutation.binding_value",
-      `runtime provenance field ${name} has an invalid value`,
-    );
-  }
-  return value;
-}
-
 function assertClosedBindingKeys(
   record: Record<string, unknown>,
   requiredKeys: readonly string[],
@@ -446,94 +650,124 @@ function assertClosedBindingKeys(
 interface ResolvedRuntimeUpstream {
   readonly binding: MutationRuntimeBinding;
   readonly actionPlan: ActionPlan;
+  readonly captureSpec: CaptureSpec;
+}
+
+interface ResolvedRuntimeArtifact<T> {
+  readonly reference: ArtifactRef;
+  readonly value: T;
+}
+
+function resolveRuntimeArtifact<T>(
+  parent: Record<string, unknown>,
+  key: string,
+  options: {
+    readonly label: string;
+    readonly mediaType: string;
+    readonly maximumBytes: number;
+    readonly errorPrefix: string;
+    readonly parse: (bytes: Buffer) => T;
+  },
+): ResolvedRuntimeArtifact<T> {
+  const artifactRecord = bindingRecord(bindingValue(parent, key));
+  assertClosedBindingKeys(
+    artifactRecord,
+    ["bytes", "reference"],
+    `runtime ${options.label} artifact`,
+  );
+  let reference: ArtifactRef;
+  try {
+    reference = validateArtifactReference(
+      bindingValue(artifactRecord, "reference"),
+      options.maximumBytes,
+    );
+  } catch (error) {
+    fail(
+      `mutation.${options.errorPrefix}_reference`,
+      `${options.label} reference is not a valid closed artifact reference`,
+      { cause: error },
+    );
+  }
+  if (reference.media_type !== options.mediaType) {
+    fail(
+      `mutation.${options.errorPrefix}_reference`,
+      `${options.label} reference has the wrong media type`,
+    );
+  }
+  const byteValue = bindingValue(artifactRecord, "bytes");
+  const byteLength = intrinsicUint8ArrayByteLength(byteValue);
+  if (byteLength === null || byteLength < 1 || byteLength > options.maximumBytes) {
+    fail(
+      `mutation.${options.errorPrefix}_bytes`,
+      `${options.label} bytes must be a bounded fixed-memory Uint8Array`,
+    );
+  }
+  let bytes: Buffer;
+  try {
+    bytes = snapshotUint8Array(byteValue as Uint8Array, byteLength);
+  } catch (error) {
+    fail(
+      `mutation.${options.errorPrefix}_bytes`,
+      `${options.label} bytes could not be snapshotted exactly`,
+      { cause: error },
+    );
+  }
+  if (
+    reference.byte_length !== bytes.byteLength ||
+    reference.sha256 !== sha256Hex(bytes)
+  ) {
+    fail(
+      `mutation.${options.errorPrefix}_reference`,
+      `${options.label} bytes do not match their exact digest and byte-length reference`,
+    );
+  }
+  let parsed: T;
+  try {
+    parsed = options.parse(bytes);
+  } catch (error) {
+    fail(
+      `mutation.${options.errorPrefix}_bytes`,
+      `${options.label} bytes do not encode a canonical validated contract`,
+      { cause: error },
+    );
+  }
+  return Object.freeze({ reference, value: parsed });
 }
 
 function resolveMutationRuntimeBinding(value: unknown): ResolvedRuntimeUpstream {
   const record = bindingRecord(value);
   assertClosedBindingKeys(
     record,
-    ["action_plan", "environment_id", "source_state_id"],
+    ["action_plan", "capture_spec", "source_state"],
     "runtime provenance binding",
   );
 
-  const sourceStateId = bindingString(
-    bindingValue(record, "source_state_id"),
-    "source_state_id",
-    /^idss1_[0-9a-f]{64}$/u,
-  );
-  const environmentId = bindingString(
-    bindingValue(record, "environment_id"),
-    "environment_id",
-    /^iden1_[0-9a-f]{64}$/u,
-  );
+  const sourceArtifact = resolveRuntimeArtifact<SourceState>(record, "source_state", {
+    label: "source-state",
+    mediaType: "application/vnd.impactdiff.source-state+json",
+    maximumBytes: maximumSourceStateBytes,
+    errorPrefix: "source_state",
+    parse: parseSourceState,
+  });
+  const sourceStateReference = sourceArtifact.reference;
+  const sourceState = sourceArtifact.value;
+  if (canonicalJson(sourceState) !== canonicalJson(exactSourceState)) {
+    fail(
+      "mutation.source_state_fixture",
+      "source-state provenance differs from the exact closed fixture package",
+    );
+  }
+  const sourceStateId = computeSourceStateId(sourceStateReference);
 
-  const actionPlanRecord = bindingRecord(bindingValue(record, "action_plan"));
-  assertClosedBindingKeys(
-    actionPlanRecord,
-    ["bytes", "reference"],
-    "runtime action-plan artifact",
-  );
-
-  let actionPlanReference: ArtifactRef;
-  try {
-    actionPlanReference = validateArtifactReference(
-      bindingValue(actionPlanRecord, "reference"),
-      maximumActionPlanBytes,
-    );
-  } catch (error) {
-    fail(
-      "mutation.action_plan_reference",
-      "action-plan reference is not a valid closed artifact reference",
-      { cause: error },
-    );
-  }
-  if (
-    actionPlanReference.media_type !== "application/vnd.impactdiff.action-plan+json"
-  ) {
-    fail(
-      "mutation.action_plan_reference",
-      "action-plan reference has the wrong media type",
-    );
-  }
-
-  const byteValue = bindingValue(actionPlanRecord, "bytes");
-  const byteLength = intrinsicUint8ArrayByteLength(byteValue);
-  if (byteLength === null || byteLength < 1 || byteLength > maximumActionPlanBytes) {
-    fail(
-      "mutation.action_plan_bytes",
-      "action-plan bytes must be a bounded fixed-memory Uint8Array",
-    );
-  }
-  let actionPlanBytes: Buffer;
-  try {
-    actionPlanBytes = snapshotUint8Array(byteValue as Uint8Array, byteLength);
-  } catch (error) {
-    fail(
-      "mutation.action_plan_bytes",
-      "action-plan bytes could not be snapshotted exactly",
-      { cause: error },
-    );
-  }
-  if (
-    actionPlanReference.byte_length !== actionPlanBytes.byteLength ||
-    actionPlanReference.sha256 !== sha256Hex(actionPlanBytes)
-  ) {
-    fail(
-      "mutation.action_plan_reference",
-      "action-plan bytes do not match their exact digest and byte-length reference",
-    );
-  }
-
-  let actionPlan: ActionPlan;
-  try {
-    actionPlan = parseActionPlan(actionPlanBytes);
-  } catch (error) {
-    fail(
-      "mutation.action_plan_bytes",
-      "action-plan bytes do not encode a canonical validated action plan",
-      { cause: error },
-    );
-  }
+  const actionArtifact = resolveRuntimeArtifact<ActionPlan>(record, "action_plan", {
+    label: "action-plan",
+    mediaType: "application/vnd.impactdiff.action-plan+json",
+    maximumBytes: maximumActionPlanBytes,
+    errorPrefix: "action_plan",
+    parse: parseActionPlan,
+  });
+  const actionPlanReference = actionArtifact.reference;
+  const actionPlan = actionArtifact.value;
   const targetActions = actionPlan.actions.filter(
     (action) => action.target_id === primaryActionTargetId,
   );
@@ -549,17 +783,29 @@ function resolveMutationRuntimeBinding(value: unknown): ResolvedRuntimeUpstream 
     );
   }
 
+  const captureArtifact = resolveRuntimeArtifact<CaptureSpec>(record, "capture_spec", {
+    label: "capture-spec",
+    mediaType: "application/vnd.impactdiff.capture-spec+json",
+    maximumBytes: maximumCaptureSpecBytes,
+    errorPrefix: "capture_spec",
+    parse: parseCaptureSpec,
+  });
+  const captureSpecReference = captureArtifact.reference;
+  const captureSpec = captureArtifact.value;
+
   const binding = Object.freeze({
     source_state_id: sourceStateId,
     task_id: computeTaskId(actionPlanReference),
-    environment_id: environmentId,
+    environment_id: computeEnvironmentId(captureSpecReference),
     fixture_id: closedFixture.fixtureId,
     fixture_revision: closedFixture.revision,
     fixture_manifest_sha256: closedFixture.manifestSha256,
+    source_state: sourceStateReference,
     action_plan: actionPlanReference,
+    capture_spec: captureSpecReference,
     primary_action_target_id: primaryActionTargetId,
   });
-  return Object.freeze({ binding, actionPlan });
+  return Object.freeze({ binding, actionPlan, captureSpec });
 }
 
 export function validateMutationRuntimeBinding(value: unknown): MutationRuntimeBinding {
@@ -728,6 +974,31 @@ async function loadMutationFixture(
     );
   }
   return Object.freeze({ resources });
+}
+
+/**
+ * Audits the exact closed fixture package before returning the canonical sealed
+ * source-state artifact that a generator can pass to the session factory and CAS.
+ */
+export async function loadVerifiedMutationFixtureSourceState(
+  fixtureDirectory: string,
+): Promise<MutationFixtureSourceStateArtifact> {
+  await loadMutationFixture(fixtureDirectory);
+  return Object.freeze({
+    reference: exactSourceStateReference,
+    bytes: Buffer.from(exactSourceStateBytes),
+  });
+}
+
+/**
+ * Returns the canonical task artifact owned by the exact closed checkout fixture.
+ * The action identity commits to the fixture, locator, intent, and pointer value.
+ */
+export function loadVerifiedMutationFixtureActionPlan(): MutationFixtureActionPlanArtifact {
+  return Object.freeze({
+    reference: exactActionPlanReference,
+    bytes: Buffer.from(exactActionPlanBytes),
+  });
 }
 
 function mutationSessionState(value: unknown): MutationFixtureSessionState {
@@ -1400,9 +1671,9 @@ async function assertAuthenticatedDocument(
   if (taints.length > 0) {
     fail("mutation.session_tainted", taints.join("; "));
   }
-  await assertFixtureReadiness(state.page, state.binding);
+  await assertFixtureReadiness(state.page, state.binding, state.captureSpec);
   const now = await state.page.evaluate(() => Date.now());
-  if (now !== closedFixture.fixedEpochMs) {
+  if (now !== state.captureSpec.clock.epoch_ms) {
     fail("mutation.clock_drift", "fixture virtual clock is no longer paused exactly");
   }
 }
@@ -1485,10 +1756,24 @@ async function closeMutationFixtureSession(
   } catch {
     auditIssues.add("fixture document handle disposal failed");
   }
+  let contextReusable = true;
   try {
     await state.context.close();
   } catch {
+    contextReusable = false;
     auditIssues.add("fixture browser context close failed");
+  }
+  if (state.audit.activeRouteHandlers !== 0) {
+    contextReusable = false;
+  }
+  try {
+    if (contextReusable) {
+      state.releaseEnvironment();
+    } else {
+      state.invalidateEnvironment();
+    }
+  } catch {
+    auditIssues.add("capture environment lease release failed");
   }
   if (state.audit.activeRouteHandlers !== 0) {
     auditIssues.add("fixture route audit remained active after context close");
@@ -1527,36 +1812,31 @@ async function closeMutationFixtureSession(
 }
 
 /**
- * Opens the one closed checkout fixture. The canonical action-plan bytes are
- * verified against their exact ArtifactRef, parsed, and hashed through the
- * same `computeTaskId(reference)` identity used by evidence manifests.
+ * Opens the one closed checkout fixture inside a runtime-owned browser. The
+ * source, task, and environment identities are derived from exact canonical
+ * artifact references rather than accepted as caller-selected strings.
  */
 export async function openMutationFixtureSession(
-  browser: Browser,
-  fixtureDirectory: string,
+  environment: MutationFixtureEnvironment,
   upstreamEvidence: unknown,
 ): Promise<MutationFixtureSession> {
-  if (
-    browser.browserType().name() !== "chromium" ||
-    browser.version() !== closedFixture.browserVersion
-  ) {
-    fail(
-      "mutation.browser_version",
-      `fixture sessions require Chromium ${closedFixture.browserVersion}`,
-    );
-  }
-  const { binding, actionPlan } = resolveMutationRuntimeBinding(upstreamEvidence);
-  const loaded = await loadMutationFixture(fixtureDirectory);
+  const { binding, actionPlan, captureSpec } =
+    resolveMutationRuntimeBinding(upstreamEvidence);
+  const environmentLease = acquireMutationFixtureEnvironment(
+    environment,
+    binding.capture_spec,
+  );
+  const { browser, fixtureDirectory } = environmentLease;
   const contextOptions = {
-    viewport: { width: 800, height: 600 },
-    screen: { width: 800, height: 600 },
-    deviceScaleFactor: 1,
-    locale: "en-US",
-    timezoneId: "UTC",
-    colorScheme: "light",
-    reducedMotion: "reduce",
-    forcedColors: "none",
-    serviceWorkers: "block",
+    viewport: { ...captureSpec.display.viewport },
+    screen: { ...captureSpec.display.screen },
+    deviceScaleFactor: captureSpec.display.device_scale_factor,
+    locale: captureSpec.internationalization.locale,
+    timezoneId: captureSpec.internationalization.timezone_id,
+    colorScheme: captureSpec.media.color_scheme,
+    reducedMotion: captureSpec.media.reduced_motion,
+    forcedColors: captureSpec.media.forced_colors,
+    serviceWorkers: captureSpec.network.service_workers,
     acceptDownloads: false,
     permissions: [],
     bypassCSP: false,
@@ -1565,7 +1845,10 @@ export async function openMutationFixtureSession(
     isMobile: false,
   } satisfies BrowserContextOptions;
   let context: BrowserContext | undefined;
+  let contextCreationAttempted = false;
   try {
+    const loaded = await loadMutationFixture(fixtureDirectory);
+    contextCreationAttempted = true;
     context = await browser.newContext(contextOptions);
     const audit: MutationFixtureAuditState = {
       blockedExternalRequests: [],
@@ -1655,19 +1938,24 @@ export async function openMutationFixtureSession(
         audit.documentReplaced = true;
       }
     });
-    page.setDefaultNavigationTimeout(10_000);
-    page.setDefaultTimeout(5_000);
-    await page.clock.install({ time: closedFixture.fixedEpochMs });
-    await page.clock.pauseAt(closedFixture.fixedEpochMs);
+    page.setDefaultNavigationTimeout(captureSpec.budgets.navigation_timeout_ms);
+    page.setDefaultTimeout(captureSpec.budgets.action_timeout_ms);
+    await page.clock.install({ time: captureSpec.clock.epoch_ms });
+    await page.clock.pauseAt(captureSpec.clock.epoch_ms);
     await page.goto(fixtureUrl, { waitUntil: "load" });
-    await page.waitForFunction(() => {
-      const state = Reflect.get(window, "__impactdiffFixtureV1") as
-        { readonly ready?: unknown; readonly pendingRequests?: unknown } | undefined;
-      return state?.ready === true && state.pendingRequests === 0;
-    });
-    await assertFixtureReadiness(page, binding);
+    await page.waitForFunction(
+      () => {
+        const state = Reflect.get(window, "__impactdiffFixtureV1") as
+          { readonly ready?: unknown; readonly pendingRequests?: unknown } | undefined;
+        return state?.ready === true && state.pendingRequests === 0;
+      },
+      undefined,
+      { timeout: captureSpec.budgets.readiness_timeout_ms },
+    );
+    await assertFixtureReadiness(page, binding, captureSpec);
+    await assertClosedFixtureFonts(page);
     const now = await page.evaluate(() => Date.now());
-    if (now !== closedFixture.fixedEpochMs) {
+    if (now !== captureSpec.clock.epoch_ms) {
       fail("mutation.clock_drift", "fixture virtual clock did not pause exactly");
     }
     const initialResourceIssues = servedResourceIssues(audit);
@@ -1748,6 +2036,9 @@ export async function openMutationFixtureSession(
       page,
       binding,
       actionPlan,
+      captureSpec,
+      releaseEnvironment: environmentLease.release,
+      invalidateEnvironment: environmentLease.invalidate,
       primaryActionTargetId,
       documentElement: documentElement as ElementHandle<HTMLElement>,
       criticalElements: frozenCriticalElements,
@@ -1756,6 +2047,8 @@ export async function openMutationFixtureSession(
       audit,
       lastTaskState: initialTaskState,
       activeOwnedMutation: null,
+      captureTaskPhase: "unprepared",
+      preparedCaptureGeometry: null,
       operationInProgress: false,
       closed: false,
     };
@@ -1765,9 +2058,519 @@ export async function openMutationFixtureSession(
     audit.navigationArmed = true;
     return session;
   } catch (error) {
-    await context?.close();
+    let contextReusable = !contextCreationAttempted;
+    let cleanupFailure: { readonly error: unknown } | undefined;
+    if (context !== undefined) {
+      try {
+        await context.close();
+        contextReusable = true;
+      } catch (cleanupError) {
+        contextReusable = false;
+        cleanupFailure = { error: cleanupError };
+      }
+    }
+    try {
+      if (contextReusable) {
+        environmentLease.release();
+      } else {
+        environmentLease.invalidate();
+      }
+    } catch (cleanupError) {
+      cleanupFailure = {
+        error:
+          cleanupFailure === undefined
+            ? cleanupError
+            : new AggregateError(
+                [cleanupFailure.error, cleanupError],
+                "fixture session cleanup failed",
+              ),
+      };
+    }
+    if (cleanupFailure !== undefined) {
+      if (error instanceof MutationRuntimeError) {
+        throw new MutationRuntimeError(error.code, error.message, {
+          cause: new AggregateError(
+            [error, cleanupFailure.error],
+            "fixture session construction and cleanup both failed",
+          ),
+        });
+      }
+      throw new AggregateError(
+        [error, cleanupFailure.error],
+        "fixture session construction and cleanup both failed",
+      );
+    }
     throw error;
   }
+}
+
+type PointerClickAction = Extract<
+  ActionPlan["actions"][number],
+  { readonly intent: "pointer_click" }
+>;
+
+interface BrowserCaptureGeometry extends PreparedCaptureGeometry {
+  readonly viewportWidth: number;
+  readonly viewportHeight: number;
+  readonly centerHit: boolean;
+}
+
+function fixedCaptureAction(state: MutationFixtureSessionState): PointerClickAction {
+  const action = state.actionPlan.actions[0];
+  const checkpoints = state.actionPlan.checkpoints;
+  if (
+    state.actionPlan.actions.length !== 1 ||
+    action === undefined ||
+    action.ordinal !== 0 ||
+    action.intent !== "pointer_click" ||
+    action.target_id !== state.primaryActionTargetId ||
+    action.value.kind !== "pointer" ||
+    action.value.button !== "primary" ||
+    checkpoints.length !== 2 ||
+    checkpoints[0]?.ordinal !== 0 ||
+    checkpoints[0]?.after_action_ordinal !== -1 ||
+    checkpoints[1]?.ordinal !== 1 ||
+    checkpoints[1]?.after_action_ordinal !== 0
+  ) {
+    fail(
+      "mutation.capture_action_plan",
+      "fixture capture requires one primary pointer click and the exact two-checkpoint schedule",
+    );
+  }
+  return action;
+}
+
+function captureNumber(value: unknown, name: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    fail("mutation.capture_geometry", `${name} must be a finite browser number`);
+  }
+  return value;
+}
+
+async function readBrowserCaptureGeometry(
+  state: MutationFixtureSessionState,
+): Promise<BrowserCaptureGeometry> {
+  const handles = integrityHandles(state);
+  let value: {
+    readonly scrollX: unknown;
+    readonly scrollY: unknown;
+    readonly viewportWidth: unknown;
+    readonly viewportHeight: unknown;
+    readonly centerHit: unknown;
+    readonly targetBounds: {
+      readonly x: unknown;
+      readonly y: unknown;
+      readonly width: unknown;
+      readonly height: unknown;
+    };
+  };
+  try {
+    value = await handles.action.evaluate((action) => {
+      const bounds = action.getBoundingClientRect();
+      const centerX = bounds.x + bounds.width / 2;
+      const centerY = bounds.y + bounds.height / 2;
+      return {
+        scrollX: window.scrollX,
+        scrollY: window.scrollY,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        centerHit: document.elementFromPoint(centerX, centerY) === action,
+        targetBounds: {
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+        },
+      };
+    });
+  } catch (error) {
+    fail(
+      "mutation.capture_geometry",
+      "the authenticated primary action geometry could not be read",
+      { cause: error },
+    );
+  }
+
+  const geometry = {
+    scrollX: captureNumber(value.scrollX, "scrollX"),
+    scrollY: captureNumber(value.scrollY, "scrollY"),
+    viewportWidth: captureNumber(value.viewportWidth, "viewportWidth"),
+    viewportHeight: captureNumber(value.viewportHeight, "viewportHeight"),
+    centerHit: value.centerHit === true,
+    targetBounds: {
+      x: captureNumber(value.targetBounds.x, "targetBounds.x"),
+      y: captureNumber(value.targetBounds.y, "targetBounds.y"),
+      width: captureNumber(value.targetBounds.width, "targetBounds.width"),
+      height: captureNumber(value.targetBounds.height, "targetBounds.height"),
+    },
+  };
+  const { targetBounds } = geometry;
+  const viewport = state.captureSpec.display.viewport;
+  if (
+    geometry.viewportWidth !== viewport.width ||
+    geometry.viewportHeight !== viewport.height ||
+    !Number.isSafeInteger(geometry.scrollX) ||
+    !Number.isSafeInteger(geometry.scrollY) ||
+    geometry.scrollX < 0 ||
+    geometry.scrollY < 0 ||
+    targetBounds.width <= 0 ||
+    targetBounds.height <= 0 ||
+    targetBounds.x < 0 ||
+    targetBounds.y < 0 ||
+    targetBounds.x + targetBounds.width > geometry.viewportWidth ||
+    targetBounds.y + targetBounds.height > geometry.viewportHeight
+  ) {
+    fail(
+      "mutation.capture_geometry",
+      "the primary action must have exact finite geometry inside the fixed viewport",
+    );
+  }
+  return Object.freeze({
+    ...geometry,
+    targetBounds: Object.freeze(geometry.targetBounds),
+  });
+}
+
+function samePreparedGeometry(
+  prepared: PreparedCaptureGeometry,
+  current: BrowserCaptureGeometry,
+): boolean {
+  return (
+    prepared.scrollX === current.scrollX &&
+    prepared.scrollY === current.scrollY &&
+    prepared.targetBounds.x === current.targetBounds.x &&
+    prepared.targetBounds.y === current.targetBounds.y &&
+    prepared.targetBounds.width === current.targetBounds.width &&
+    prepared.targetBounds.height === current.targetBounds.height
+  );
+}
+
+async function assertPreparedCaptureGeometry(
+  state: MutationFixtureSessionState,
+  prepared: PreparedCaptureGeometry,
+): Promise<void> {
+  const current = await readBrowserCaptureGeometry(state);
+  if (!samePreparedGeometry(prepared, current)) {
+    fail(
+      "mutation.capture_geometry_drift",
+      "fixture scroll or target geometry changed after deterministic preparation",
+    );
+  }
+}
+
+/**
+ * Performs the fixed initial scroll exactly once, before an optional mutation
+ * is probed and applied. Both baseline and candidate roles use this operation.
+ */
+export async function prepareMutationFixtureTask(
+  session: MutationFixtureSession,
+): Promise<void> {
+  const state = beginSessionOperation(session);
+  try {
+    fixedCaptureAction(state);
+    if (state.captureTaskPhase !== "unprepared") {
+      fail(
+        "mutation.capture_phase",
+        "fixture task preparation is single-use and must precede execution",
+      );
+    }
+    if (state.activeOwnedMutation !== null || occupiedPages.has(state.page)) {
+      fail(
+        "mutation.capture_phase",
+        "fixture task preparation must occur before applying a mutation",
+      );
+    }
+    await assertAuthenticatedDocument(state);
+    if (state.lastTaskState !== "review") {
+      fail(
+        "mutation.capture_initial_state",
+        "fixture capture must begin from the exact review state",
+      );
+    }
+    const handles = integrityHandles(state);
+    await handles.action.scrollIntoViewIfNeeded();
+    await assertAuthenticatedDocument(state);
+    if (state.lastTaskState !== "review") {
+      fail(
+        "mutation.capture_initial_state",
+        "fixture task changed during deterministic preparation",
+      );
+    }
+    const geometry = await readBrowserCaptureGeometry(state);
+    if (!geometry.centerHit) {
+      fail(
+        "mutation.capture_target_occluded",
+        "the unmodified primary action center must be the viewport hit target",
+      );
+    }
+    state.preparedCaptureGeometry = Object.freeze({
+      scrollX: geometry.scrollX,
+      scrollY: geometry.scrollY,
+      targetBounds: Object.freeze({ ...geometry.targetBounds }),
+    });
+    state.captureTaskPhase = "prepared";
+  } finally {
+    endSessionOperation(state);
+  }
+}
+
+function captureProtocolRecord(value: unknown, name: string): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    fail("mutation.capture_protocol", `${name} must be a CDP data object`);
+  }
+  return value as Record<string, unknown>;
+}
+
+function captureProtocolInteger(value: unknown, name: string, maximum: number): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < 1 ||
+    value > maximum
+  ) {
+    fail("mutation.capture_protocol", `${name} must be a bounded positive integer`);
+  }
+  return value;
+}
+
+async function captureTargetBackendNodeId(client: CDPSession): Promise<number> {
+  const documentResponse = captureProtocolRecord(
+    await client.send("DOM.getDocument", { depth: 0, pierce: false }),
+    "DOM.getDocument response",
+  );
+  const root = captureProtocolRecord(
+    documentResponse.root,
+    "DOM.getDocument response root",
+  );
+  const rootNodeId = captureProtocolInteger(
+    root.nodeId,
+    "document root nodeId",
+    2_147_483_647,
+  );
+  const queryResponse = captureProtocolRecord(
+    await client.send("DOM.querySelectorAll", {
+      nodeId: rootNodeId,
+      selector: '[data-testid="place-order"]',
+    }),
+    "DOM.querySelectorAll response",
+  );
+  const nodeIds = queryResponse.nodeIds;
+  if (!Array.isArray(nodeIds) || nodeIds.length !== 1) {
+    fail(
+      "mutation.capture_target",
+      "the exact primary-action selector must resolve one DOM node",
+    );
+  }
+  const nodeId = captureProtocolInteger(
+    nodeIds[0],
+    "primary action nodeId",
+    2_147_483_647,
+  );
+  const descriptionResponse = captureProtocolRecord(
+    await client.send("DOM.describeNode", { nodeId, depth: 0, pierce: false }),
+    "DOM.describeNode response",
+  );
+  const node = captureProtocolRecord(
+    descriptionResponse.node,
+    "DOM.describeNode response node",
+  );
+  const attributes = node.attributes;
+  if (!Array.isArray(attributes) || attributes.length % 2 !== 0) {
+    fail(
+      "mutation.capture_target",
+      "the primary action must expose a valid CDP attribute vector",
+    );
+  }
+  let testIdMatches = 0;
+  for (let index = 0; index < attributes.length; index += 2) {
+    if (
+      attributes[index] === "data-testid" &&
+      attributes[index + 1] === "place-order"
+    ) {
+      testIdMatches += 1;
+    }
+  }
+  if (testIdMatches !== 1) {
+    fail(
+      "mutation.capture_target",
+      "the resolved primary action must carry the exact fixture test ID",
+    );
+  }
+  return captureProtocolInteger(
+    node.backendNodeId,
+    "primary action backendNodeId",
+    4_294_967_295,
+  );
+}
+
+function assertFixtureCheckpointTarget(
+  state: MutationFixtureSessionState,
+  layout: LayoutSnapshot,
+  ordinal: 0 | 1,
+): void {
+  const actualCount = layout.nodes.filter(
+    (node) => node.action_target_id === state.primaryActionTargetId,
+  ).length;
+  const expectedCount = ordinal === 0 || state.lastTaskState === "review" ? 1 : 0;
+  if (actualCount !== expectedCount) {
+    fail(
+      "mutation.capture_target_binding",
+      `checkpoint ${ordinal} must contain exactly ${expectedCount} authenticated primary-action layout targets`,
+    );
+  }
+}
+
+async function captureMutationCheckpoint(
+  state: MutationFixtureSessionState,
+  client: CDPSession,
+  ordinal: 0 | 1,
+  preparedGeometry: PreparedCaptureGeometry | null,
+): Promise<MutationFixtureCheckpointBytes> {
+  await assertAuthenticatedDocument(state);
+  if (preparedGeometry !== null) {
+    await assertPreparedCaptureGeometry(state, preparedGeometry);
+  }
+  await assertClosedFixtureFonts(state.page);
+  const targetBackendNodeId = await captureTargetBackendNodeId(client);
+  const screenshotInput = await state.page.screenshot({
+    type: state.captureSpec.screenshot.format,
+    fullPage: state.captureSpec.screenshot.full_page,
+    animations: state.captureSpec.screenshot.animations,
+    caret: state.captureSpec.screenshot.caret,
+    scale: state.captureSpec.screenshot.scale,
+    omitBackground: state.captureSpec.screenshot.omit_background,
+  });
+  const domSnapshot = await client.send("DOMSnapshot.captureSnapshot", {
+    computedStyles: [...chromiumLayoutComputedStyles],
+    includePaintOrder: true,
+    includeDOMRects: true,
+    includeBlendedBackgroundColors: false,
+    includeTextColorOpacities: false,
+  });
+  const layout = adaptChromiumLayoutSnapshot(domSnapshot, {
+    viewport: state.captureSpec.display.viewport,
+    target: {
+      backendDomNodeId: targetBackendNodeId,
+      actionTargetId: state.primaryActionTargetId,
+    },
+  });
+  const accessibilityInput = await client.send("Accessibility.getFullAXTree");
+  const accessibility = normalizeAccessibilitySnapshot(
+    accessibilityInput,
+    layout.backendDomNodeToLayoutIndex,
+  );
+  assertFixtureCheckpointTarget(state, layout.snapshot, ordinal);
+  assertCaptureGraphBindings(state.actionPlan, accessibility, layout.snapshot);
+  const screenshot = canonicalizePng(
+    screenshotInput,
+    state.captureSpec.display.viewport,
+  ).bytes;
+  const checkpoint = new MutationFixtureCheckpointBytes(checkpointConstructorToken, {
+    checkpoint_id: computeCheckpointId(state.binding.action_plan, ordinal),
+    ordinal,
+    screenshot,
+    accessibility_tree: Buffer.from(canonicalJson(accessibility), "utf8"),
+    layout_graph: Buffer.from(canonicalJson(layout.snapshot), "utf8"),
+  });
+  await assertAuthenticatedDocument(state);
+  if (preparedGeometry !== null) {
+    await assertPreparedCaptureGeometry(state, preparedGeometry);
+  }
+  return checkpoint;
+}
+
+/**
+ * Captures the exact initial checkpoint, performs the one true coordinate
+ * click, and captures the exact final checkpoint under one authenticated
+ * operation. Technical failures poison this run and never expose a partial
+ * checkpoint sequence.
+ */
+export async function executeMutationFixtureTask(
+  session: MutationFixtureSession,
+): Promise<MutationFixtureTaskRun> {
+  const state = beginSessionOperation(session);
+  let started = false;
+  let client: CDPSession | undefined;
+  let result: MutationFixtureTaskRun | undefined;
+  const errors: unknown[] = [];
+  try {
+    if (
+      state.captureTaskPhase !== "prepared" ||
+      state.preparedCaptureGeometry === null
+    ) {
+      fail(
+        "mutation.capture_phase",
+        "fixture task execution requires one successful deterministic preparation",
+      );
+    }
+    const action = fixedCaptureAction(state);
+    const prepared = state.preparedCaptureGeometry;
+    started = true;
+    state.captureTaskPhase = "executing";
+    await assertAuthenticatedDocument(state);
+    if (state.lastTaskState !== "review") {
+      fail(
+        "mutation.capture_initial_state",
+        "fixture capture must execute from the exact review state",
+      );
+    }
+    await assertPreparedCaptureGeometry(state, prepared);
+    client = await state.page.context().newCDPSession(state.page);
+    const initial = await captureMutationCheckpoint(state, client, 0, prepared);
+
+    const { targetBounds } = prepared;
+    await state.page.mouse.click(
+      targetBounds.x + targetBounds.width / 2,
+      targetBounds.y + targetBounds.height / 2,
+    );
+
+    const final = await captureMutationCheckpoint(state, client, 1, null);
+    const finalTaskState = await readFixtureTaskState(
+      state.page,
+      integrityHandles(state),
+    );
+    if (
+      finalTaskState === null ||
+      !sameFixtureTaskState(finalTaskState, state.lastTaskState)
+    ) {
+      fail(
+        "mutation.capture_result",
+        "the final task outcome does not match the authenticated document state",
+      );
+    }
+    const taskSuccess = finalTaskState === "confirmed";
+    result = Object.freeze({
+      checkpoints: Object.freeze([initial, final] as const),
+      task_success: taskSuccess,
+      first_unsatisfied_step_id: taskSuccess ? null : action.action_id,
+      virtual_elapsed_ms: 0 as const,
+    });
+  } catch (error) {
+    errors.push(error);
+  }
+
+  if (client !== undefined) {
+    try {
+      await client.detach();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  if (started) {
+    state.captureTaskPhase = errors.length === 0 ? "complete" : "failed";
+  }
+  endSessionOperation(state);
+
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+  if (errors.length > 1) {
+    throw new AggregateError(errors, "fixture task capture and CDP cleanup failed");
+  }
+  if (result === undefined) {
+    fail("mutation.capture_result", "fixture task capture produced no complete result");
+  }
+  return result;
 }
 
 function assertSupportedTarget(request: MutationRequest): void {
@@ -1821,6 +2624,7 @@ function assertRequestBinding(
 async function assertFixtureReadiness(
   page: Page,
   binding: MutationRuntimeBinding,
+  captureSpec: CaptureSpec,
 ): Promise<void> {
   let evidence: {
     readonly ready: boolean;
@@ -1901,34 +2705,117 @@ async function assertFixtureReadiness(
       cause: error,
     });
   }
+  const viewport = captureSpec.display.viewport;
+  const screen = captureSpec.display.screen;
   if (
     !evidence.ready ||
     evidence.revision !== binding.fixture_revision ||
-    evidence.pendingRequests !== 0 ||
+    evidence.pendingRequests !== captureSpec.budgets.maximum_pending_requests ||
     !evidence.sealed ||
     evidence.csp !== exactFixtureCsp ||
     !evidence.fontLoaded ||
     evidence.rootCount !== 1 ||
     evidence.actionCount !== 1 ||
     evidence.successCount !== 1 ||
-    evidence.innerWidth !== 800 ||
-    evidence.innerHeight !== 600 ||
-    evidence.screenWidth !== 800 ||
-    evidence.screenHeight !== 600 ||
-    evidence.devicePixelRatio !== 1 ||
-    evidence.language !== "en-US" ||
-    evidence.timeZone !== "UTC" ||
-    !evidence.lightScheme ||
-    !evidence.reducedMotion ||
-    evidence.forcedColors ||
+    evidence.innerWidth !== viewport.width ||
+    evidence.innerHeight !== viewport.height ||
+    evidence.screenWidth !== screen.width ||
+    evidence.screenHeight !== screen.height ||
+    evidence.devicePixelRatio !== captureSpec.display.device_scale_factor ||
+    evidence.language !== captureSpec.internationalization.locale ||
+    evidence.timeZone !== captureSpec.internationalization.timezone_id ||
+    evidence.lightScheme !== (captureSpec.media.color_scheme === "light") ||
+    evidence.reducedMotion !== (captureSpec.media.reduced_motion === "reduce") ||
+    evidence.forcedColors !== (captureSpec.media.forced_colors !== "none") ||
     evidence.serviceWorkerControlled ||
     evidence.serviceWorkerRegistrations !== 0 ||
-    page.viewportSize()?.width !== 800 ||
-    page.viewportSize()?.height !== 600
+    page.viewportSize()?.width !== viewport.width ||
+    page.viewportSize()?.height !== viewport.height
   ) {
     fail(
       "mutation.fixture_readiness",
       "page readiness, revision, CSP, or pending-request state differs from the bound fixture",
+    );
+  }
+}
+
+async function assertClosedFixtureFonts(page: Page): Promise<void> {
+  const client = await page.context().newCDPSession(page);
+  let auditFailure: { readonly error: unknown } | undefined;
+  try {
+    await client.send("DOM.enable");
+    await client.send("CSS.enable");
+    const document = await client.send("DOM.getDocument", {
+      depth: 1,
+      pierce: false,
+    });
+    const matches = await client.send("DOM.querySelectorAll", {
+      nodeId: document.root.nodeId,
+      selector: "body, body *",
+    });
+    let glyphCount = 0;
+    for (const nodeId of matches.nodeIds) {
+      const usage = await client.send("CSS.getPlatformFontsForNode", { nodeId });
+      for (const font of usage.fonts) {
+        glyphCount += font.glyphCount;
+        if (font.isCustomFont !== true || font.familyName !== "Noto Sans") {
+          fail(
+            "mutation.fixture_font_fallback",
+            "fixture text used a font outside the exact custom WOFF2 bundle",
+          );
+        }
+      }
+    }
+    if (glyphCount < 1) {
+      fail(
+        "mutation.fixture_font_fallback",
+        "fixture font audit observed no rendered custom glyphs",
+      );
+    }
+  } catch (error) {
+    auditFailure = { error };
+  }
+  let detachFailure: { readonly error: unknown } | undefined;
+  try {
+    await client.detach();
+  } catch (error) {
+    detachFailure = { error };
+  }
+  if (auditFailure !== undefined) {
+    if (auditFailure.error instanceof MutationRuntimeError) {
+      if (detachFailure === undefined) {
+        throw auditFailure.error;
+      }
+      throw new MutationRuntimeError(
+        auditFailure.error.code,
+        auditFailure.error.message,
+        {
+          cause: new AggregateError(
+            [auditFailure.error, detachFailure.error],
+            "fixture font audit and CDP cleanup both failed",
+          ),
+        },
+      );
+    }
+    fail(
+      "mutation.fixture_font_fallback",
+      "fixture platform-font usage could not be audited",
+      {
+        cause:
+          detachFailure === undefined
+            ? auditFailure.error
+            : new AggregateError(
+                [auditFailure.error, detachFailure.error],
+                "fixture font audit and CDP cleanup both failed",
+              ),
+      },
+    );
+  }
+  if (detachFailure !== undefined) {
+    fail(
+      "mutation.fixture_font_fallback",
+      "fixture platform-font audit session could not be detached",
+      { cause: detachFailure.error },
     );
   }
 }

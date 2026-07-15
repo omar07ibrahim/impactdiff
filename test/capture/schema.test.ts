@@ -83,20 +83,50 @@ const captureSpecFixture = {
   contract: "impactdiff.capture-spec",
   version: 1,
   software: {
-    playwright_version: "1.61.1",
-    playwright_package_sha256: digest("1"),
-    browser_engine: "chromium",
-    browser_revision: "1228",
-    browser_version: "149.0.7827.55",
-    browser_binary_sha256: digest("2"),
+    playwright: {
+      packages: {
+        playwright_test: {
+          name: "@playwright/test",
+          version: "1.61.1",
+        },
+        playwright: {
+          name: "playwright",
+          version: "1.61.1",
+        },
+        playwright_core: {
+          name: "playwright-core",
+          version: "1.61.1",
+        },
+      },
+      installed_file_tree_sha256: digest("1"),
+    },
+    browser: {
+      engine: "chromium",
+      distribution: "chromium_headless_shell",
+      playwright_registry_revision: "1228",
+      version: "149.0.7827.55",
+      source_revision: "3188f8a607ae7e067593be8aab7f02d2451fec07",
+      installation_file_tree_sha256: digest("9"),
+      executable_sha256: digest("2"),
+      launch_profile_sha256: digest("3"),
+    },
   },
-  container: {
-    image_digest: `sha256:${digest("3")}`,
+  execution: {
+    kind: "host",
     platform: "linux/amd64",
   },
   fonts: {
-    bundle_sha256: digest("4"),
+    bundle_format: "closed-font-file-set-v1",
+    files: [
+      {
+        logical_name: "noto-sans-latin-variable-normal",
+        format: "woff2",
+        sha256: "df8c8215937ab2a4270c0cd997101b3fb8cdd444c9903d342200d6179ebcc097",
+        byte_length: 59_928,
+      },
+    ],
     loading: "document-fonts-ready",
+    fallback_policy: "closed-bundle-only",
   },
   display: {
     viewport: { width: 800, height: 600 },
@@ -392,9 +422,9 @@ test("action plan enforces exact variants, identities, and ordering", () => {
   );
 });
 
-test("capture spec pins versions, display, timeouts, and forbids machine paths", () => {
+test("capture spec pins software, display, timeouts, and forbids machine paths", () => {
   const browserDrift = clone(captureSpecFixture);
-  browserDrift.software.browser_version = "149.0.7827.56";
+  browserDrift.software.browser.version = "149.0.7827.56";
   assert.throws(() => parseCaptureSpec(canonicalJson(browserDrift)), {
     name: "ContractValidationError",
   });
@@ -423,11 +453,166 @@ test("capture spec pins versions, display, timeouts, and forbids machine paths",
 
   for (const canary of ["source", "operator", "seed", "run", "host", "path"]) {
     const candidate = clone(captureSpecFixture);
-    Object.assign(candidate.container, { [canary]: "canary" });
+    Object.assign(candidate.execution, { [canary]: "canary" });
     assert.throws(() => parseCaptureSpec(canonicalJson(candidate)), {
       name: "ContractValidationError",
     });
   }
+});
+
+test("capture spec names the complete Playwright closure and live browser identity", () => {
+  const renamedPackage = clone(captureSpecFixture);
+  renamedPackage.software.playwright.packages.playwright_core.name = "driver";
+  assert.throws(() => parseCaptureSpec(canonicalJson(renamedPackage)), {
+    name: "ContractValidationError",
+  });
+
+  const omittedPackage = clone(captureSpecFixture);
+  Reflect.deleteProperty(
+    omittedPackage.software.playwright.packages,
+    "playwright_core",
+  );
+  assert.throws(() => parseCaptureSpec(canonicalJson(omittedPackage)), {
+    name: "ContractValidationError",
+  });
+
+  const packageVersionDrift = clone(captureSpecFixture);
+  packageVersionDrift.software.playwright.packages.playwright.version = "1.61.2";
+  assert.throws(() => parseCaptureSpec(canonicalJson(packageVersionDrift)), {
+    name: "ContractValidationError",
+  });
+
+  const malformedTreeDigest = clone(captureSpecFixture);
+  malformedTreeDigest.software.playwright.installed_file_tree_sha256 = digest("A");
+  assert.throws(() => parseCaptureSpec(canonicalJson(malformedTreeDigest)), {
+    name: "ContractValidationError",
+  });
+
+  const registryRevisionAsSourceRevision = clone(captureSpecFixture);
+  registryRevisionAsSourceRevision.software.browser.source_revision = "1228";
+  assert.throws(
+    () => parseCaptureSpec(canonicalJson(registryRevisionAsSourceRevision)),
+    { name: "ContractValidationError" },
+  );
+
+  const distributionDrift = clone(captureSpecFixture);
+  distributionDrift.software.browser.distribution = "chromium";
+  assert.throws(() => parseCaptureSpec(canonicalJson(distributionDrift)), {
+    name: "ContractValidationError",
+  });
+
+  const registryRevisionDrift = clone(captureSpecFixture);
+  registryRevisionDrift.software.browser.playwright_registry_revision = "1229";
+  assert.throws(() => parseCaptureSpec(canonicalJson(registryRevisionDrift)), {
+    name: "ContractValidationError",
+  });
+
+  const unboundLaunch = clone(captureSpecFixture);
+  Reflect.deleteProperty(unboundLaunch.software.browser, "launch_profile_sha256");
+  assert.throws(() => parseCaptureSpec(canonicalJson(unboundLaunch)), {
+    name: "ContractValidationError",
+  });
+
+  const unboundBrowserFiles = clone(captureSpecFixture);
+  Reflect.deleteProperty(
+    unboundBrowserFiles.software.browser,
+    "installation_file_tree_sha256",
+  );
+  assert.throws(() => parseCaptureSpec(canonicalJson(unboundBrowserFiles)), {
+    name: "ContractValidationError",
+  });
+
+  const ambiguousLegacyDigest = clone(captureSpecFixture);
+  Object.assign(ambiguousLegacyDigest.software, {
+    playwright_package_sha256: digest("8"),
+  });
+  assert.throws(() => parseCaptureSpec(canonicalJson(ambiguousLegacyDigest)), {
+    name: "ContractValidationError",
+  });
+});
+
+test("capture spec separates honest host execution from attested OCI execution", () => {
+  const fakeHostDigest = clone(captureSpecFixture);
+  Object.assign(fakeHostDigest.execution, {
+    image_digest: `sha256:${digest("4")}`,
+  });
+  assert.throws(() => parseCaptureSpec(canonicalJson(fakeHostDigest)), {
+    name: "ContractValidationError",
+  });
+
+  const oci = clone(captureSpecFixture) as Omit<
+    typeof captureSpecFixture,
+    "execution"
+  > & {
+    execution: {
+      kind: string;
+      platform: string;
+      image_digest: string;
+      attestation: {
+        kind: string;
+        statement_format: string;
+        statement_sha256: string;
+      };
+    };
+  };
+  oci.execution = {
+    kind: "oci",
+    platform: "linux/amd64",
+    image_digest: `sha256:${digest("4")}`,
+    attestation: {
+      kind: "trusted-orchestrator",
+      statement_format: "in-toto-statement-v1",
+      statement_sha256: digest("5"),
+    },
+  };
+  assert.equal(parseCaptureSpec(canonicalJson(oci)).execution.kind, "oci");
+
+  const unattested = clone(oci);
+  Reflect.deleteProperty(unattested.execution, "attestation");
+  assert.throws(() => parseCaptureSpec(canonicalJson(unattested)), {
+    name: "ContractValidationError",
+  });
+});
+
+test("capture spec defines a complete, sorted font file set", () => {
+  const secondFont = {
+    logical_name: "symbols-variable-normal",
+    format: "woff2",
+    sha256: digest("6"),
+    byte_length: 32_768,
+  };
+  const sorted = clone(captureSpecFixture);
+  sorted.fonts.files.push(secondFont);
+  assert.equal(parseCaptureSpec(canonicalJson(sorted)).fonts.files.length, 2);
+
+  const duplicate = clone(sorted);
+  duplicate.fonts.files[1]!.logical_name = duplicate.fonts.files[0]!.logical_name;
+  assertContractIssue(
+    () => parseCaptureSpec(canonicalJson(duplicate)),
+    "capture_spec.duplicate_font",
+  );
+
+  const unsorted = clone(captureSpecFixture);
+  unsorted.fonts.files.unshift(secondFont);
+  assertContractIssue(
+    () => parseCaptureSpec(canonicalJson(unsorted)),
+    "capture_spec.font_order",
+  );
+
+  const opaqueBundleDigest = clone(captureSpecFixture);
+  Object.assign(opaqueBundleDigest.fonts, { bundle_sha256: digest("7") });
+  assert.throws(() => parseCaptureSpec(canonicalJson(opaqueBundleDigest)), {
+    name: "ContractValidationError",
+  });
+});
+
+test("capture spec keeps v1 only as an explicit pre-release reset", () => {
+  assert.match(captureSpecSchema.description, /Pre-release v1 reset/u);
+  const v2 = clone(captureSpecFixture);
+  v2.version = 2;
+  assert.throws(() => parseCaptureSpec(canonicalJson(v2)), {
+    name: "ContractValidationError",
+  });
 });
 
 test("capture spec byte budget is enforced before schema validation", () => {

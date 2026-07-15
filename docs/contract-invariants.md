@@ -21,9 +21,11 @@ Serialized manifests use RFC 8785 canonical JSON with additional contract restri
 - hashes are lowercase SHA-256 over canonical bytes.
 
 Root IDs and model-visible routing IDs use domain-separated hashes. An `evidence_id`,
-capture ID, checkpoint ID, task ID, environment ID, source-state ID, or feature-profile
-ID cannot be independently selected after its label-free body is known. IDs and digests
-are routing metadata and are not intended model features.
+capture ID, checkpoint ID, task ID, environment ID, or feature-profile ID cannot be
+independently selected after its label-free visible body is known. Source-state identity
+is derived from a sealed source-state artifact reference and is therefore checked at the
+visible/sealed pair boundary rather than by the standalone evidence validator. IDs and
+digests are routing metadata and are not intended model features.
 
 ## Record and split binding
 
@@ -86,10 +88,59 @@ bits do not defend a file from another process with the same uid. Supporting tha
 requires an `openat2`/`renameat2`-backed native helper plus inter-process locking; the
 Node path-based implementation does not claim that guarantee.
 
+### PairedReleasePublisher v1 transaction
+
+The paired publisher accepts one complete evidence/sealed-record pair and the exact
+unique artifacts referenced by each side. It copies all caller-owned bytes before its
+first asynchronous operation, uses a fixed project codec registry, and constructs both
+stores beneath one reserved private staging directory. Canonical record files and a
+domain-separated `COMMIT.json` bind both record identities, hashes, and byte lengths.
+
+Before commit, the publisher audits exact visible/sealed membership and reconstructs the
+entire resolved record. This replay checks changed surface, both executable oracle
+results, raw task traces, measured outcomes, and optional localization against the
+captured action, layout, and accessibility state. The complete staging directory becomes
+visible through one same-parent rename to `releases/<evidence_id>`, followed by parent
+fsync, inode rebinding, path-name binding, and a second strict replay. Pre-rename
+failure removes only a bounded reserved staging tree; post-rename uncertainty never
+rolls a visible release back and poisons the process-local publisher queue.
+
+The final directory is named by the label-free evidence ID. `COMMIT.json` and `sealed/`
+remain outside the `visible/` model boundary. This is an atomic storage transaction, not
+proof that its two roles came from fresh browser sessions and not process-level mount
+isolation. The exact topology, recovery rules, capacity, and threat model are documented
+in [paired publication](paired-publication.md).
+
+### Fixed fresh-pair assembler
+
+`publishFreshMutationFixturePair` snapshots its closed options and preflights the
+private publication topology before launching Chromium. For the exact checkout fixture,
+it loads runtime-owned source and action artifacts, constructs one mutation request with
+replicate zero before either role, and executes baseline and candidate in distinct
+sequential `MutationFixtureSession`s under one `MutationFixtureEnvironment`.
+
+Baseline must prepare, execute, and close cleanly. Candidate must prepare, live-probe,
+compile to an applicable plan, apply, execute, clean up, and close cleanly. Any
+operation, cleanup, close, blocked-external-request, or environment-shutdown failure
+prevents derivation and publication. Only after browser shutdown does the assembler
+derive references and IDs, changed surface, oracle and trace records, optional
+localization, development labels and grouping, run full resolved-record replay, and call
+the publisher.
+
+Fresh roles use distinct sequential browser contexts/sessions under one shared verified
+browser environment. This neither proves process-level separation nor guarantees process
+reuse or renderer topology. The guarantee composes trusted same-process runtime
+capabilities for one cooperative fixture; it is not hostile-JavaScript sandboxing,
+loaded-memory or kernel attestation, OCI attestation, inter-process writer defense,
+read-only model-mount isolation, or a multi-pair dataset guarantee. The publisher
+remains generic and does not independently prove role freshness. See
+[fresh-pair generation](fresh-pair-generation.md) for the complete lifecycle.
+
 ## Canonical capture payloads
 
-The registered production codecs cover the action plan, capture specification,
-accessibility snapshot, layout snapshot, mutation plan, precondition report, and PNG
+The registered production codecs cover source-state provenance, action plan, capture
+specification, accessibility snapshot, layout snapshot, mutation plan, precondition
+report, changed surface, executable oracle result, raw trace, localization, and PNG
 screenshot. JSON codecs parse the bounded canonical document, validate its closed v1
 schema and semantic invariants, then emit canonical JSON again.
 
@@ -98,9 +149,16 @@ an artifact resolver. It checks each digest, byte length, media type, and format
 version; requires already-canonical payloads; binds screenshot dimensions to the capture
 viewport; matches both checkpoint sequences to the fixed action-plan schedule; and
 applies the action/accessibility/layout graph checks at every checkpoint. The resolved
-intervention validator similarly composes one visible manifest, sealed record, mutation
-plan, and precondition report, then checks their exact references and source, task,
+intervention validator similarly composes one visible manifest, sealed record,
+source-state artifact, mutation plan, and precondition report. It resolves and parses
+every canonical payload, then checks their exact references and source, task,
 environment, operator, instance, and expected-relation bindings.
+
+The resolved-record validator adds the sealed execution layer. It verifies that changed
+surface is derived from the exact plan and probe; oracle observations agree with the
+final layout/accessibility state; raw trace steps reproduce the fixed action plan and
+scalar outcome; and regression localization, when present, names the derived failed step
+and changed surface.
 
 These validators deliberately accept resolved bytes rather than paths. They prove the
 composition of the supplied payload bundle, not that an arbitrary external resolver or
@@ -118,22 +176,26 @@ Four closed capture payloads establish the model-visible surface:
 
 - the action plan is non-branching, uses a bounded action vocabulary, and fixes an
   initial/final checkpoint schedule before execution;
-- the capture specification pins renderer configuration, display, locale, timezone,
-  media, virtual clock, network policy, font bundle, budgets, and Q64 geometry rules;
+- the capture specification pins exact installed Playwright file trees, browser
+  installation tree/executable/source revision/launch profile, execution mode,
+  render-font files, display, locale, timezone, media, virtual clock, network policy,
+  budgets, and Q64 geometry rules;
 - the accessibility snapshot is a bounded normalized preorder tree with allowlisted
   roles and states; and
 - the layout snapshot is a bounded normalized preorder graph containing Q64 boxes,
   selected computed style, paint order, and opaque action-target links.
 
 The capture specification contains renderer/environment provenance only. The evidence
-manifest carries a separate opaque source-state identity and task reference, but v1 does
-not yet carry a source-resource-manifest reference. The closed fixture runtime verifies
-its revision and resource manifest independently; a future publisher must bind that
-reconstruction provenance into the dataset while keeping operator identity/version
-sealed. Raw browser node IDs are used only inside the normalization adapter and cannot
-appear in normalized accessibility/layout payloads. The normalizers reject ambiguous,
-dangling, cyclic, disconnected, overdeep, oversized, or non-finite input; the payload
-validators enforce cross-graph action and accessibility links.
+manifest carries a separate opaque source-state identity and task reference. Its sealed
+record now references a canonical source-state artifact containing the fixture identity,
+revision, license, entrypoint, exact raw-manifest identity, normalized resource digests
+and lengths, and fixed initial-state policy. The pair validator derives the visible
+source ID from that reference, while the closed fixture runtime resolves the bytes and
+matches the complete package description before opening a page. Raw browser node IDs are
+used only inside the normalization adapter and cannot appear in normalized
+accessibility/layout payloads. The normalizers reject ambiguous, dangling, cyclic,
+disconnected, overdeep, oversized, or non-finite input; the payload validators enforce
+cross-graph action and accessibility links.
 
 The `checkout-card-v1` fixture is self-contained: its manifest pins the fixture revision
 and hashes every HTML, CSS, JavaScript, font, and license resource; its CSP denies
@@ -141,46 +203,115 @@ external connections; and readiness is published only after the vendored font lo
 Latin variable WOFF2 comes from `@fontsource-variable/noto-sans@5.2.10` and remains
 under the SIL Open Font License 1.1, whose
 [text is shipped beside the font](../fixtures/checkout-card-v1/fonts/OFL-1.1.txt). The
-capture schema pins Playwright 1.61.1 and Chromium revision 1228 (149.0.7827.55).
+capture schema pins the three Playwright 1.61.1 package roots and Chromium Headless
+Shell registry revision 1228 (149.0.7827.55), while keeping its live source revision,
+complete installation tree, executable bytes, and normalized launch profile distinct.
+The host launcher requires all computed digests to equal the project's known-good
+closure; these are reproducibility pins, not vendor signatures.
 
 ### Verified Chromium mutation session
 
-`openMutationFixtureSession` accepts an already-running Chromium browser, the fixture
-directory, and upstream source/environment IDs plus canonical action-plan bytes. Before
-returning a session it:
+`launchMutationFixtureEnvironment` accepts the fixture directory, launches and owns the
+pinned Chromium Headless Shell, and returns a branded capability plus fresh copy-on-read
+canonical CaptureSpec bytes. `openMutationFixtureSession` accepts that capability and
+canonical source-state, action-plan, and CaptureSpec artifacts. Before returning a
+session, together they:
 
-- verifies the exact action-plan `ArtifactRef`, canonical bytes, and supported primary
-  pointer target, then derives `task_id` from that reference;
-- derives the stable action-target ID from the fixture ID, revision, exact manifest
+- hash every regular file under the exact `@playwright/test`, `playwright`, and
+  `playwright-core` package roots, reject symbolic, hard-linked, and special entries,
+  validate package versions and the Headless Shell registry entry, then require the
+  resulting closure digest to equal the project pin;
+- hash the complete live browser installation and executable, read the live source
+  revision and command line through CDP, and bind a normalized launch profile that
+  substitutes only the binary and ephemeral user-data paths, with each live measurement
+  required to equal its project pin;
+- verify the exact WOFF2 before launch and prove at session initialization and before
+  every checkpoint that rendered glyphs use only that custom Noto Sans resource;
+- verify the source-state `ArtifactRef` and canonical bytes, match the exact closed
+  fixture package and initial state, then derive `source_state_id` from the reference;
+- verify the exact action-plan `ArtifactRef`, canonical bytes, and supported primary
+  pointer target, then derive `task_id` from that reference;
+- verify the exact CaptureSpec `ArtifactRef` and canonical bytes, require it to equal
+  the branded live environment, then derive `environment_id` from that reference;
+- derive the stable action-target ID from the fixture ID, revision, exact manifest
   digest, and fixed `test_id` locator rather than from a capture result;
-- verifies the exact fixture manifest digest, directory membership, resource byte
-  lengths and hashes, CSP, and the pinned browser engine/version;
-- creates a closed context with fixed viewport, locale, timezone, media preferences,
-  service-worker policy, and an explicit-only clock; and
-- serves only allowlisted in-memory fixture resources while aborting and recording
+- verify the exact fixture manifest digest, directory membership, resource byte lengths
+  and hashes, and CSP;
+- create the context, clock, and screenshot policy from the verified CaptureSpec, apply
+  its navigation and action fields as Playwright defaults, and bound its explicit
+  readiness wait; and
+- serve only allowlisted in-memory fixture resources while aborting and recording
   external or unexpected requests.
+
+`loadVerifiedMutationFixtureSourceState` performs the same exact directory, manifest,
+and resource audit and returns a fresh copy of the canonical source-state bytes plus
+their reference. Generator code therefore does not duplicate the runtime's private
+fixture description when preparing the sealed artifact.
+
+`loadVerifiedMutationFixtureActionPlan` constructs the module-owned canonical
+one-action, two-checkpoint plan and returns defensive bytes plus its reference. Its
+action ID is domain-separated over the exact fixture identity, locator, intent, and
+pointer value; generator callers cannot replace the plan or checkpoint schedule.
 
 The returned `MutationFixtureSession` is branded in a module-private `WeakMap`; copied
 objects and transplanted Playwright pages fail provenance checks. Operations are
-serialized so close cannot race a probe or mutation. A bounded in-memory enforcement
-audit accumulates network, CSP, page, and integrity events and makes close fail on a
-tainted session. A successful close returns only the fixture digest, served resources,
-and blocked external requests—not a durable event log. Retained element handles, exact
-DOM/CSS fingerprints, an early `MutationObserver`, task-state transitions, owned
-mutation nodes, and cleanup checks detect navigation, replacement, persistent tampering,
-and transient DOM changes. The runtime applies only the typed operations emitted by the
-mutation compiler; integration tests exercise the primary task with a real coordinate
-click through the trusted Playwright page.
+serialized so close cannot race a probe or mutation, and the environment permits only
+one active branded session lease. A context-cleanup failure permanently poisons that
+capability for capture reuse; browser shutdown remains retryable as cleanup. A bounded
+in-memory enforcement audit accumulates network, CSP, page, and integrity events and
+makes close fail on a tainted session. A successful close returns only the fixture
+digest, served resources, and blocked external requests—not a durable event log.
+Retained element handles, exact DOM/CSS fingerprints, an early `MutationObserver`,
+task-state transitions, owned mutation nodes, and cleanup checks detect navigation,
+replacement, persistent tampering, and transient DOM changes. The runtime applies only
+the typed operations emitted by the mutation compiler; integration tests exercise the
+primary task with a real coordinate click through the trusted Playwright page.
 
-This boundary is intentionally narrower than a browser sandbox. `source_state_id` and
-`environment_id` are trusted upstream inputs; the session does not recompute them from a
-source package or capture specification. It verifies the supplied browser's engine and
-reported version, but cannot prove the hash of an already-running browser binary. The
-public `session.page` is a trusted same-process capability: code that controls it, or
-hostile page code that replaces JavaScript intrinsics and listener state, may evade
-page-realm checks. The runtime therefore attests the exact fixture and its cooperative
-audited execution, not arbitrary JavaScript pages. Complete paired-capture assembly is
-still pending.
+`prepareMutationFixtureTask` lets the pinned renderer perform its deterministic initial
+scroll, records the resulting scroll and target rectangle, and then rejects geometry
+drift before execution. This happens before an optional mutation is probed or applied;
+the runtime binds its viewport to the CaptureSpec but does not require one golden target
+rectangle shared across browser builds. `executeMutationFixtureTask` owns one serialized
+operation from the initial checkpoint through the true coordinate click and final
+checkpoint. Caller code cannot select a role, checkpoint ordinal, locator, or
+coordinate. The executor accepts only one primary pointer action with checkpoints before
+and after it, captures screenshot, DOM snapshot, and full accessibility tree in a fixed
+order, and exposes copy-on-read canonical modality bytes only after both checkpoints
+succeed. The initial layout must contain exactly one authenticated action target; the
+final target presence must match the measured closed task state. A failed technical
+capture poisons that run and cannot expose or retry a partial sequence. Chromium does
+not provide an atomic transaction spanning those three modalities. Their fixed
+sequential reads are justified only by the paused clock, blocked network, cooperative
+closed fixture, and authentication audits before and after each checkpoint.
+
+The returned task run is provisional generator state until an active mutation cleanup
+and `MutationFixtureSession.close()` both succeed. The pair assembler retains it only in
+trusted generator state until those lifecycle audits pass; a cleanup or close failure
+invalidates all checkpoint bytes from that role.
+
+The Chromium layout adapter strictly decodes one exact-origin document, removes pseudo
+subtrees, collapses non-layout ancestors, translates document coordinates by the actual
+scroll offset, reconstructs overflow clips from local client rectangles, and links the
+one CDP-resolved action target through an internal backend-node map. Raw browser node
+IDs, selectors, attributes, and CDP string tables do not enter serialized layout or
+accessibility payloads. Fresh-session integration tests require byte-identical baseline
+modalities and distinguish the successful palette candidate from the blocked pointer
+candidate without treating task failure as an executor error.
+
+This boundary is intentionally narrower than a browser sandbox. Source, task, and
+environment IDs are all derived from resolved exact artifacts; callers cannot choose
+them independently. The byte-tree audit assumes trusted same-process intrinsics and no
+hostile concurrent filesystem writer, and host mode does not attest loaded process
+memory, Node, kernel, or system-library bytes. CaptureSpec's OCI branch is reserved for
+an external orchestrator with exact statement bytes and a configured trusted verifier;
+schema validation alone is not attestation verification, and this launcher creates host
+mode only. The navigation and action timeout fields are Playwright defaults rather than
+whole-phase deadlines for raw CDP or coordinate input. The public `session.page` is also
+a trusted same-process capability: code that controls it, or hostile page code that
+replaces JavaScript intrinsics and listener state, may evade page-realm checks. The
+runtime therefore attests the exact fixture and its cooperative audited execution, not
+arbitrary JavaScript pages. Complete pair assembly is implemented for this closed
+fixture path; general-page capture is outside that claim.
 
 ## Reversible mutation compilation
 
@@ -198,13 +329,31 @@ handle. They accept only a bounded `test_id` locator and fixed opcodes—no arbi
 JavaScript, CSS, selectors, or free-form mutation payload. Expected task relation is
 sealed provenance and never substitutes for the measured execution label.
 
+### Development-only grouping and labels
+
+Generation uses one code-owned development policy. Its domain-separated `idlp1_`
+identifier commits to baseline-failure invalidity, the regression condition, and pass
+and regression severity ordinals `0` and `4`. Failed-step and localization requirements
+are enforced separately by derivation and record contracts; they are not fields in the
+current policy digest. Development grouping IDs derive from authenticated fixture,
+source, task, manifest, and mutation-family identities. These deterministic outputs are
+not evidence of semantic clustering quality, calibrated impact, benchmark ground truth,
+or model output.
+
+The policy body is code-owned rather than a separately resolved publication artifact.
+The record carries its `label_policy_id`, but resolved-record replay does not resolve
+and independently execute the policy body. A future scorer must independently replay the
+eventual benchmark policy.
+
 ## What remains unproven
 
 The repository does not yet assemble and mount a complete read-only visible dataset for
-an isolated feature process. The paired-capture executor, full oracle/trace codecs,
-changed-surface validation, and versioned scorer are also still incomplete. The scorer
-must recompute severity, failed-step membership, and localization from resolved oracle,
-trace, action-plan, and policy artifacts.
+an isolated feature process. Multi-pair dataset-level publication, the isolated feature
+runner, and the general versioned scorer are still incomplete. That scorer must
+recompute severity, failed-step membership, and localization from resolved oracle,
+trace, action-plan, and a future versioned policy definition. The current severity `4`
+is a narrow development decision for a candidate that blocks this fixture's primary
+checkout action, not a universal benchmark scale.
 
 Until the full generation and scoring path is exercised on a released corpus, this
 repository makes no benchmark-quality, leakage-safety, or model-accuracy claim.

@@ -168,6 +168,7 @@ test("put canonicalizes before hashing and publishes exact private modes", async
     assert.equal(reference.media_type, mediaType);
     assert.deepEqual(await readFile(path), canonical);
     assert.deepEqual(await store.readBytes(reference, jsonCodec), canonical);
+    assert.deepEqual(await store.readReferencedBytes(reference), canonical);
     assert.deepEqual(await store.resolve(reference, jsonCodec), {
       contract: "capture",
       value: 2,
@@ -187,6 +188,23 @@ test("put canonicalizes before hashing and publishes exact private modes", async
     const audit = await store.audit([reference]);
     assert.deepEqual([...audit.entries.keys()], [reference.sha256]);
   } finally {
+    await removeStore(root);
+  }
+});
+
+test("CAS directory creation repairs a maximally restrictive umask", async () => {
+  const { root, store } = await temporaryStore();
+  const previousUmask = process.umask(0o777);
+  try {
+    const reference = await store.put(document("restrictive-umask"), jsonCodec);
+    assert.equal((await stat(join(root, "sha256"))).mode & 0o777, 0o700);
+    assert.equal(
+      (await stat(join(root, "sha256", reference.sha256.slice(0, 2)))).mode & 0o777,
+      0o700,
+    );
+    assert.equal((await stat(leafPath(root, reference.sha256))).mode & 0o777, 0o400);
+  } finally {
+    process.umask(previousUmask);
     await removeStore(root);
   }
 });
@@ -246,6 +264,30 @@ test("only the codec registered at open can authorize an artifact", async () => 
     await assert.rejects(
       ArtifactStore.open(root, [jsonCodec, permissiveClone]),
       expectStoreError("cas.codec_conflict"),
+    );
+  } finally {
+    await removeStore(root);
+  }
+});
+
+test("manifest-driven reads select only the codec registered for the media type", async () => {
+  const { root, store } = await temporaryStore(undefined, [jsonCodec, otherCodec]);
+  try {
+    const reference = await store.put(document("registered-read"), jsonCodec);
+    assert.deepEqual(
+      await store.readReferencedBytes(reference),
+      Buffer.from('{"contract":"registered-read"}'),
+    );
+    await assert.rejects(
+      store.readReferencedBytes({
+        ...reference,
+        media_type: "application/vnd.impactdiff.unregistered+json",
+      }),
+      expectStoreError("cas.codec"),
+    );
+    await assert.rejects(
+      store.readReferencedBytes({ ...reference, byte_length: 65_537 }),
+      expectStoreError("cas.byte_length"),
     );
   } finally {
     await removeStore(root);
@@ -516,6 +558,22 @@ test("audit requires exact digest-directory topology", async (t) => {
       await removeStore(root);
     }
   });
+});
+
+test("audit bounds hostile directory enumeration before materializing it", async () => {
+  const { root, store } = await temporaryStore();
+  try {
+    const reference = await store.put(document("bounded-enumeration"), jsonCodec);
+    await mkdir(join(root, "unexpected-a"), { mode: 0o700 });
+    await mkdir(join(root, "unexpected-b"), { mode: 0o700 });
+
+    await assert.rejects(
+      store.audit([reference]),
+      expectStoreError("cas.directory_budget"),
+    );
+  } finally {
+    await removeStore(root);
+  }
 });
 
 test("a crash-style temp never exposes a final artifact and audit rejects it", async () => {
