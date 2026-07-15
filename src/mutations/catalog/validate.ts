@@ -19,6 +19,7 @@ import {
 } from "./identity.js";
 import {
   pilotMutationBoundProtocolId,
+  pilotMutationLocalPredicateKeys,
   pilotMutationOperatorCatalogSchema,
   pilotMutationOperatorDefinitionSchema,
 } from "./schema.js";
@@ -26,7 +27,10 @@ import type {
   PilotMutationOperatorCatalog,
   PilotMutationOperatorDefinition,
 } from "./schema.js";
-import { pilotMutationDefinitionSpecs } from "./spec.js";
+import {
+  installedPredicatePolicyForSpec,
+  pilotMutationDefinitionSpecs,
+} from "./spec.js";
 
 const definitionContract = "impactdiff.pilot-mutation-operator/v1";
 const catalogContract = "impactdiff.pilot-mutation-operator-catalog/v1";
@@ -180,6 +184,45 @@ export function validatePilotMutationOperatorDefinition(
         "pilot_operator.relation_predicate",
         "/expected_local_task_predicate/state",
         "breaking definitions predeclare fail and preserving controls predeclare pass",
+      ),
+    );
+  }
+
+  const expectedPredicatePolicy = installedPredicatePolicyForSpec(spec);
+  exactValueIssue(
+    issues,
+    "pilot_operator.predicate_policy_catalog",
+    "/installed_predicate_policy",
+    definition.installed_predicate_policy,
+    expectedPredicatePolicy,
+    "installed predicate policy must equal the exact code-owned causal vector",
+  );
+  const policyVector = definition.installed_predicate_policy.vector;
+  const designatedRows = policyVector.filter(({ role }) => role === "designated");
+  const correlatedRows = policyVector.filter(({ role }) => role === "correlated");
+  if (
+    policyVector.some(
+      ({ predicate }, index) => predicate !== pilotMutationLocalPredicateKeys[index],
+    ) ||
+    designatedRows.length !== 1 ||
+    designatedRows[0]?.predicate !==
+      definition.expected_local_task_predicate.predicate ||
+    designatedRows[0]?.expected_state !==
+      definition.expected_local_task_predicate.state ||
+    policyVector.some(
+      ({ expected_state: state, role }) =>
+        (role === "preserved" && state !== "pass") ||
+        (role === "correlated" && state !== "fail"),
+    ) ||
+    (definition.declared_relation_variant === "task_preserving_control" &&
+      (correlatedRows.length !== 0 ||
+        policyVector.some(({ expected_state: state }) => state !== "pass")))
+  ) {
+    issues.push(
+      issue(
+        "pilot_operator.predicate_policy",
+        "/installed_predicate_policy/vector",
+        "predicate policy must contain one ordered designated row, only fail-correlated rows, and pass-preserved rows",
       ),
     );
   }

@@ -128,13 +128,40 @@ All 16 definitions use the exact installed-probe sequence `owned_surface_exact`,
 `family_effect_exact`, `changed_surface_bounded`, `local_predicate_expected`, and
 `orthogonal_predicates_preserved`.
 
-The installed predicate vector is closed. For a declared-breaking definition,
-`family_effect_exact` requires exactly its designated pre-action predicate to change
-from pass to fail, while `orthogonal_predicates_preserved` requires every non-target
-predicate to remain pass. A task-preserving control must leave the full pre-action
-predicate vector at pass. Thus a requested family mechanism may not create a second,
-undeclared failure surface even when its designated local predicate has the expected
-state.
+Every definition also carries `installed_predicate_policy` with `policy_version=1` and
+an exact eight-row `vector`. Each row contains `predicate`, `expected_state`, and
+`role`; the row order is fixed as follows:
+
+| Symbol | Ordered predicate                               |
+| ------ | ----------------------------------------------- |
+| `P`    | `primary_source_point_dispatches_to_primary`    |
+| `O`    | `primary_fully_visible_and_source_hit_testable` |
+| `D`    | `primary_at_source_bound_hit_point`             |
+| `N`    | `primary_enabled`                               |
+| `F`    | `declared_focus_path_reaches_primary`           |
+| `A`    | `primary_accessible_name_nonempty`              |
+| `C`    | `content_pressure_contained`                    |
+| `V`    | `primary_text_contrast_at_least_4500`           |
+
+A declared-breaking policy has one `designated` fail row, the exact permitted
+`correlated` fail rows below, and `preserved` pass rows everywhere else:
+
+| Breaking family        | Designated fail | Correlated fail | Preserved pass                    |
+| ---------------------- | --------------- | --------------- | --------------------------------- |
+| `pointer_hit_testing`  | `P`             | `O`, `D`        | `N`, `F`, `A`, `C`, `V`           |
+| `overflow_clipping`    | `O`             | `P`, `D`        | `N`, `F`, `A`, `C`, `V`           |
+| `target_displacement`  | `D`             | `P`, `O`        | `N`, `F`, `A`, `C`, `V`           |
+| `native_control_state` | `N`             | `F`             | `P`, `O`, `D`, `A`, `C`, `V`      |
+| `focus_navigation`     | `F`             | none            | `P`, `O`, `D`, `N`, `A`, `C`, `V` |
+| `accessible_naming`    | `A`             | none            | `P`, `O`, `D`, `N`, `F`, `C`, `V` |
+| `content_overflow`     | `C`             | none            | `P`, `O`, `D`, `N`, `F`, `A`, `V` |
+| `visual_presentation`  | `V`             | none            | `P`, `O`, `D`, `N`, `F`, `A`, `C` |
+
+Every task-preserving control instead has its one designated row at pass and the other
+seven rows marked `preserved` at pass, with no correlated rows. Thus
+`orthogonal_predicates_preserved` enforces the code-owned correlation policy: every
+unlisted predicate remains pass, while a listed correlated failure is required rather
+than misclassified as an undeclared failure surface.
 
 The inverse and cleanup audit use the exact sequence `owned_handles_absent`,
 `mutation_preimages_equal`, `listener_registry_equal`, `dom_roundtrip_equal`,
