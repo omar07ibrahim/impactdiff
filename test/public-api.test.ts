@@ -15,6 +15,8 @@ import type {
   PilotApplicationGroupIdentityInput,
   PilotGenerationPlan,
   PilotMutationFamilyKey,
+  PilotMutationOperatorCatalog,
+  PilotMutationOperatorDefinition,
   PilotMutationOperatorIdentityInput,
   PilotProtocol,
   PilotWorkflowIdentityInput,
@@ -38,6 +40,8 @@ function acceptsPublicTypes(
   _pilotApplicationGroupIdentity: PilotApplicationGroupIdentityInput,
   _pilotGenerationPlan: PilotGenerationPlan,
   _pilotMutationFamilyKey: PilotMutationFamilyKey,
+  _pilotMutationOperatorCatalog: PilotMutationOperatorCatalog,
+  _pilotMutationOperatorDefinition: PilotMutationOperatorDefinition,
   _pilotMutationOperatorIdentity: PilotMutationOperatorIdentityInput,
   _pilotProtocol: PilotProtocol,
   _pilotWorkflowIdentity: PilotWorkflowIdentityInput,
@@ -56,6 +60,8 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "computePilotApplicationGroupId",
     "computePilotGenerationPlanId",
     "computePilotMutationOperatorId",
+    "computePilotMutationOperatorCatalogId",
+    "computePilotMutationPairId",
     "computePilotProtocolId",
     "computePilotSplitPlanId",
     "computePilotWorkflowId",
@@ -72,11 +78,16 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "PairedReleasePublisher",
     "parseActionPlan",
     "parsePilotGenerationPlan",
+    "parsePilotMutationOperatorCatalog",
+    "parsePilotMutationOperatorDefinition",
     "parseSourceState",
     "prepareMutationFixtureTask",
     "publishFreshMutationFixturePair",
     "validateDatasetBundle",
     "validatePilotGenerationPlan",
+    "validatePilotMutationOperatorCatalog",
+    "validatePilotMutationOperatorDefinition",
+    "validatePilotMutationOperatorDefinitionSet",
     "validatePilotProtocol",
     "validateResolvedEvidenceBundle",
     "validateResolvedInterventionBundle",
@@ -95,6 +106,17 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "impactdiff.pilot-generation-plan",
   );
   assert.equal(publicApi.pilotGenerationPlanVersion, 1);
+  assert.equal(publicApi.pilotMutationOperatorVersion, 1);
+  assert.equal(publicApi.pilotMutationOperatorCatalogVersion, 1);
+  assert.equal(publicApi.pilotV01MutationOperatorDefinitions.length, 16);
+  assert.equal(
+    publicApi.pilotV01MutationOperatorCatalog.catalog_id,
+    publicApi.pilotV01MutationOperatorCatalogId,
+  );
+  assert.equal(
+    publicApi.pilotV01MutationOperatorCatalogCanonicalJson,
+    publicApi.canonicalJson(publicApi.pilotV01MutationOperatorCatalog),
+  );
   assert.equal(
     publicApi.pilotV01ApplicationCatalog.catalog_id,
     publicApi.pilotV01ApplicationCatalogId,
@@ -110,6 +132,8 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
   assert.equal(typeof publicApi.pilotV01ProtocolCanonicalJson, "string");
   assert.equal(typeof publicApi.actionPlanCodec, "object");
   assert.equal(typeof publicApi.sourceStateCodec, "object");
+  assert.equal(typeof publicApi.pilotMutationOperatorCodec, "object");
+  assert.equal(typeof publicApi.pilotMutationOperatorCatalogCodec, "object");
   assert.equal(typeof publicApi.ARTIFACT_STORE_V1_THREAT_MODEL, "object");
   assert.equal(typeof publicApi.PAIRED_PUBLICATION_V1_THREAT_MODEL, "object");
   assert.equal(

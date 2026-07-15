@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 
 import { canonicalJson } from "../contracts/canonical.js";
-import type { ArtifactRef } from "../contracts/artifacts.js";
+
+export { computePilotMutationOperatorId } from "../mutations/catalog/identity.js";
+export type { PilotMutationOperatorIdentityInput } from "../mutations/catalog/identity.js";
 
 const domainDigest = (domain: string, body: unknown): string => {
   const hash = createHash("sha256");
@@ -30,13 +32,6 @@ export interface PilotWorkflowIdentityInput {
   readonly task_id: string;
 }
 
-export interface PilotMutationOperatorIdentityInput {
-  readonly mutation_family_id: string;
-  readonly declared_relation_variant: "declared_breaking" | "task_preserving_control";
-  readonly operator_version: number;
-  readonly operator_definition: ArtifactRef;
-}
-
 export function computePilotApplicationGroupId(
   input: PilotApplicationGroupIdentityInput,
 ): string {
@@ -60,23 +55,6 @@ export function computePilotWorkflowId(input: PilotWorkflowIdentityInput): strin
     task_id: input.task_id,
   };
   return `idwf1_${domainDigest("impactdiff:pilot-workflow:v1", body)}`;
-}
-
-export function computePilotMutationOperatorId(
-  input: PilotMutationOperatorIdentityInput,
-): string {
-  const body = {
-    mutation_family_id: input.mutation_family_id,
-    declared_relation_variant: input.declared_relation_variant,
-    operator_version: input.operator_version,
-    operator_definition: {
-      sha256: input.operator_definition.sha256,
-      byte_length: input.operator_definition.byte_length,
-      media_type: input.operator_definition.media_type,
-      format_version: input.operator_definition.format_version,
-    },
-  };
-  return `idop1_${domainDigest("impactdiff:pilot-mutation-operator:v1", body)}`;
 }
 
 export function computePilotSplitPlanId<

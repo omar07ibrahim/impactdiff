@@ -32,6 +32,15 @@ import {
   validatePreconditionReport,
 } from "../mutations/compiler.js";
 import type { MutationPlan, PreconditionReport } from "../mutations/schema.js";
+import {
+  parsePilotMutationOperatorCatalog,
+  parsePilotMutationOperatorDefinition,
+} from "../mutations/catalog/validate.js";
+import type {
+  PilotMutationOperatorCatalog,
+  PilotMutationOperatorDefinition,
+} from "../mutations/catalog/schema.js";
+import { pilotMutationOperatorCatalogMediaType } from "../mutations/catalog/schema.js";
 import type { ArtifactCodec } from "./cas.js";
 import { CanonicalPng, canonicalizePng } from "./png.js";
 
@@ -121,6 +130,20 @@ export const preconditionReportCodec = strictJsonCodec<PreconditionReport>(
   131_072,
   (bytes) => validatePreconditionReport(parseCanonicalJson(bytes, mutationLimits)),
 );
+
+export const pilotMutationOperatorCodec =
+  strictJsonCodec<PilotMutationOperatorDefinition>(
+    "application/vnd.impactdiff.mutation-operator+json",
+    131_072,
+    parsePilotMutationOperatorDefinition,
+  );
+
+export const pilotMutationOperatorCatalogCodec =
+  strictJsonCodec<PilotMutationOperatorCatalog>(
+    pilotMutationOperatorCatalogMediaType,
+    131_072,
+    parsePilotMutationOperatorCatalog,
+  );
 
 export const changedSurfaceCodec = strictJsonCodec<ChangedSurface>(
   "application/vnd.impactdiff.changed-surface+json",

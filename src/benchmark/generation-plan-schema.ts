@@ -1,6 +1,9 @@
 import type { FromSchema, JSONSchema } from "json-schema-to-ts";
 
-import type { PilotMutationFamilyKey } from "../mutations/identity.js";
+import {
+  pilotMutationFamilyKeys,
+  pilotMutationRelationVariants,
+} from "../mutations/catalog/schema.js";
 import { pilotV01ApplicationBlockIds } from "./application-catalog.js";
 
 const sha256Pattern = "^[0-9a-f]{64}$";
@@ -31,23 +34,11 @@ const artifactReferenceSchema = <const MediaType extends string>(
     format_version: { const: 1 },
   });
 
-export const pilotGenerationPlanFamilyKeys = Object.freeze([
-  "pointer_hit_testing",
-  "overflow_clipping",
-  "target_displacement",
-  "native_control_state",
-  "focus_navigation",
-  "accessible_naming",
-  "content_overflow",
-  "visual_presentation",
-] as const satisfies readonly PilotMutationFamilyKey[]);
+export const pilotGenerationPlanFamilyKeys = pilotMutationFamilyKeys;
 
 export type { PilotMutationFamilyKey } from "../mutations/identity.js";
 
-export const pilotGenerationPlanRelationVariants = Object.freeze([
-  "declared_breaking",
-  "task_preserving_control",
-] as const);
+export const pilotGenerationPlanRelationVariants = pilotMutationRelationVariants;
 
 export const pilotGenerationPlanRoleSchedule = Object.freeze([
   Object.freeze({

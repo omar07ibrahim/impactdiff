@@ -17,7 +17,11 @@ export {
   computeSourceProbeFingerprint,
   mutationFamilyKey,
 } from "./identity.js";
-export type { MutationFamilyKey, MutationOperatorKey } from "./identity.js";
+export type {
+  MutationFamilyKey,
+  MutationOperatorKey,
+  PilotMutationFamilyKey,
+} from "./identity.js";
 export {
   contrastRatioMilli,
   oceanPaletteDefinition,
@@ -66,3 +70,51 @@ export type {
   MutationFixtureUpstreamEvidence,
   MutationRuntimeBinding,
 } from "./runtime.js";
+export {
+  computePilotMutationOperatorCatalogId,
+  computePilotMutationOperatorId,
+  computePilotMutationPairId,
+} from "./catalog/index.js";
+export type {
+  PilotMutationDeclaredRelationVariant,
+  PilotMutationOperatorCatalogEntryIdentityInput,
+  PilotMutationOperatorCatalogIdentityInput,
+  PilotMutationOperatorIdentityInput,
+  PilotMutationPairIdentityInput,
+} from "./catalog/index.js";
+export {
+  parsePilotMutationOperatorCatalog,
+  parsePilotMutationOperatorDefinition,
+  pilotMutationBoundProtocolId,
+  pilotMutationFamilyKeys,
+  pilotMutationInstalledProbeCodes,
+  pilotMutationLocalPredicateKeys,
+  pilotMutationOperatorCatalogContract,
+  pilotMutationOperatorCatalogMediaType,
+  pilotMutationOperatorCatalogSchema,
+  pilotMutationOperatorCatalogVersion,
+  pilotMutationOperatorContract,
+  pilotMutationOperatorDefinitionKeys,
+  pilotMutationOperatorDefinitionSchema,
+  pilotMutationOperatorMediaType,
+  pilotMutationOperatorVersion,
+  pilotMutationRelationVariants,
+  pilotMutationRoundtripProbeCodes,
+  pilotMutationSourceProbeCodes,
+  pilotV01MutationOperatorArtifacts,
+  pilotV01MutationOperatorCatalog,
+  pilotV01MutationOperatorCatalogCanonicalJson,
+  pilotV01MutationOperatorCatalogId,
+  pilotV01MutationOperatorDefinitions,
+  validatePilotMutationOperatorCatalog,
+  validatePilotMutationOperatorDefinition,
+  validatePilotMutationOperatorDefinitionSet,
+} from "./catalog/index.js";
+export type {
+  PilotMutationOperatorBinding,
+  PilotMutationOperatorCatalog,
+  PilotMutationOperatorDefinition,
+  PilotMutationOperatorDefinitionKey,
+  PilotMutationPairBody,
+  PilotMutationRelationVariant,
+} from "./catalog/index.js";

@@ -93,6 +93,8 @@ export {
   localizationCodec,
   mutationPlanCodec,
   oracleResultCodec,
+  pilotMutationOperatorCatalogCodec,
+  pilotMutationOperatorCodec,
   pngCodec,
   preconditionReportCodec,
   rawTraceCodec,
