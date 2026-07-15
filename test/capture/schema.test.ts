@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  accessibilityCodec,
+  actionPlanCodec,
+  captureSpecCodec,
+  layoutCodec,
+} from "../../src/artifacts/codecs.js";
+import {
   accessibilitySnapshotSchema,
   actionPlanSchema,
   assertCaptureGraphBindings,
@@ -582,4 +588,25 @@ test("fractional and noncanonical JSON never reach a payload schema", () => {
     (error: unknown) =>
       error instanceof CanonicalJsonError && error.code === "json.noncanonical",
   );
+});
+
+test("production capture codecs preserve only strict canonical payloads", async () => {
+  for (const [codec, fixture] of [
+    [actionPlanCodec, actionPlanFixture],
+    [captureSpecCodec, captureSpecFixture],
+    [accessibilityCodec, accessibilityFixture],
+    [layoutCodec, layoutFixture],
+  ] as const) {
+    const bytes = Buffer.from(canonicalJson(fixture), "utf8");
+    const canonical = Buffer.from(await codec.canonicalize(bytes));
+    const decoded = await codec.validate(canonical);
+
+    assert.deepEqual(canonical, bytes);
+    assert.equal(canonicalJson(decoded), canonicalJson(fixture));
+    assert.throws(
+      () => codec.canonicalize(Buffer.from(JSON.stringify(fixture, null, 2))),
+      (error: unknown) =>
+        error instanceof CanonicalJsonError && error.code === "json.noncanonical",
+    );
+  }
 });

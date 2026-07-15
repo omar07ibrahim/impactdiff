@@ -5,6 +5,7 @@ import { deflateSync } from "node:zlib";
 
 import { PNG } from "pngjs";
 
+import { pngCodec } from "../src/artifacts/codecs.js";
 import { ArtifactPayloadError } from "../src/artifacts/errors.js";
 import { CanonicalPng, canonicalizePng } from "../src/artifacts/png.js";
 
@@ -327,4 +328,23 @@ test("CanonicalPng construction requires the module-private capability", () => {
   const callerCopy = canonical.bytes;
   callerCopy.fill(0);
   assert.notDeepEqual(canonical.bytes, callerCopy);
+});
+
+test("the production PNG codec canonicalizes and validates its bound dimensions", async () => {
+  const codec = pngCodec({ width: 2, height: 2 });
+  const source = rgbaPng(2, 2, opaquePixels, {
+    deflateLevel: 1,
+    filterType: 0,
+  });
+  const canonical = Buffer.from(await codec.canonicalize(source));
+  const decoded = await codec.validate(canonical);
+
+  assert.deepEqual(canonical, canonicalizePng(source, { width: 2, height: 2 }).bytes);
+  assert.equal(decoded.width, 2);
+  assert.equal(decoded.height, 2);
+  await assert.rejects(
+    async () => pngCodec({ width: 3, height: 2 }).validate(canonical),
+    (error: unknown) =>
+      error instanceof ArtifactPayloadError && error.code === "png.dimension_mismatch",
+  );
 });

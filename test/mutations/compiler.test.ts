@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import {
+  mutationPlanCodec,
+  preconditionReportCodec,
+} from "../../src/artifacts/codecs.js";
 import { canonicalJson, canonicalSha256 } from "../../src/contracts/canonical.js";
 import { ContractValidationError } from "../../src/contracts/errors.js";
 import {
@@ -648,4 +652,22 @@ test("compilation bundle rejects swapped or tampered sealed evidence", () => {
     () => validateMutationCompilation(result.plan, moved.preconditions),
     "mutation.compilation_probe",
   );
+});
+
+test("production mutation codecs bind canonical plans and preconditions", async () => {
+  const request = mutationRequest("palette_swap");
+  const result = compileMutation(request, sourceProbe(request));
+  assert.equal(result.status, "applicable");
+
+  for (const [codec, value] of [
+    [mutationPlanCodec, result.plan],
+    [preconditionReportCodec, result.preconditions],
+  ] as const) {
+    const bytes = Buffer.from(canonicalJson(value), "utf8");
+    const canonical = Buffer.from(await codec.canonicalize(bytes));
+    const decoded = await codec.validate(canonical);
+
+    assert.deepEqual(canonical, bytes);
+    assert.equal(canonicalJson(decoded), canonicalJson(value));
+  }
 });
