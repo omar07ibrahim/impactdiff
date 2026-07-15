@@ -71,13 +71,19 @@ multi-pane layouts are distributed so that no block is defined by one visual arc
 ## Task-surface ABI
 
 The 16 fixed family/relation operators must work without application-specific operator
-selection. Every workflow must therefore implement a small logical ABI inside its own
-independently authored DOM:
+selection. Their exact matched construction semantics are defined by the
+[Pilot v0.1 mutation-operator catalog](pilot-v0.1-mutation-operators.md). Every workflow
+must therefore implement a small logical ABI inside its own independently authored DOM:
 
 - a `setup` native input, select, or radio group with a visible label and non-empty
   accessible name;
 - a deterministic `focus_entry` and Tab path to the primary action;
 - one enabled, fully visible native `button` as `primary`;
+- one visible, enabled `native_control_peer` after `primary` in sequential focus order,
+  matching its native role, element tag, exact source size/box-metric geometry signature
+  under the frozen geometry-comparison rule, and relevant computed-style signature;
+  absolute `x` and `y` are excluded from that signature, its border box is disjoint from
+  the primary border box, and it remains outside every action and oracle dependency;
 - distinct `clip_host`, `displacement_anchor`, and `content_pressure` surfaces;
 - an accessible `success` status or heading that receives focus after activation; and
 - closed semantic, focus, hit-test, final-state, and cleanup predicates.
