@@ -6,6 +6,17 @@ import type { MutationPlan, MutationRequest, SourceProbe } from "./schema.js";
 export type MutationOperatorKey = MutationRequest["operator_key"];
 export type MutationFamilyKey = "pointer_hit_testing" | "visual_palette";
 
+/** Identity-only Pilot families; this does not add compiler/runtime operators. */
+export type PilotMutationFamilyKey =
+  | "pointer_hit_testing"
+  | "overflow_clipping"
+  | "target_displacement"
+  | "native_control_state"
+  | "focus_navigation"
+  | "accessible_naming"
+  | "content_overflow"
+  | "visual_presentation";
+
 const domainDigest = (domain: string, body: unknown): string => {
   const hash = createHash("sha256");
   hash.update(domain, "utf8");
@@ -23,7 +34,9 @@ export function mutationFamilyKey(operatorKey: MutationOperatorKey): MutationFam
   }
 }
 
-export function computeMutationFamilyId(familyKey: MutationFamilyKey): string {
+export function computeMutationFamilyId(
+  familyKey: MutationFamilyKey | PilotMutationFamilyKey,
+): string {
   return `idmf1_${domainDigest("impactdiff:mutation-family:v1", familyKey)}`;
 }
 

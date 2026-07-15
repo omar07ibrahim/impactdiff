@@ -12,7 +12,12 @@ import type {
   MutationFixtureTaskRun,
   PairedReleaseArtifactInput,
   PairedReleaseInput,
+  PilotApplicationGroupIdentityInput,
+  PilotGenerationPlan,
+  PilotMutationFamilyKey,
+  PilotMutationOperatorIdentityInput,
   PilotProtocol,
+  PilotWorkflowIdentityInput,
   ResolvedEvidenceBundle,
   SourceState,
   VerifiedPairedRelease,
@@ -30,7 +35,12 @@ function acceptsPublicTypes(
   _sourceState: SourceState,
   _publicationArtifact: PairedReleaseArtifactInput,
   _publicationInput: PairedReleaseInput,
+  _pilotApplicationGroupIdentity: PilotApplicationGroupIdentityInput,
+  _pilotGenerationPlan: PilotGenerationPlan,
+  _pilotMutationFamilyKey: PilotMutationFamilyKey,
+  _pilotMutationOperatorIdentity: PilotMutationOperatorIdentityInput,
   _pilotProtocol: PilotProtocol,
+  _pilotWorkflowIdentity: PilotWorkflowIdentityInput,
   _verifiedRelease: VerifiedPairedRelease,
 ): void {}
 
@@ -42,7 +52,13 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "canonicalJson",
     "canonicalizePng",
     "compileMutation",
+    "computePilotApplicationCatalogId",
+    "computePilotApplicationGroupId",
+    "computePilotGenerationPlanId",
+    "computePilotMutationOperatorId",
     "computePilotProtocolId",
+    "computePilotSplitPlanId",
+    "computePilotWorkflowId",
     "computeFixtureActionTargetId",
     "executeMutationFixtureTask",
     "FixturePairGenerationError",
@@ -55,10 +71,12 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "PairedPublicationError",
     "PairedReleasePublisher",
     "parseActionPlan",
+    "parsePilotGenerationPlan",
     "parseSourceState",
     "prepareMutationFixtureTask",
     "publishFreshMutationFixturePair",
     "validateDatasetBundle",
+    "validatePilotGenerationPlan",
     "validatePilotProtocol",
     "validateResolvedEvidenceBundle",
     "validateResolvedInterventionBundle",
@@ -72,6 +90,19 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
 
   assert.equal(publicApi.contractVersion, 1);
   assert.equal(publicApi.evidenceContract, "impactdiff.evidence");
+  assert.equal(
+    publicApi.pilotGenerationPlanContract,
+    "impactdiff.pilot-generation-plan",
+  );
+  assert.equal(publicApi.pilotGenerationPlanVersion, 1);
+  assert.equal(
+    publicApi.pilotV01ApplicationCatalog.catalog_id,
+    publicApi.pilotV01ApplicationCatalogId,
+  );
+  assert.equal(
+    publicApi.pilotV01ApplicationCatalogCanonicalJson,
+    publicApi.canonicalJson(publicApi.pilotV01ApplicationCatalog),
+  );
   assert.equal(publicApi.pilotProtocolContract, "impactdiff.pilot-protocol");
   assert.equal(publicApi.pilotProtocolRelease, "pilot-v0.1");
   assert.equal(publicApi.pilotProtocolVersion, 1);

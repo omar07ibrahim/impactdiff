@@ -44,6 +44,10 @@ This produces exactly `20 × 2 × 8 × 2 × 1 = 640` planned pairs: 320 declared
 cells and 320 task-preserving-control cells. These are planned relations, not measured
 class labels.
 
+The [application catalog](pilot-v0.1-application-catalog.md) fixes the human-readable
+construction specification for those 20 applications and 40 workflows. Its authoring
+keys are not content-addressed corpus identities and must never be substituted for them.
+
 The eight frozen causal families are:
 
 1. pointer hit testing;
@@ -68,7 +72,19 @@ observed. The source state is fixed by application and workflow across every ope
 one operator is fixed by mutation family and declared relation across every application
 and workflow; and each application group belongs to one outer block. These bindings
 prevent relation-specific source assignment and application- or workflow-specific
-operator selection.
+operator selection. The `impactdiff.pilot-generation-plan/v1` contract validates this
+shape and binding, but no real Pilot plan exists until its referenced source,
+action-plan, operator, resource-audit, license-audit, and grouping-audit bytes exist.
+`validatePilotGenerationPlan` is an unresolved structural validator: official execution
+must additionally resolve those exact canonical bytes, prove complete audit membership,
+and reject any mismatch before accepting the plan.
+
+For this freeze rule, an outcome is an official corpus execution admitted by a frozen
+`generation_plan_id`. Authoring checks may exercise only explicitly versioned
+pre-release revisions. They produce no corpus row, sealed label, or eligibility result;
+they may not drive operator, relation, application, or block selection; and their
+revision and attempt log must be retained. Once the final plan references are frozen,
+official failures cannot trigger redesign or replacement.
 
 ## Capture environment and schedule
 
