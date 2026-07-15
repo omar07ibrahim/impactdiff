@@ -454,18 +454,12 @@ export function assertCaptureGraphBindings(
     }
   }
 
-  for (const [index, action] of actionPlan.actions.entries()) {
-    if (action.target_id !== null && !layoutTargets.has(action.target_id)) {
-      issues.push(
-        issue(
-          "capture_binding.missing_action_target",
-          `/action_plan/actions/${index}/target_id`,
-          "every action target must resolve in the normalized layout graph",
-        ),
-      );
-    }
-  }
-
+  // A checkpoint is an observation of one point in a state-changing task. A
+  // target may be created by an earlier action or removed by the action that
+  // just completed, so absence from one checkpoint is not a binding failure.
+  // The executor and sealed trace own action-time target resolution. This
+  // boundary only prevents a layout payload from introducing target IDs that
+  // were never declared by the action plan.
   for (const [targetId, nodeIndex] of layoutTargets) {
     if (!actionTargets.has(targetId)) {
       issues.push(

@@ -531,17 +531,19 @@ test("layout graph rejects raw DOM canaries and ambiguous targets", () => {
   });
 });
 
-test("cross-graph binding rejects missing action targets and dangling AX links", () => {
+test("cross-graph binding permits dynamic targets but rejects undeclared IDs and dangling AX links", () => {
   const actionPlan = parseActionPlan(canonicalJson(actionPlanFixture));
   const accessibility = parseAccessibilitySnapshot(canonicalJson(accessibilityFixture));
   const layout = parseLayoutSnapshot(canonicalJson(layoutFixture));
 
-  const missingTargetPlanFixture = clone(actionPlanFixture);
-  missingTargetPlanFixture.actions[4]!.target_id = id("idat1_", "c");
-  const missingTargetPlan = parseActionPlan(canonicalJson(missingTargetPlanFixture));
-  assertContractIssue(
-    () => assertCaptureGraphBindings(missingTargetPlan, accessibility, layout),
-    "capture_binding.missing_action_target",
+  const dynamicTargetFixture = clone(layoutFixture);
+  dynamicTargetFixture.nodes[2]!.action_target_id = null;
+  dynamicTargetFixture.nodes[3]!.action_target_id = null;
+  const dynamicTargetCheckpoint = parseLayoutSnapshot(
+    canonicalJson(dynamicTargetFixture),
+  );
+  assert.doesNotThrow(() =>
+    assertCaptureGraphBindings(actionPlan, accessibility, dynamicTargetCheckpoint),
   );
 
   const extraTargetFixture = clone(layoutFixture);
