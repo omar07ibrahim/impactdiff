@@ -234,6 +234,57 @@ const primaryActionTargetId = computeFixtureActionTargetId({
   fixture_manifest_sha256: closedFixture.manifestSha256,
   locator: primaryActionLocator,
 });
+const primaryActionValue = Object.freeze({
+  kind: "pointer" as const,
+  button: "primary" as const,
+});
+const primaryActionId = (() => {
+  const hash = createHash("sha256");
+  hash.update("impactdiff:fixture-action-step:v1", "utf8");
+  hash.update("\0", "utf8");
+  hash.update(
+    canonicalJson({
+      fixture_id: closedFixture.fixtureId,
+      fixture_revision: closedFixture.revision,
+      fixture_manifest_sha256: closedFixture.manifestSha256,
+      locator: primaryActionLocator,
+      intent: "pointer_click",
+      value: primaryActionValue,
+    }),
+    "utf8",
+  );
+  return `idst1_${hash.digest("hex")}`;
+})();
+const exactActionPlanBytes = (() => {
+  const bytes = Buffer.from(
+    canonicalJson({
+      contract: "impactdiff.action-plan",
+      version: 1,
+      actions: [
+        {
+          action_id: primaryActionId,
+          ordinal: 0,
+          intent: "pointer_click",
+          target_id: primaryActionTargetId,
+          value: primaryActionValue,
+        },
+      ],
+      checkpoints: [
+        { ordinal: 0, after_action_ordinal: -1 },
+        { ordinal: 1, after_action_ordinal: 0 },
+      ],
+    }),
+    "utf8",
+  );
+  parseActionPlan(bytes);
+  return bytes;
+})();
+const exactActionPlanReference = Object.freeze({
+  sha256: sha256Hex(exactActionPlanBytes),
+  byte_length: exactActionPlanBytes.byteLength,
+  media_type: "application/vnd.impactdiff.action-plan+json",
+  format_version: 1 as const,
+});
 
 const supportedTargets = Object.freeze({
   palette_swap: Object.freeze({
@@ -418,6 +469,11 @@ export interface MutationFixtureUpstreamEvidence {
 }
 
 export interface MutationFixtureSourceStateArtifact {
+  readonly reference: ArtifactRef;
+  readonly bytes: Uint8Array;
+}
+
+export interface MutationFixtureActionPlanArtifact {
   readonly reference: ArtifactRef;
   readonly bytes: Uint8Array;
 }
@@ -931,6 +987,17 @@ export async function loadVerifiedMutationFixtureSourceState(
   return Object.freeze({
     reference: exactSourceStateReference,
     bytes: Buffer.from(exactSourceStateBytes),
+  });
+}
+
+/**
+ * Returns the canonical task artifact owned by the exact closed checkout fixture.
+ * The action identity commits to the fixture, locator, intent, and pointer value.
+ */
+export function loadVerifiedMutationFixtureActionPlan(): MutationFixtureActionPlanArtifact {
+  return Object.freeze({
+    reference: exactActionPlanReference,
+    bytes: Buffer.from(exactActionPlanBytes),
   });
 }
 

@@ -4,6 +4,7 @@ import test from "node:test";
 import * as publicApi from "../src/index.js";
 import type {
   ArtifactRef,
+  FreshMutationFixturePairOptions,
   MutationFixtureAudit,
   MutationFixtureCheckpointBytes,
   MutationFixtureCaptureSpecArtifact,
@@ -18,6 +19,7 @@ import type {
 
 function acceptsPublicTypes(
   _reference: ArtifactRef,
+  _freshPairOptions: FreshMutationFixturePairOptions,
   _audit: MutationFixtureAudit,
   _checkpoint: MutationFixtureCheckpointBytes,
   _captureSpec: MutationFixtureCaptureSpecArtifact,
@@ -40,8 +42,10 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "compileMutation",
     "computeFixtureActionTargetId",
     "executeMutationFixtureTask",
+    "FixturePairGenerationError",
     "loadVerifiedMutationFixtureSourceState",
     "launchMutationFixtureEnvironment",
+    "loadVerifiedMutationFixtureActionPlan",
     "MutationFixtureCheckpointBytes",
     "MutationFixtureEnvironment",
     "openMutationFixtureSession",
@@ -50,6 +54,7 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "parseActionPlan",
     "parseSourceState",
     "prepareMutationFixtureTask",
+    "publishFreshMutationFixturePair",
     "validateDatasetBundle",
     "validateResolvedEvidenceBundle",
     "validateResolvedInterventionBundle",

@@ -47,6 +47,7 @@ export type { MutationFixtureCaptureSpecArtifact } from "./environment.js";
 export {
   applyCompiledMutation,
   executeMutationFixtureTask,
+  loadVerifiedMutationFixtureActionPlan,
   loadVerifiedMutationFixtureSourceState,
   MutationFixtureCheckpointBytes,
   MutationFixtureSession,
@@ -58,6 +59,7 @@ export {
 } from "./runtime.js";
 export type {
   MutationCleanup,
+  MutationFixtureActionPlanArtifact,
   MutationFixtureAudit,
   MutationFixtureSourceStateArtifact,
   MutationFixtureTaskRun,
