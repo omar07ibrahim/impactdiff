@@ -29,6 +29,7 @@ export interface StableProvenanceFile {
 }
 
 export interface ProvenanceFileTreeAudit {
+  readonly directories: readonly string[];
   readonly files: readonly ProvenanceTreeFile[];
   readonly captures: ReadonlyMap<string, StableProvenanceFile>;
 }
@@ -207,6 +208,7 @@ export async function auditProvenanceFileTree(
   }
 
   const files: ProvenanceTreeFile[] = [];
+  const directories: string[] = [];
   const captures = new Map<string, StableProvenanceFile>();
   const inodes = new Set<string>();
   let totalBytes = 0;
@@ -218,6 +220,9 @@ export async function auditProvenanceFileTree(
     relativeDirectory: string,
     depth: number,
   ): Promise<void> => {
+    if (relativeDirectory !== "") {
+      directories.push(relativeDirectory);
+    }
     totalDirectories += 1;
     if (totalDirectories > maximumTreeDirectories) {
       fail(
@@ -363,7 +368,9 @@ export async function auditProvenanceFileTree(
     }
   }
   files.sort((left, right) => codeUnitCompare(left.path, right.path));
+  directories.sort(codeUnitCompare);
   return Object.freeze({
+    directories: Object.freeze(directories),
     files: Object.freeze(files),
     captures: new ImmutableMapView(captures),
   });
