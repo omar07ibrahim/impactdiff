@@ -19,6 +19,7 @@ import {
 } from "../../src/mutations/catalog/identity.js";
 import {
   pilotMutationBoundProtocolId,
+  pilotMutationLocalPredicateKeys,
   pilotMutationOperatorDefinitionKeys,
   pilotMutationOperatorMediaType,
   pilotMutationRoundtripProbeCodes,
@@ -181,8 +182,141 @@ const expectedRows = [
   },
 ] as const;
 
+const expectedPredicateKeys = [
+  "primary_source_point_dispatches_to_primary",
+  "primary_fully_visible_and_source_hit_testable",
+  "primary_at_source_bound_hit_point",
+  "primary_enabled",
+  "declared_focus_path_reaches_primary",
+  "primary_accessible_name_nonempty",
+  "content_pressure_contained",
+  "primary_text_contrast_at_least_4500",
+] as const;
+
+const expectedPredicatePolicyRows = [
+  {
+    designated: "primary_source_point_dispatches_to_primary",
+    state: "fail",
+    correlated: [
+      "primary_fully_visible_and_source_hit_testable",
+      "primary_at_source_bound_hit_point",
+    ],
+  },
+  {
+    designated: "primary_source_point_dispatches_to_primary",
+    state: "pass",
+    correlated: [],
+  },
+  {
+    designated: "primary_fully_visible_and_source_hit_testable",
+    state: "fail",
+    correlated: [
+      "primary_source_point_dispatches_to_primary",
+      "primary_at_source_bound_hit_point",
+    ],
+  },
+  {
+    designated: "primary_fully_visible_and_source_hit_testable",
+    state: "pass",
+    correlated: [],
+  },
+  {
+    designated: "primary_at_source_bound_hit_point",
+    state: "fail",
+    correlated: [
+      "primary_source_point_dispatches_to_primary",
+      "primary_fully_visible_and_source_hit_testable",
+    ],
+  },
+  {
+    designated: "primary_at_source_bound_hit_point",
+    state: "pass",
+    correlated: [],
+  },
+  {
+    designated: "primary_enabled",
+    state: "fail",
+    correlated: ["declared_focus_path_reaches_primary"],
+  },
+  {
+    designated: "primary_enabled",
+    state: "pass",
+    correlated: [],
+  },
+  {
+    designated: "declared_focus_path_reaches_primary",
+    state: "fail",
+    correlated: [],
+  },
+  {
+    designated: "declared_focus_path_reaches_primary",
+    state: "pass",
+    correlated: [],
+  },
+  {
+    designated: "primary_accessible_name_nonempty",
+    state: "fail",
+    correlated: [],
+  },
+  {
+    designated: "primary_accessible_name_nonempty",
+    state: "pass",
+    correlated: [],
+  },
+  {
+    designated: "content_pressure_contained",
+    state: "fail",
+    correlated: [],
+  },
+  {
+    designated: "content_pressure_contained",
+    state: "pass",
+    correlated: [],
+  },
+  {
+    designated: "primary_text_contrast_at_least_4500",
+    state: "fail",
+    correlated: [],
+  },
+  {
+    designated: "primary_text_contrast_at_least_4500",
+    state: "pass",
+    correlated: [],
+  },
+] as const;
+
+function expectedInstalledPredicatePolicy(
+  row: (typeof expectedPredicatePolicyRows)[number],
+) {
+  const correlated = new Set<string>(row.correlated);
+  return {
+    policy_version: 1,
+    vector: expectedPredicateKeys.map((predicate) => {
+      if (predicate === row.designated) {
+        return {
+          predicate,
+          expected_state: row.state,
+          role: "designated",
+        } as const;
+      }
+      if (correlated.has(predicate)) {
+        return {
+          predicate,
+          expected_state: "fail",
+          role: "correlated",
+        } as const;
+      }
+      return {
+        predicate,
+        expected_state: "pass",
+        role: "preserved",
+      } as const;
+    }),
+  } as const;
+}
+
 const goldenCatalogId =
-  "idoc1_c74d993f8b1fd77caf3e2b192bd74b6d450384764f8fd996211980f1ee7e0b06";
+  "idoc1_d426bac2b936eeabc1cc7810746419700f422e372e99f8b8911d8dd331eed8e2";
 
 const goldenPairIds = [
   "idpr1_46ab0919595d623f9a6d5852c0e54feaadd602a1be2390fdcf8ea40cf2aaae1d",
@@ -196,22 +330,22 @@ const goldenPairIds = [
 ] as const;
 
 const goldenOperatorIds = [
-  "idop1_40c96674786ac42b9066fcb780f09a1af9d9b745da2861bd96513c3903afc994",
-  "idop1_44700f5cc615679396e44bef786d0d50f800e344ff255366a6006c96370458c1",
-  "idop1_e4b095924db2c84fbfe673e2f3e2a331aad94cd88f37e2e2b3e29909407bd6c9",
-  "idop1_a47c240340a869a189469fda4582ca866a96706ac50ce130350e0c53353c5bb8",
-  "idop1_88b830f229465cda9c04f0daaf706a21aed409f918aa2d220fbc9a9772bfce8e",
-  "idop1_6c373365cccb98e3b0ccddedd65a36d78a604241d9f53d5957de6534fddd721d",
-  "idop1_03c7459a609fa1d48ccf87d20c4114f13ed180d36f729e550f5c3c2494868c3c",
-  "idop1_565525778ffbf2b0b06653caa75a53afc05835c047fb9d308865355c75064fc1",
-  "idop1_f23e5f77408e4003d14cc86585a3fc4373d60d70a703309f0366eb3597772ce4",
-  "idop1_c278d05999ccc082daed7248e3d813a659582c58d9dba650e93cf90a179af969",
-  "idop1_50c29c9b984f26e179c7cd596c6a3c32721bbf2bc1d2845f70f75256c4db8ed6",
-  "idop1_6fe55abf080626e313f691187e7f227fda13ec6fef9fa6d84900c6250c1fe9f9",
-  "idop1_55ebda0fc3a0b78226204503fa5953d8bfb5ab9f3e365c0783a1f32828369fbd",
-  "idop1_b0c3d6549e9a9e4ef9cfff21f1a065e5a87af64ce4ad26d16e680a7332bd8a47",
-  "idop1_de983531205776799cb5d2bb1b05e8fce8cc0820d3d559cfbb3f086b55a43f6c",
-  "idop1_969436c4dfe1493352d564753197913ee68ed390579a4588abde8b1ce5f206cf",
+  "idop1_fc6880b068bc0d2ff05be6085fa810aa120f34e386f848b99a16cc30975dc632",
+  "idop1_ee2d76c6a3292e1f09fe87486974eccfb0feeb1048ce8b003ad35516d686b758",
+  "idop1_de93e6aeaf6aee7322e57810b433bbb05db62ac61f3fae72e7092f90a9bca085",
+  "idop1_6a4d8245f3177b5a0b65d04427c0f539eb03f9873644ed4ded446670e9c1021c",
+  "idop1_dae731723606747172e0bbf607dae29b132c9ba5c2ef511aac9a67aec4abd0d0",
+  "idop1_c39aa5aad4082abd0dee2d19ddb5089179c7fc5cc6c095ae69a3a10e27227a0b",
+  "idop1_c440d46d807b2f6cee2734368c82659d6e227c7e2eef9c5d24983e74aca5f71b",
+  "idop1_7f229b419d0ceea15a9911825a19d719fbe561a0706d5b2ecb85f566bfcc246b",
+  "idop1_c581e05949a2861badb025ce225d3838e66a55c0af561a2303074802c6c9c5d2",
+  "idop1_6a0a922d702ffff8681e17a912a77d9129ef34f2828ed7f0620ba7c8d978757c",
+  "idop1_8e916db42d5efb9ec072bbaed3582210013453abd719df2eabab35eb2591d26b",
+  "idop1_55b9fa9471e4a5481730b733414bfb0d879c3c1f460559cd35b6626a2d078bb3",
+  "idop1_a85182f7ecb2efe0bd829bd964a0fc22d9dd3f6b4d635d805b87e087390484d6",
+  "idop1_99be600b8e1fe063727712c3e0516c344c84daa21d618b83bf0e39774782a340",
+  "idop1_d6a5e40004d8a742bc31bc1591df033dbd3e4e755ea84e89d1eb4d217637a22b",
+  "idop1_9b6cadcd9ea3c257414c84a2bbd287786c19d29b4cd01c150e283eb0c8c3f467",
 ] as const;
 
 function assertDeepFrozen(value: unknown, path = "$", seen = new Set<object>()): void {
@@ -306,6 +440,142 @@ test("Pilot v0.1 definitions freeze the exact ordered 8 x 2 catalog", () => {
     );
     assert.notDeepEqual(breaking.effect, control.effect);
   }
+});
+
+test("installed predicate policies freeze the exact 16-row causal matrix", () => {
+  assert.deepEqual(pilotMutationLocalPredicateKeys, expectedPredicateKeys);
+  assert.deepEqual(
+    pilotV01MutationOperatorDefinitions.map(
+      (definition) => definition.installed_predicate_policy,
+    ),
+    expectedPredicatePolicyRows.map(expectedInstalledPredicatePolicy),
+  );
+
+  for (const [index, definition] of pilotV01MutationOperatorDefinitions.entries()) {
+    const policy = definition.installed_predicate_policy;
+    const designated = policy.vector.filter(({ role }) => role === "designated");
+    assert.equal(policy.policy_version, 1, `definition ${index}`);
+    assert.equal(designated.length, 1, `definition ${index}`);
+    assert.deepEqual(
+      designated[0],
+      {
+        predicate: definition.expected_local_task_predicate.predicate,
+        expected_state: definition.expected_local_task_predicate.state,
+        role: "designated",
+      },
+      `definition ${index}`,
+    );
+
+    if (definition.declared_relation_variant === "task_preserving_control") {
+      assert.equal(
+        policy.vector.some(({ role }) => role === "correlated"),
+        false,
+        `control ${index} cannot declare correlated failures`,
+      );
+      assert.equal(
+        policy.vector.every(({ expected_state }) => expected_state === "pass"),
+        true,
+        `control ${index} must keep the complete predicate vector passing`,
+      );
+    }
+  }
+});
+
+test("installed predicate policies reject malformed rows and semantic rebinding", () => {
+  const missing = mutableDefinition(0);
+  missing.installed_predicate_policy.vector.pop();
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(missing),
+    "schema.minItems",
+  );
+
+  const extra = mutableDefinition(0);
+  const extraRow = extra.installed_predicate_policy.vector[0];
+  assert.ok(extraRow !== undefined);
+  extra.installed_predicate_policy.vector.push(structuredClone(extraRow));
+  expectIssue(() => validatePilotMutationOperatorDefinition(extra), "schema.maxItems");
+
+  const reordered = mutableDefinition(0);
+  const first = reordered.installed_predicate_policy.vector[0];
+  const second = reordered.installed_predicate_policy.vector[1];
+  assert.ok(first !== undefined && second !== undefined);
+  reordered.installed_predicate_policy.vector[0] = second;
+  reordered.installed_predicate_policy.vector[1] = first;
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(reordered),
+    "pilot_operator.predicate_policy_catalog",
+  );
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(reordered),
+    "pilot_operator.predicate_policy",
+  );
+
+  const duplicate = mutableDefinition(0);
+  const duplicateSource = duplicate.installed_predicate_policy.vector[0];
+  assert.ok(duplicateSource !== undefined);
+  duplicate.installed_predicate_policy.vector[1] = structuredClone(duplicateSource);
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(duplicate),
+    "pilot_operator.predicate_policy_catalog",
+  );
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(duplicate),
+    "pilot_operator.predicate_policy",
+  );
+
+  const wrongRole = mutableDefinition(8);
+  const wrongRoleRow = wrongRole.installed_predicate_policy.vector[0];
+  assert.ok(wrongRoleRow !== undefined);
+  wrongRoleRow.role = "correlated";
+  wrongRoleRow.expected_state = "fail";
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(wrongRole),
+    "pilot_operator.predicate_policy_catalog",
+  );
+
+  const wrongState = mutableDefinition(8);
+  const wrongStateRow = wrongState.installed_predicate_policy.vector[0];
+  assert.ok(wrongStateRow !== undefined);
+  wrongStateRow.expected_state = "fail";
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(wrongState),
+    "pilot_operator.predicate_policy_catalog",
+  );
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(wrongState),
+    "pilot_operator.predicate_policy",
+  );
+
+  const reboundDesignated = mutableDefinition(8);
+  const originalDesignated = reboundDesignated.installed_predicate_policy.vector[4];
+  const replacementDesignated = reboundDesignated.installed_predicate_policy.vector[0];
+  assert.ok(originalDesignated !== undefined && replacementDesignated !== undefined);
+  originalDesignated.role = "preserved";
+  originalDesignated.expected_state = "pass";
+  replacementDesignated.role = "designated";
+  replacementDesignated.expected_state = "fail";
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(reboundDesignated),
+    "pilot_operator.predicate_policy_catalog",
+  );
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(reboundDesignated),
+    "pilot_operator.predicate_policy",
+  );
+
+  const correlatedControl = mutableDefinition(1);
+  const correlatedControlRow = correlatedControl.installed_predicate_policy.vector[1];
+  assert.ok(correlatedControlRow !== undefined);
+  correlatedControlRow.role = "correlated";
+  correlatedControlRow.expected_state = "fail";
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(correlatedControl),
+    "pilot_operator.predicate_policy_catalog",
+  );
+  expectIssue(
+    () => validatePilotMutationOperatorDefinition(correlatedControl),
+    "pilot_operator.predicate_policy",
+  );
 });
 
 test("pair, operator, artifact, and catalog identities retain golden values", () => {

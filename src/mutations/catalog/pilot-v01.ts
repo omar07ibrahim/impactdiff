@@ -15,7 +15,10 @@ import {
   validatePilotMutationOperatorCatalog,
   validatePilotMutationOperatorDefinitionSet,
 } from "./validate.js";
-import { pilotMutationDefinitionSpecs } from "./spec.js";
+import {
+  installedPredicatePolicyForSpec,
+  pilotMutationDefinitionSpecs,
+} from "./spec.js";
 import { canonicalJson } from "../../contracts/canonical.js";
 
 const inverse = Object.freeze({
@@ -64,6 +67,7 @@ const definitionDrafts = pilotMutationDefinitionSpecs.map((spec) => {
       predicate: spec.predicate,
       state: spec.predicateState,
     },
+    installed_predicate_policy: installedPredicatePolicyForSpec(spec),
     inverse,
     cleanup_audit: { required: pilotMutationRoundtripProbeCodes },
     relation_semantics: relationSemantics,

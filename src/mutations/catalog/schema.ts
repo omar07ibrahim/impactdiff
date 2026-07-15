@@ -263,6 +263,20 @@ export const pilotMutationLocalPredicateKeys = Object.freeze([
   "primary_text_contrast_at_least_4500",
 ] as const);
 
+const installedPredicatePolicySchema = exactObject({
+  policy_version: { const: 1 },
+  vector: {
+    type: "array",
+    minItems: 8,
+    maxItems: 8,
+    items: exactObject({
+      predicate: { enum: pilotMutationLocalPredicateKeys },
+      expected_state: { enum: ["fail", "pass"] },
+      role: { enum: ["designated", "correlated", "preserved"] },
+    }),
+  },
+});
+
 export const pilotMutationOperatorDefinitionSchema = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://impactdiff.dev/schemas/pilot-mutation-operator-v1.json",
@@ -303,6 +317,7 @@ export const pilotMutationOperatorDefinitionSchema = {
       predicate: { enum: pilotMutationLocalPredicateKeys },
       state: { enum: ["fail", "pass"] },
     }),
+    installed_predicate_policy: installedPredicatePolicySchema,
     inverse: exactObject({
       opcode: { const: "remove_owned_intervention" },
       handle: { const: "h0" },

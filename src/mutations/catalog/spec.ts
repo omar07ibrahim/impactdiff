@@ -6,6 +6,7 @@ import type {
 } from "./schema.js";
 import type { PilotMutationFamilyKey } from "../identity.js";
 import { normalizeJsonData } from "../../contracts/canonical.js";
+import { pilotMutationLocalPredicateKeys } from "./schema.js";
 
 type DeepReadonly<Value> = Value extends readonly (infer Item)[]
   ? readonly DeepReadonly<Item>[]
@@ -24,6 +25,37 @@ export interface PilotMutationDefinitionSpec {
   readonly effect: DeepReadonly<PilotMutationOperatorDefinition["effect"]>;
   readonly predicate: PilotMutationOperatorDefinition["expected_local_task_predicate"]["predicate"];
   readonly predicateState: "fail" | "pass";
+  readonly correlatedFailurePredicates: readonly PilotMutationOperatorDefinition["expected_local_task_predicate"]["predicate"][];
+}
+
+export function installedPredicatePolicyForSpec(
+  spec: PilotMutationDefinitionSpec,
+): DeepReadonly<PilotMutationOperatorDefinition["installed_predicate_policy"]> {
+  const correlated = new Set(spec.correlatedFailurePredicates);
+  return {
+    policy_version: 1,
+    vector: pilotMutationLocalPredicateKeys.map((predicate) => {
+      if (predicate === spec.predicate) {
+        return {
+          predicate,
+          expected_state: spec.predicateState,
+          role: "designated" as const,
+        };
+      }
+      if (correlated.has(predicate)) {
+        return {
+          predicate,
+          expected_state: "fail" as const,
+          role: "correlated" as const,
+        };
+      }
+      return {
+        predicate,
+        expected_state: "pass" as const,
+        role: "preserved" as const,
+      };
+    }),
+  };
 }
 
 const commonSourceProbes = [
@@ -138,6 +170,10 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "pointer_hit_testing", pointer_mode: "intercept" },
     predicate: "primary_source_point_dispatches_to_primary",
     predicateState: "fail",
+    correlatedFailurePredicates: [
+      "primary_fully_visible_and_source_hit_testable",
+      "primary_at_source_bound_hit_point",
+    ],
   },
   {
     definitionKey: "pointer_hit_testing.pass_source_point.v1",
@@ -148,6 +184,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "pointer_hit_testing", pointer_mode: "pass_through" },
     predicate: "primary_source_point_dispatches_to_primary",
     predicateState: "pass",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "overflow_clipping.exclude_source_point.v1",
@@ -161,6 +198,10 @@ const rawPilotMutationDefinitionSpecs = [
     },
     predicate: "primary_fully_visible_and_source_hit_testable",
     predicateState: "fail",
+    correlatedFailurePredicates: [
+      "primary_source_point_dispatches_to_primary",
+      "primary_at_source_bound_hit_point",
+    ],
   },
   {
     definitionKey: "overflow_clipping.retain_primary.v1",
@@ -174,6 +215,7 @@ const rawPilotMutationDefinitionSpecs = [
     },
     predicate: "primary_fully_visible_and_source_hit_testable",
     predicateState: "pass",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "target_displacement.beyond_source_point.v1",
@@ -187,6 +229,10 @@ const rawPilotMutationDefinitionSpecs = [
     },
     predicate: "primary_at_source_bound_hit_point",
     predicateState: "fail",
+    correlatedFailurePredicates: [
+      "primary_source_point_dispatches_to_primary",
+      "primary_fully_visible_and_source_hit_testable",
+    ],
   },
   {
     definitionKey: "target_displacement.within_source_point.v1",
@@ -200,6 +246,7 @@ const rawPilotMutationDefinitionSpecs = [
     },
     predicate: "primary_at_source_bound_hit_point",
     predicateState: "pass",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "native_control_state.disable_primary.v1",
@@ -210,6 +257,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "native_control_state", target: "primary" },
     predicate: "primary_enabled",
     predicateState: "fail",
+    correlatedFailurePredicates: ["declared_focus_path_reaches_primary"],
   },
   {
     definitionKey: "native_control_state.disable_peer.v1",
@@ -220,6 +268,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "native_control_state", target: "native_control_peer" },
     predicate: "primary_enabled",
     predicateState: "pass",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "focus_navigation.insert_before_primary.v1",
@@ -230,6 +279,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "focus_navigation", placement: "immediately_before_primary" },
     predicate: "declared_focus_path_reaches_primary",
     predicateState: "fail",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "focus_navigation.insert_after_primary.v1",
@@ -240,6 +290,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "focus_navigation", placement: "immediately_after_primary" },
     predicate: "declared_focus_path_reaches_primary",
     predicateState: "pass",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "accessible_naming.empty_primary_name.v1",
@@ -250,6 +301,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "accessible_naming", label_content: "empty" },
     predicate: "primary_accessible_name_nonempty",
     predicateState: "fail",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "accessible_naming.copy_primary_name.v1",
@@ -260,6 +312,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "accessible_naming", label_content: "exact_source_name" },
     predicate: "primary_accessible_name_nonempty",
     predicateState: "pass",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "content_overflow.unbreakable_pressure.v1",
@@ -270,6 +323,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "content_overflow", wrap_mode: "unbreakable" },
     predicate: "content_pressure_contained",
     predicateState: "fail",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "content_overflow.breakable_pressure.v1",
@@ -280,6 +334,7 @@ const rawPilotMutationDefinitionSpecs = [
     effect: { kind: "content_overflow", wrap_mode: "anywhere" },
     predicate: "content_pressure_contained",
     predicateState: "pass",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "visual_presentation.low_contrast_primary.v1",
@@ -295,6 +350,7 @@ const rawPilotMutationDefinitionSpecs = [
     },
     predicate: "primary_text_contrast_at_least_4500",
     predicateState: "fail",
+    correlatedFailurePredicates: [],
   },
   {
     definitionKey: "visual_presentation.high_contrast_primary.v1",
@@ -310,6 +366,7 @@ const rawPilotMutationDefinitionSpecs = [
     },
     predicate: "primary_text_contrast_at_least_4500",
     predicateState: "pass",
+    correlatedFailurePredicates: [],
   },
 ] as const satisfies readonly PilotMutationDefinitionSpec[];
 
