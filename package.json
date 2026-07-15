@@ -34,6 +34,9 @@
     "canonicalize": "3.0.0",
     "pngjs": "7.0.0"
   },
+  "peerDependencies": {
+    "@playwright/test": "1.61.1"
+  },
   "devDependencies": {
     "@playwright/test": "1.61.1",
     "@types/node": "22.20.1",
