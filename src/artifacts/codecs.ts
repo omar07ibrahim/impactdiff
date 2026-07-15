@@ -16,6 +16,18 @@ import type {
 import { parseSourceState } from "../source/validate.js";
 import type { SourceState } from "../source/schema.js";
 import {
+  validateChangedSurface,
+  validateLocalization,
+  validateOracleResult,
+  validateRawTrace,
+} from "../sealed/validate.js";
+import type {
+  ChangedSurface,
+  Localization,
+  OracleResult,
+  RawTrace,
+} from "../sealed/schema.js";
+import {
   validateMutationPlan,
   validatePreconditionReport,
 } from "../mutations/compiler.js";
@@ -77,6 +89,27 @@ const mutationLimits = Object.freeze({
   maximumValues: 20_000,
 }) satisfies ParseLimits;
 
+const changedSurfaceLimits = Object.freeze({
+  maximumBytes: 1_048_576,
+  maximumDepth: 12,
+  maximumValues: 2_048,
+}) satisfies ParseLimits;
+const oracleResultLimits = Object.freeze({
+  maximumBytes: 131_072,
+  maximumDepth: 8,
+  maximumValues: 256,
+}) satisfies ParseLimits;
+const rawTraceLimits = Object.freeze({
+  maximumBytes: 4_194_304,
+  maximumDepth: 8,
+  maximumValues: 50_000,
+}) satisfies ParseLimits;
+const localizationLimits = Object.freeze({
+  maximumBytes: 1_048_576,
+  maximumDepth: 12,
+  maximumValues: 2_048,
+}) satisfies ParseLimits;
+
 export const mutationPlanCodec = strictJsonCodec<MutationPlan>(
   "application/vnd.impactdiff.intervention-parameters+json",
   131_072,
@@ -89,11 +122,38 @@ export const preconditionReportCodec = strictJsonCodec<PreconditionReport>(
   (bytes) => validatePreconditionReport(parseCanonicalJson(bytes, mutationLimits)),
 );
 
-export function pngCodec(expectedDimensions: {
+export const changedSurfaceCodec = strictJsonCodec<ChangedSurface>(
+  "application/vnd.impactdiff.changed-surface+json",
+  1_048_576,
+  (bytes) => validateChangedSurface(parseCanonicalJson(bytes, changedSurfaceLimits)),
+);
+
+export const oracleResultCodec = strictJsonCodec<OracleResult>(
+  "application/vnd.impactdiff.oracle-result+json",
+  131_072,
+  (bytes) => validateOracleResult(parseCanonicalJson(bytes, oracleResultLimits)),
+);
+
+export const rawTraceCodec = strictJsonCodec<RawTrace>(
+  "application/vnd.impactdiff.raw-trace+json",
+  4_194_304,
+  (bytes) => validateRawTrace(parseCanonicalJson(bytes, rawTraceLimits)),
+);
+
+export const localizationCodec = strictJsonCodec<Localization>(
+  "application/vnd.impactdiff.localization+json",
+  1_048_576,
+  (bytes) => validateLocalization(parseCanonicalJson(bytes, localizationLimits)),
+);
+
+export function pngCodec(expectedDimensions?: {
   readonly width: number;
   readonly height: number;
 }): ArtifactCodec<CanonicalPng> {
-  const dimensions = Object.freeze({ ...expectedDimensions });
+  const dimensions =
+    expectedDimensions === undefined
+      ? undefined
+      : Object.freeze({ ...expectedDimensions });
   return Object.freeze({
     mediaType: "image/png",
     maximumBytes: maximumCapturePngBytes,

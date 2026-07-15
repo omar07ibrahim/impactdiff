@@ -1,4 +1,16 @@
 import assert from "node:assert/strict";
+import {
+  chmod,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 
 import { PNG } from "pngjs";
@@ -17,9 +29,13 @@ import {
   computeSourceStateGroupId,
   computeSourceStateId,
   computeTaskId,
+  parseCanonicalJson,
   sha256Hex,
 } from "../src/contracts/canonical.js";
 import { ContractValidationError } from "../src/contracts/errors.js";
+import { validateResolvedEvidenceRecordBundle } from "../src/contracts/resolved-record.js";
+import type { ArtifactRef } from "../src/contracts/artifacts.js";
+import { validateEvidenceRecordPair } from "../src/contracts/validate.js";
 import {
   validateResolvedEvidenceBundle,
   validateResolvedInterventionBundle,
@@ -29,8 +45,18 @@ import {
   computeMutationInstanceId,
   computeMutationTargetNodeId,
   computeSourceProbeFingerprint,
+  validateMutationPlan,
 } from "../src/mutations/index.js";
 import type { MutationRequest, SourceProbe } from "../src/mutations/index.js";
+import {
+  PairedPublicationError,
+  PairedReleasePublisher,
+  verifyPairedRelease,
+} from "../src/publication/index.js";
+import type {
+  PairedReleaseArtifactInput,
+  PairedReleaseInput,
+} from "../src/publication/index.js";
 
 const digest = (character: string): string => character.repeat(64);
 const id = (prefix: string, character: string): string =>
@@ -646,6 +672,262 @@ function interventionBundle(
   };
 }
 
+function completeResolvedRecordBundle() {
+  const visible = evidenceBundle();
+  const intervention = interventionBundle(visible);
+  const plan = validateMutationPlan(parseCanonicalJson(intervention.mutation_plan));
+  const operation = plan.forward[0];
+  assert.equal(operation?.opcode, "install_pointer_interceptor");
+  if (operation?.opcode !== "install_pointer_interceptor") {
+    throw new Error("expected pointer plan");
+  }
+  const changedSurface = {
+    contract: "impactdiff.changed-surface",
+    version: 1,
+    plan_id: plan.plan_id,
+    instance_id: plan.instance_id,
+    affected_node_ids: [plan.request.target.node_id],
+    regions_milli_css_px: [operation.rect_milli_css_px],
+  } as const;
+  const changedSurfaceBytes = canonicalBytes(changedSurface);
+  const failedStepId = baseActionPlan.actions[1].action_id;
+
+  const rolePayloads = (role: "baseline" | "candidate") => {
+    const captureId = visible.manifest.pair[role].capture_id;
+    const finalState = canonicalBytes({
+      contract: "impactdiff.oracle-result",
+      version: 1,
+      role,
+      capture_id: captureId,
+      task_id: visible.manifest.task.task_id,
+      kind: "final_state",
+      passed: false,
+      observed_state: "review",
+    });
+    const accessibility = canonicalBytes({
+      contract: "impactdiff.oracle-result",
+      version: 1,
+      role,
+      capture_id: captureId,
+      task_id: visible.manifest.task.task_id,
+      kind: "accessibility",
+      passed: false,
+      primary_action_count: 0,
+      confirmation_count: 0,
+    });
+    const rawTrace = canonicalBytes({
+      contract: "impactdiff.raw-trace",
+      version: 1,
+      role,
+      capture_id: captureId,
+      task_id: visible.manifest.task.task_id,
+      task_success: false,
+      steps: [
+        {
+          action_id: baseActionPlan.actions[0].action_id,
+          ordinal: 0,
+          status: "satisfied",
+        },
+        {
+          action_id: failedStepId,
+          ordinal: 1,
+          status: "unsatisfied",
+        },
+      ],
+      first_unsatisfied_step_id: failedStepId,
+      recovery_actions: 0,
+      virtual_elapsed_ms: 0,
+    });
+    return { finalState, accessibility, rawTrace };
+  };
+  const baseline = rolePayloads("baseline");
+  const candidate = rolePayloads("candidate");
+  const outcome = (payloads: ReturnType<typeof rolePayloads>) => ({
+    task_success: false,
+    final_state_oracle: reference(
+      "application/vnd.impactdiff.oracle-result+json",
+      payloads.finalState,
+    ),
+    accessibility_oracle: reference(
+      "application/vnd.impactdiff.oracle-result+json",
+      payloads.accessibility,
+    ),
+    raw_trace: reference(
+      "application/vnd.impactdiff.raw-trace+json",
+      payloads.rawTrace,
+    ),
+    first_unsatisfied_step_id: failedStepId,
+    recovery_actions: 0,
+    virtual_elapsed_ms: 0,
+  });
+  const recordDraft = {
+    ...intervention.sealed_record,
+    sealed_record_id: id("idsr1_", "0"),
+    intervention: {
+      ...intervention.sealed_record.intervention,
+      changed_surface: reference(
+        "application/vnd.impactdiff.changed-surface+json",
+        changedSurfaceBytes,
+      ),
+    },
+    execution: {
+      baseline: outcome(baseline),
+      candidate: outcome(candidate),
+    },
+    labels: {
+      sample_valid: false,
+      invalid_reason: "baseline_failed",
+      task_regression: null,
+      severity_ordinal: null,
+      first_failed_step_id: null,
+      localization: null,
+    },
+  } as const;
+  const sealedRecord = {
+    ...recordDraft,
+    sealed_record_id: computeSealedRecordId(recordDraft),
+  };
+  return {
+    manifest: visible.manifest,
+    sealed_record: sealedRecord,
+    action_plan: visible.action_plan,
+    capture_spec: visible.capture_spec,
+    pair: visible.pair,
+    source_state: intervention.source_state,
+    mutation_plan: intervention.mutation_plan,
+    precondition_report: intervention.precondition_report,
+    changed_surface: changedSurfaceBytes,
+    execution: {
+      baseline: {
+        final_state_oracle: baseline.finalState,
+        accessibility_oracle: baseline.accessibility,
+        raw_trace: baseline.rawTrace,
+      },
+      candidate: {
+        final_state_oracle: candidate.finalState,
+        accessibility_oracle: candidate.accessibility,
+        raw_trace: candidate.rawTrace,
+      },
+    },
+    localization: null,
+  };
+}
+
+function addReleaseArtifact(
+  artifacts: Map<string, PairedReleaseArtifactInput>,
+  referenceValue: ArtifactRef,
+  bytes: Uint8Array,
+): void {
+  assert.equal(sha256Hex(bytes), referenceValue.sha256);
+  assert.equal(bytes.byteLength, referenceValue.byte_length);
+  const prior = artifacts.get(referenceValue.sha256);
+  if (prior === undefined) {
+    artifacts.set(referenceValue.sha256, {
+      reference: referenceValue,
+      bytes,
+    });
+    return;
+  }
+  assert.deepEqual(prior.reference, referenceValue);
+  assert.deepEqual(Buffer.from(prior.bytes), Buffer.from(bytes));
+}
+
+function pairedReleaseInput(
+  bundle: ReturnType<
+    typeof completeResolvedRecordBundle
+  > = completeResolvedRecordBundle(),
+): PairedReleaseInput {
+  const visible = new Map<string, PairedReleaseArtifactInput>();
+  const sealed = new Map<string, PairedReleaseArtifactInput>();
+  addReleaseArtifact(visible, bundle.manifest.task.action_plan, bundle.action_plan);
+  addReleaseArtifact(
+    visible,
+    bundle.manifest.environment.capture_spec,
+    bundle.capture_spec,
+  );
+  for (const role of ["baseline", "candidate"] as const) {
+    const references = bundle.manifest.pair[role].checkpoints;
+    const payloads = bundle.pair[role].checkpoints;
+    assert.equal(references.length, payloads.length);
+    for (let ordinal = 0; ordinal < references.length; ordinal += 1) {
+      const checkpoint = references[ordinal]!;
+      const payload = payloads[ordinal]!;
+      addReleaseArtifact(visible, checkpoint.screenshot, payload.screenshot);
+      addReleaseArtifact(
+        visible,
+        checkpoint.accessibility_tree,
+        payload.accessibility_tree,
+      );
+      addReleaseArtifact(visible, checkpoint.layout_graph, payload.layout_graph);
+    }
+  }
+
+  addReleaseArtifact(
+    sealed,
+    bundle.sealed_record.provenance.source_state,
+    bundle.source_state,
+  );
+  addReleaseArtifact(
+    sealed,
+    bundle.sealed_record.intervention.parameters,
+    bundle.mutation_plan,
+  );
+  addReleaseArtifact(
+    sealed,
+    bundle.sealed_record.intervention.preconditions,
+    bundle.precondition_report,
+  );
+  addReleaseArtifact(
+    sealed,
+    bundle.sealed_record.intervention.changed_surface,
+    bundle.changed_surface,
+  );
+  for (const role of ["baseline", "candidate"] as const) {
+    const references = bundle.sealed_record.execution[role];
+    const payloads = bundle.execution[role];
+    addReleaseArtifact(
+      sealed,
+      references.final_state_oracle,
+      payloads.final_state_oracle,
+    );
+    addReleaseArtifact(
+      sealed,
+      references.accessibility_oracle,
+      payloads.accessibility_oracle,
+    );
+    addReleaseArtifact(sealed, references.raw_trace, payloads.raw_trace);
+  }
+  if (bundle.sealed_record.labels.localization !== null) {
+    assert.notEqual(bundle.localization, null);
+    if (bundle.localization === null) {
+      throw new Error("localization bytes are required by the sealed record");
+    }
+    addReleaseArtifact(
+      sealed,
+      bundle.sealed_record.labels.localization,
+      bundle.localization,
+    );
+  } else {
+    assert.equal(bundle.localization, null);
+  }
+  const records = validateEvidenceRecordPair(bundle.manifest, bundle.sealed_record);
+
+  return {
+    evidence: records.evidence,
+    sealed_record: records.sealedRecord,
+    visible_artifacts: [...visible.values()],
+    sealed_artifacts: [...sealed.values()],
+  };
+}
+
+function expectPublicationError(code: string): (error: unknown) => boolean {
+  return (error: unknown): boolean => {
+    assert.ok(error instanceof PairedPublicationError);
+    assert.equal(error.code, code);
+    return true;
+  };
+}
+
 function expectIssue(action: () => unknown, code: string): void {
   assert.throws(action, (error: unknown) => {
     assert.ok(error instanceof ContractValidationError);
@@ -848,6 +1130,48 @@ test("resolved intervention accepts canonical plan and precondition bytes", () =
   assert.ok(Object.isFrozen(result));
 });
 
+test("resolved evidence records replay sealed outcome payloads", () => {
+  const result = validateResolvedEvidenceRecordBundle(completeResolvedRecordBundle());
+
+  assert.equal(result.execution.baseline.raw_trace.task_success, false);
+  assert.equal(result.execution.candidate.final_state_oracle.kind, "final_state");
+  assert.equal(result.localization, null);
+  assert.ok(Object.isFrozen(result));
+});
+
+test("resolved evidence records reject a rehashed but false changed surface", () => {
+  const bundle = completeResolvedRecordBundle();
+  const falseSurface = {
+    ...JSON.parse(bundle.changed_surface.toString("utf8")),
+    affected_node_ids: [id("idnd1_", "f")],
+  };
+  const falseSurfaceBytes = canonicalBytes(falseSurface);
+  const recordDraft = {
+    ...bundle.sealed_record,
+    sealed_record_id: id("idsr1_", "0"),
+    intervention: {
+      ...bundle.sealed_record.intervention,
+      changed_surface: reference(
+        "application/vnd.impactdiff.changed-surface+json",
+        falseSurfaceBytes,
+      ),
+    },
+  };
+  const tampered = {
+    ...bundle,
+    sealed_record: {
+      ...recordDraft,
+      sealed_record_id: computeSealedRecordId(recordDraft),
+    },
+    changed_surface: falseSurfaceBytes,
+  };
+
+  expectIssue(
+    () => validateResolvedEvidenceRecordBundle(tampered),
+    "resolved_record.changed_surface",
+  );
+});
+
 test("resolved intervention rejects every manifest request binding tamper", () => {
   for (const [field, value, code] of [
     ["source_state_id", id("idss1_", "9"), "resolved.request_source_state_id"],
@@ -920,5 +1244,330 @@ test("resolved intervention binds the exact plan and precondition references", (
         source_state: tamperedSource,
       }),
     "resolved.ref_digest",
+  );
+});
+
+test("paired publication is concurrent, idempotent, and owns caller bytes", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const input = pairedReleaseInput();
+  const [firstPublisher, secondPublisher] = await Promise.all([
+    PairedReleasePublisher.open(root),
+    PairedReleasePublisher.open(root),
+  ]);
+
+  const pending = Array.from({ length: 8 }, (_, index) =>
+    (index % 2 === 0 ? firstPublisher : secondPublisher).publish(input),
+  );
+  const callerBytes = input.visible_artifacts[0]!.bytes;
+  const originalFirstByte = callerBytes[0]!;
+  callerBytes[0] = originalFirstByte ^ 0xff;
+  const publications = await Promise.all(pending);
+  callerBytes[0] = originalFirstByte;
+
+  const publicationIds = new Set(
+    publications.map((publication) => publication.commit.publication_id),
+  );
+  const releasePaths = new Set(
+    publications.map((publication) => publication.paths.releasePath),
+  );
+  assert.equal(publicationIds.size, 1);
+  assert.equal(releasePaths.size, 1);
+  const releasePath = join(root, "releases", input.evidence.evidence_id);
+  assert.deepEqual(await readdir(join(releasePath, "visible")), ["cas", "evidence"]);
+  assert.deepEqual(await readdir(join(releasePath, "sealed")), ["cas", "records"]);
+
+  const reopened = await verifyPairedRelease(releasePath);
+  assert.equal(reopened.paths.releasePath, releasePath);
+  assert.equal(reopened.audits.visible.entries.size, input.visible_artifacts.length);
+  assert.equal(reopened.audits.sealed.entries.size, input.sealed_artifacts.length);
+  assert.equal(
+    reopened.sealedRecord.sealed_record_id,
+    input.sealed_record.sealed_record_id,
+  );
+});
+
+test("paired publication rejects incomplete input without filesystem residue", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const publisher = await PairedReleasePublisher.open(root);
+  const input = pairedReleaseInput();
+
+  await assert.rejects(
+    publisher.publish({
+      ...input,
+      visible_artifacts: input.visible_artifacts.slice(1),
+    }),
+    expectPublicationError("publication.input_missing_artifact"),
+  );
+  assert.deepEqual(await readdir(join(root, "releases")), []);
+});
+
+test("paired publication rejects hostile input wrappers and artifact substitutions", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const publisher = await PairedReleasePublisher.open(root);
+  const input = pairedReleaseInput();
+  const first = input.visible_artifacts[0]!;
+  const alternateMediaType =
+    first.reference.media_type === "application/vnd.impactdiff.layout+json"
+      ? "application/vnd.impactdiff.accessibility+json"
+      : "application/vnd.impactdiff.layout+json";
+  const conflicting = {
+    reference: { ...first.reference, media_type: alternateMediaType },
+    bytes: first.bytes,
+  };
+  const accessorWrapper = { ...input };
+  Object.defineProperty(accessorWrapper, "evidence", {
+    enumerable: true,
+    get: () => input.evidence,
+  });
+  const sparseArtifacts = [...input.visible_artifacts];
+  delete sparseArtifacts[0];
+  const shortBytes = first.bytes.slice(1);
+  const tamperedBytes = Uint8Array.from(first.bytes);
+  const finalByteIndex = tamperedBytes.length - 1;
+  tamperedBytes[finalByteIndex] = tamperedBytes[finalByteIndex]! ^ 0xff;
+  const sharedBytes = new Uint8Array(new SharedArrayBuffer(first.bytes.byteLength));
+  sharedBytes.set(first.bytes);
+  const cases = [
+    ["accessor wrapper", accessorWrapper, "publication.input_wrapper_descriptor"],
+    [
+      "sparse array",
+      { ...input, visible_artifacts: sparseArtifacts },
+      "publication.input_array_fields",
+    ],
+    [
+      "duplicate artifact",
+      {
+        ...input,
+        visible_artifacts: [...input.visible_artifacts, first],
+      },
+      "publication.input_duplicate_artifact",
+    ],
+    [
+      "conflicting duplicate metadata",
+      {
+        ...input,
+        visible_artifacts: [...input.visible_artifacts, conflicting],
+      },
+      "publication.input_metadata_conflict",
+    ],
+    [
+      "unexpected sealed artifact",
+      {
+        ...input,
+        visible_artifacts: [...input.visible_artifacts, input.sealed_artifacts[0]!],
+      },
+      "publication.input_unexpected_artifact",
+    ],
+    [
+      "reference metadata substitution",
+      {
+        ...input,
+        visible_artifacts: [conflicting, ...input.visible_artifacts.slice(1)],
+      },
+      "publication.input_reference_mismatch",
+    ],
+    [
+      "shared backing memory",
+      {
+        ...input,
+        visible_artifacts: [
+          { reference: first.reference, bytes: sharedBytes },
+          ...input.visible_artifacts.slice(1),
+        ],
+      },
+      "publication.input_bytes",
+    ],
+    [
+      "short artifact bytes",
+      {
+        ...input,
+        visible_artifacts: [
+          { reference: first.reference, bytes: shortBytes },
+          ...input.visible_artifacts.slice(1),
+        ],
+      },
+      "publication.input_byte_length",
+    ],
+    [
+      "same-length digest substitution",
+      {
+        ...input,
+        visible_artifacts: [
+          { reference: first.reference, bytes: tamperedBytes },
+          ...input.visible_artifacts.slice(1),
+        ],
+      },
+      "publication.input_digest",
+    ],
+  ] as const;
+
+  for (const [name, invalid, code] of cases) {
+    await t.test(name, async () => {
+      await assert.rejects(
+        publisher.publish(invalid as PairedReleaseInput),
+        expectPublicationError(code),
+      );
+      assert.deepEqual(await readdir(join(root, "releases")), []);
+    });
+  }
+});
+
+test("paired publication remains atomic under a restrictive umask", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const publisher = await PairedReleasePublisher.open(root);
+  const previousUmask = process.umask(0o777);
+  let publication: Awaited<ReturnType<PairedReleasePublisher["publish"]>>;
+  try {
+    publication = await publisher.publish(pairedReleaseInput());
+  } finally {
+    process.umask(previousUmask);
+  }
+
+  const reopened = await verifyPairedRelease(publication.paths.releasePath);
+  assert.equal(reopened.commit.publication_id, publication.commit.publication_id);
+});
+
+test("publisher startup removes only a bounded owned staging tree", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const releasesPath = join(root, "releases");
+  const stagePath = join(releasesPath, `.impactdiff-stage-${"a".repeat(32)}.tmp`);
+  const leafPath = join(stagePath, "visible", "evidence");
+  await mkdir(leafPath, { mode: 0o700, recursive: true });
+  await writeFile(join(leafPath, "partial.json"), "partial", { mode: 0o400 });
+
+  await PairedReleasePublisher.open(root);
+
+  assert.deepEqual(await readdir(releasesPath), []);
+});
+
+test("one visible identity cannot be rebound to another sealed record", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const publisher = await PairedReleasePublisher.open(root);
+  const bundle = completeResolvedRecordBundle();
+  const original = pairedReleaseInput(bundle);
+  await publisher.publish(original);
+
+  const alternateDraft = {
+    ...bundle.sealed_record,
+    sealed_record_id: id("idsr1_", "0"),
+    grouping: {
+      ...bundle.sealed_record.grouping,
+      near_duplicate_group_id: id("idng1_", "9"),
+    },
+  };
+  const alternateRecord = {
+    ...alternateDraft,
+    sealed_record_id: computeSealedRecordId(alternateDraft),
+  };
+  const alternate = pairedReleaseInput({
+    ...bundle,
+    sealed_record: alternateRecord,
+  });
+
+  await assert.rejects(
+    publisher.publish(alternate),
+    expectPublicationError("publication.conflict"),
+  );
+  const reopened = await verifyPairedRelease(
+    join(root, "releases", original.evidence.evidence_id),
+  );
+  assert.equal(
+    reopened.sealedRecord.sealed_record_id,
+    original.sealed_record.sealed_record_id,
+  );
+});
+
+test("committed metadata tampering fails closed on reopen", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const publisher = await PairedReleasePublisher.open(root);
+  const publication = await publisher.publish(pairedReleaseInput());
+  const original = await readFile(publication.paths.evidencePath);
+  await chmod(publication.paths.evidencePath, 0o600);
+  await writeFile(
+    publication.paths.evidencePath,
+    Buffer.concat([original, Buffer.from("\n", "utf8")]),
+  );
+  await chmod(publication.paths.evidencePath, 0o400);
+
+  await assert.rejects(verifyPairedRelease(publication.paths.releasePath));
+});
+
+test("semantic staging failure rolls back completely and permits retry", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const publisher = await PairedReleasePublisher.open(root);
+  const bundle = completeResolvedRecordBundle();
+  const falseSurface = {
+    ...JSON.parse(bundle.changed_surface.toString("utf8")),
+    affected_node_ids: [id("idnd1_", "f")],
+  };
+  const falseSurfaceBytes = canonicalBytes(falseSurface);
+  const invalidDraft = {
+    ...bundle.sealed_record,
+    sealed_record_id: id("idsr1_", "0"),
+    intervention: {
+      ...bundle.sealed_record.intervention,
+      changed_surface: reference(
+        "application/vnd.impactdiff.changed-surface+json",
+        falseSurfaceBytes,
+      ),
+    },
+  };
+  const invalidRecord = {
+    ...invalidDraft,
+    sealed_record_id: computeSealedRecordId(invalidDraft),
+  };
+  const invalidInput = pairedReleaseInput({
+    ...bundle,
+    sealed_record: invalidRecord,
+    changed_surface: falseSurfaceBytes,
+  });
+
+  await assert.rejects(publisher.publish(invalidInput), (error: unknown) => {
+    assert.ok(error instanceof ContractValidationError);
+    assert.ok(
+      error.issues.some(
+        (candidate) => candidate.code === "resolved_record.changed_surface",
+      ),
+    );
+    return true;
+  });
+  assert.deepEqual(await readdir(join(root, "releases")), []);
+
+  const recovered = await publisher.publish(pairedReleaseInput());
+  assert.equal(recovered.evidence.evidence_id, bundle.manifest.evidence_id);
+});
+
+test("final release directory names are cryptographically bound", async (t) => {
+  const root = await mkdtemp(join(tmpdir(), "impactdiff-publication-"));
+  await chmod(root, 0o700);
+  t.after(async () => rm(root, { force: true, recursive: true }));
+  const publisher = await PairedReleasePublisher.open(root);
+  const publication = await publisher.publish(pairedReleaseInput());
+  const movedPath = join(root, "releases", id("idev1_", "f"));
+  await rename(publication.paths.releasePath, movedPath);
+
+  await assert.rejects(
+    verifyPairedRelease(movedPath),
+    expectPublicationError("publication.path_binding"),
+  );
+  await assert.rejects(
+    PairedReleasePublisher.open(root),
+    expectPublicationError("publication.path_binding"),
   );
 });

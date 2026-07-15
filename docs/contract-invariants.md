@@ -88,12 +88,36 @@ bits do not defend a file from another process with the same uid. Supporting tha
 requires an `openat2`/`renameat2`-backed native helper plus inter-process locking; the
 Node path-based implementation does not claim that guarantee.
 
+### PairedReleasePublisher v1 transaction
+
+The paired publisher accepts one complete evidence/sealed-record pair and the exact
+unique artifacts referenced by each side. It copies all caller-owned bytes before its
+first asynchronous operation, uses a fixed project codec registry, and constructs both
+stores beneath one reserved private staging directory. Canonical record files and a
+domain-separated `COMMIT.json` bind both record identities, hashes, and byte lengths.
+
+Before commit, the publisher audits exact visible/sealed membership and reconstructs the
+entire resolved record. This replay checks changed surface, both executable oracle
+results, raw task traces, measured outcomes, and optional localization against the
+captured action, layout, and accessibility state. The complete staging directory becomes
+visible through one same-parent rename to `releases/<evidence_id>`, followed by parent
+fsync, inode rebinding, path-name binding, and a second strict replay. Pre-rename
+failure removes only a bounded reserved staging tree; post-rename uncertainty never
+rolls a visible release back and poisons the process-local publisher queue.
+
+The final directory is named by the label-free evidence ID. `COMMIT.json` and `sealed/`
+remain outside the `visible/` model boundary. This is an atomic storage transaction, not
+proof that its two roles came from fresh browser sessions and not process-level mount
+isolation. The exact topology, recovery rules, capacity, and threat model are documented
+in [paired publication](paired-publication.md).
+
 ## Canonical capture payloads
 
-The registered production codecs cover the source-state provenance, action plan, capture
+The registered production codecs cover source-state provenance, action plan, capture
 specification, accessibility snapshot, layout snapshot, mutation plan, precondition
-report, and PNG screenshot. JSON codecs parse the bounded canonical document, validate
-its closed v1 schema and semantic invariants, then emit canonical JSON again.
+report, changed surface, executable oracle result, raw trace, localization, and PNG
+screenshot. JSON codecs parse the bounded canonical document, validate its closed v1
+schema and semantic invariants, then emit canonical JSON again.
 
 The resolved evidence validator composes those payload guarantees for bytes supplied by
 an artifact resolver. It checks each digest, byte length, media type, and format
@@ -104,6 +128,12 @@ intervention validator similarly composes one visible manifest, sealed record,
 source-state artifact, mutation plan, and precondition report. It resolves and parses
 every canonical payload, then checks their exact references and source, task,
 environment, operator, instance, and expected-relation bindings.
+
+The resolved-record validator adds the sealed execution layer. It verifies that changed
+surface is derived from the exact plan and probe; oracle observations agree with the
+final layout/accessibility state; raw trace steps reproduce the fixed action plan and
+scalar outcome; and regression localization, when present, names the derived failed step
+and changed surface.
 
 These validators deliberately accept resolved bytes rather than paths. They prove the
 composition of the supplied payload bundle, not that an arbitrary external resolver or
@@ -225,9 +255,9 @@ sequential reads are justified only by the paused clock, blocked network, cooper
 closed fixture, and authentication audits before and after each checkpoint.
 
 The returned task run is provisional generator state until an active mutation cleanup
-and `MutationFixtureSession.close()` both succeed. The future publisher must retain it
-only in private staging until those lifecycle audits pass; a cleanup or close failure
-invalidates all checkpoint bytes from that role.
+and `MutationFixtureSession.close()` both succeed. The pending pair assembler must
+retain it only in trusted generator state until those lifecycle audits pass; a cleanup
+or close failure invalidates all checkpoint bytes from that role.
 
 The Chromium layout adapter strictly decodes one exact-origin document, removes pseudo
 subtrees, collapses non-layout ancestors, translates document coordinates by the actual
@@ -243,9 +273,9 @@ environment IDs are all derived from resolved exact artifacts; callers cannot ch
 them independently. The byte-tree audit assumes trusted same-process intrinsics and no
 hostile concurrent filesystem writer, and host mode does not attest loaded process
 memory, Node, kernel, or system-library bytes. CaptureSpec's OCI branch is reserved for
-a future publisher with exact statement bytes and a configured trusted verifier; schema
-validation alone is not attestation verification, and this launcher creates host mode
-only. The navigation and action timeout fields are Playwright defaults rather than
+an external orchestrator with exact statement bytes and a configured trusted verifier;
+schema validation alone is not attestation verification, and this launcher creates host
+mode only. The navigation and action timeout fields are Playwright defaults rather than
 whole-phase deadlines for raw CDP or coordinate input. The public `session.page` is also
 a trusted same-process capability: code that controls it, or hostile page code that
 replaces JavaScript intrinsics and listener state, may evade page-realm checks. The
@@ -271,10 +301,10 @@ sealed provenance and never substitutes for the measured execution label.
 ## What remains unproven
 
 The repository does not yet assemble and mount a complete read-only visible dataset for
-an isolated feature process. Cross-session pair assembly, full oracle/trace codecs,
-changed-surface validation, and the versioned scorer are also still incomplete. The
-scorer must recompute severity, failed-step membership, and localization from resolved
-oracle, trace, action-plan, and policy artifacts.
+an isolated feature process. Cross-session pair assembly, dataset-level publication, the
+isolated feature runner, and the versioned scorer are still incomplete. The scorer must
+recompute severity, failed-step membership, and localization from resolved oracle,
+trace, action-plan, and policy artifacts.
 
 Until the full generation and scoring path is exercised on a released corpus, this
 repository makes no benchmark-quality, leakage-safety, or model-accuracy claim.

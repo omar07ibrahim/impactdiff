@@ -9,8 +9,11 @@ import type {
   MutationFixtureCaptureSpecArtifact,
   MutationFixtureSourceStateArtifact,
   MutationFixtureTaskRun,
+  PairedReleaseArtifactInput,
+  PairedReleaseInput,
   ResolvedEvidenceBundle,
   SourceState,
+  VerifiedPairedRelease,
 } from "../src/index.js";
 
 function acceptsPublicTypes(
@@ -22,6 +25,9 @@ function acceptsPublicTypes(
   _taskRun: MutationFixtureTaskRun,
   _bundle: ResolvedEvidenceBundle,
   _sourceState: SourceState,
+  _publicationArtifact: PairedReleaseArtifactInput,
+  _publicationInput: PairedReleaseInput,
+  _verifiedRelease: VerifiedPairedRelease,
 ): void {}
 
 void acceptsPublicTypes;
@@ -39,12 +45,16 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
     "MutationFixtureCheckpointBytes",
     "MutationFixtureEnvironment",
     "openMutationFixtureSession",
+    "PairedPublicationError",
+    "PairedReleasePublisher",
     "parseActionPlan",
     "parseSourceState",
     "prepareMutationFixtureTask",
     "validateDatasetBundle",
     "validateResolvedEvidenceBundle",
     "validateResolvedInterventionBundle",
+    "validateResolvedEvidenceRecordBundle",
+    "verifyPairedRelease",
   ] as const satisfies readonly (keyof typeof publicApi)[];
 
   for (const name of expectedFunctions) {
@@ -56,6 +66,7 @@ test("the package root exposes the capture, storage, mutation, and resolver API"
   assert.equal(typeof publicApi.actionPlanCodec, "object");
   assert.equal(typeof publicApi.sourceStateCodec, "object");
   assert.equal(typeof publicApi.ARTIFACT_STORE_V1_THREAT_MODEL, "object");
+  assert.equal(typeof publicApi.PAIRED_PUBLICATION_V1_THREAT_MODEL, "object");
   assert.equal(
     publicApi.ARTIFACT_STORE_V1_THREAT_MODEL.writers,
     "one same-process ArtifactStore instance",

@@ -9,26 +9,26 @@ evaluation rather than a storage claim.
 
 The current implementation validates manifests, cross-record relationships, canonical
 bytes, and the composition of supported resolved evidence and intervention bundles. It
-also provides a private registered-codec content-addressed store and a paired
-visible/sealed store audit, plus a verified Chromium session for the closed local
-fixture. The end-to-end dataset publisher, read-only process mounts, and scorer are not
-complete, so the project does not yet claim that a released corpus is leakage-safe model
-input.
+also provides a private registered-codec content-addressed store, a paired
+visible/sealed audit, and a verified Chromium session for the closed local fixture. An
+atomic publisher now materializes and reopens one complete visible/sealed pair. The
+fresh-session pair assembler, multi-pair dataset builder, read-only process mounts, and
+scorer are not complete, so the project does not yet claim that a released corpus is
+leakage-safe model input.
 
 ## Storage roots
 
-The intended publisher layout uses independent content-addressed stores:
+Each committed pair uses independent content-addressed stores:
 
 ```text
-visible/
-  evidence/
-  cas/sha256/
-  splits/
-
-sealed/
-  records/
-  cas/sha256/
-  split-audits/
+releases/<evidence_id>/
+  COMMIT.json
+  visible/
+    evidence/<evidence_id>.json
+    cas/sha256/
+  sealed/
+    records/<sealed_record_id>.json
+    cas/sha256/
 ```
 
 The future feature and model processes receive `visible/` read-only and do not receive a
@@ -37,13 +37,14 @@ a digest, byte length, media type, and format version. A loader derives the CAS 
 from the digest, so a filename cannot smuggle a label such as `clipped-submit` into the
 feature process.
 
-`ArtifactStore` already enforces the storage-side subset of this boundary. Visible and
-sealed roots must be distinct and non-nested; pair audit rejects shared content digests
-or inodes and requires exact membership. Each supported media type has one codec that
-canonicalizes and validates on write, read, and audit. This proves neither mount
-isolation nor resistance to another same-uid process: v1 supports one process, one store
-instance per private root, and one logical writer. The complete threat boundary is
-documented in [contract invariants](contract-invariants.md).
+`ArtifactStore` and `PairedReleasePublisher` enforce the storage-side subset of this
+boundary. Visible and sealed roots must be distinct and non-nested; pair audit rejects
+shared content digests or inodes and requires exact membership. The publisher commits a
+complete pair with one directory rename only after fixed-codec audit and full resolved
+replay, then repeats verification from the final path. This proves neither mount
+isolation nor resistance to another same-uid process: v1 supports one process and one
+logical writer per private root. The complete protocol is documented in
+[paired publication](paired-publication.md).
 
 ## Generation-side browser boundary
 
@@ -65,21 +66,20 @@ generator-side or label-side data. Detailed integrity events exist only in bound
 in-memory enforcement state; a successful close exposes a small generator-side summary,
 not a durable trace for the model.
 
-At this trusted-generator layer, `MutationFixtureTaskRun` still returns copy-on-read
-canonical modalities and the measured task outcome together. It is provisional until
-mutation cleanup and the session-close audit succeed, and is not itself a visible
-artifact. The pending publisher must keep it in private staging, discard it after any
-lifecycle failure, write modality bytes to the visible store, and derive and write
-outcome, trace, intervention, and label artifacts only to the sealed store.
+At this trusted-generator layer, `MutationFixtureTaskRun` returns copy-on-read canonical
+modalities and the measured task outcome together. It is provisional until mutation
+cleanup and the session-close audit succeed, and is not itself a visible artifact. The
+pending pair assembler must discard it after any lifecycle failure, derive outcome,
+trace, intervention, and label payloads only after both roles close, and then submit the
+complete visible/sealed input to the publisher.
 
-This is not yet the dataset-publication boundary. The launcher verifies project-pinned
+This is not yet the complete dataset boundary. The launcher verifies project-pinned
 installed bytes and the live process command line under a trusted same-process,
 non-hostile filesystem boundary; host mode does not attest loaded process memory, the
 Node binary, kernel or system libraries. The session also exposes a same-process
-Playwright `Page` capability to trusted generator code. A complete publisher must still
-store captured modalities under their exact visible references, move traces and outcomes
-to the sealed root, audit both stores, and mount only the visible root into an isolated
-feature process.
+Playwright `Page` capability to trusted generator code. The publisher stores complete
+inputs under exact references and audits both stores, but a generator must still prove
+fresh role lifecycles and an isolated feature runner must mount only `visible/`.
 
 ## Visible evidence manifest
 
@@ -89,8 +89,8 @@ baseline/candidate checkpoints. Each checkpoint has exactly the same three modal
 canonical PNG screenshot, normalized accessibility tree, and bounded normalized layout
 graph.
 
-The future publisher must fix the action plan before either execution. The plan may
-contain action intents and opaque target IDs, but never actual status, retry, error,
+The pending pair assembler must fix the action plan before either execution. The plan
+may contain action intents and opaque target IDs, but never actual status, retry, error,
 duration, recovery, oracle, or failed-step fields. Baseline and candidate captures must
 have the same checkpoint IDs, ordinals, counts, and modalities. An incomplete pair is
 invalid and is not made visible as a shorter candidate sequence.
@@ -113,8 +113,8 @@ mutation operator. Source-state identity and the task reference are separate vis
 fields, while operator identity/version stay in the sealed record. The sealed record
 references a canonical source-state artifact with the fixture revision, raw manifest
 digest, resource set, and initial-state policy. The runtime resolves that artifact and
-matches it to the exact fixture package; the future publisher must materialize it only
-in the sealed store.
+matches it to the exact fixture package; the publisher permits it only in the sealed
+store.
 
 Host execution records only `linux/amd64` and makes no container-image claim; it is a
 development capture mode, not a reproducible base-image attestation. OCI execution

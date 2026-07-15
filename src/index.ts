@@ -41,6 +41,11 @@ export type {
   ResolvedEvidenceBundle,
   ResolvedInterventionBundle,
 } from "./contracts/resolved.js";
+export { validateResolvedEvidenceRecordBundle } from "./contracts/resolved-record.js";
+export type {
+  ResolvedEvidenceRecordBundle,
+  ResolvedOutcomePayloads,
+} from "./contracts/resolved-record.js";
 export type { ArtifactRef } from "./contracts/artifacts.js";
 export {
   canonicalJson,
@@ -52,6 +57,7 @@ export {
   computeEvidenceId,
   computeFeatureProfileId,
   computeMutationFamilyGroupId,
+  computePairedPublicationId,
   computeSealedRecordId,
   computeSourceStateGroupId,
   computeSourceStateId,
@@ -82,13 +88,19 @@ export {
   accessibilityCodec,
   actionPlanCodec,
   captureSpecCodec,
+  changedSurfaceCodec,
   layoutCodec,
+  localizationCodec,
   mutationPlanCodec,
+  oracleResultCodec,
   pngCodec,
   preconditionReportCodec,
+  rawTraceCodec,
   sourceStateCodec,
 } from "./artifacts/codecs.js";
 export { CanonicalPng, canonicalizePng } from "./artifacts/png.js";
 export * from "./capture/index.js";
 export * from "./mutations/index.js";
 export * from "./source/index.js";
+export * from "./publication/index.js";
+export * from "./sealed/index.js";

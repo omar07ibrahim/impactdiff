@@ -709,3 +709,11 @@ export function computeSplitAuditId<
   void excluded;
   return `idsa1_${domainDigest("impactdiff:split-audit:v1", body)}`;
 }
+
+export function computePairedPublicationId<
+  const Publication extends { readonly publication_id: unknown },
+>(publication: Publication): string {
+  const { publication_id: excluded, ...body } = publication;
+  void excluded;
+  return `idpb1_${domainDigest("impactdiff:paired-publication:v1", body)}`;
+}

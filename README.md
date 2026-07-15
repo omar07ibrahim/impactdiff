@@ -32,9 +32,11 @@ Implemented today:
 - resolved evidence/intervention validators that bind every supplied payload to its
   manifest reference, checkpoint schedule, viewport, graph links, and sealed mutation
   provenance;
+- closed changed-surface, executable-oracle, raw-trace, and localization payloads, plus
+  resolved-record replay that derives outcomes from captured task state instead of
+  trusting stored labels;
 - a typed, reversible mutation compiler for a contrast-safe palette swap and a pointer
   interceptor expected to break the task, with source probes and derived preconditions;
-  and
 - a runtime-owned Chromium mutation environment over a deterministic checkout fixture.
   It derives environment identity from canonical CaptureSpec bytes that bind installed
   Playwright and browser trees, the project-pinned live executable and launch profile,
@@ -43,16 +45,24 @@ Implemented today:
   integrity, and exact mutation cleanup. Its authenticated task executor derives and
   locks deterministic scroll/target geometry, performs a true coordinate click, then
   emits two canonical PNG, accessibility-tree, and layout-graph checkpoints without
-  exposing a partial run.
+  exposing a partial run; and
+- an append-only paired-release publisher. It snapshots caller bytes before its first
+  asynchronous operation, builds independent visible and sealed CAS roots in one private
+  staging directory, verifies exact topology and full semantic replay, writes a commit
+  binding both canonical records, and exposes the pair with one same-parent directory
+  rename. Startup recovers only reserved owned stages; committed releases are idempotent
+  and immutable.
 
 The capture contract names the exact installed file trees for `@playwright/test`,
 `playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
 complete installation tree, source revision, and normalized launch profile; every
 render-font file; and an honest Linux host or an OCI shape reserved for external
 attestation verification. The current launcher produces a host capability only. The
-verified single-role capture path and mutation runtime are implemented; assembling
-baseline and candidate roles into one audited publication is still pending. Learned
-baselines come only after that path is auditable end to end.
+verified single-role capture path, mutation runtime, and generic paired-release
+transaction are implemented. The generator that executes baseline and candidate in fresh
+sessions, closes both lifecycle capabilities, derives their sealed results, and submits
+the complete pair is still pending. Learned baselines come only after that end-to-end
+path is auditable.
 
 ## Architecture
 
@@ -69,11 +79,11 @@ flowchart LR
   probe --> compiler["Reversible mutation compiler"]
   compiler --> runtime["Audited mutation runtime"]
 
-  modalities["Canonical PNG · AX · layout"] -.->|publisher writes| cas["Codec-bound CAS"]
-  modalities -.->|publisher binds| resolver["Manifest-bound bundle validator"]
+  modalities["Canonical PNG · AX · layout"] -.->|fresh pair assembler pending| publisher["Atomic paired publisher"]
+  publisher -->|exact visible + sealed membership| cas["Codec-bound CAS"]
+  publisher -->|replay before + after rename| resolver["Manifest-bound bundle validator"]
 
   runtime -->|authenticated task capture| modalities
-  cas -.->|publication adapter| resolver
   resolver -.->|dataset publication| dataset["Leakage-aware paired dataset"]
   dataset -.->|training + ablations| models["Calibrated multimodal scorer"]
 ```
@@ -119,7 +129,9 @@ See [the research charter](docs/charter.md) for hypotheses, metrics, falsificati
 criteria, and non-goals. The [data-boundary contract](docs/data-boundary.md) separates
 model-visible evidence from outcomes and mutation metadata. The
 [contract invariants](docs/contract-invariants.md) document canonical payloads, resolved
-artifact checks, and the v1 artifact-store threat boundary.
+artifact checks, and the v1 artifact-store threat boundary. The
+[paired-publication protocol](docs/paired-publication.md) documents its commit point,
+recovery rules, and unsupported filesystem adversaries.
 
 ## Repository map
 
@@ -129,7 +141,10 @@ artifact checks, and the v1 artifact-store threat boundary.
 - `src/capture/` — capture payload schemas, validators, normalizers, and stable fixture
   target identities;
 - `src/mutations/` — mutation identities, sealed plans, compiler, and verified Chromium
-  runtime; and
+  runtime;
+- `src/sealed/` — oracle, trace, changed-surface, and localization contracts;
+- `src/publication/` — paired commits, input snapshots, atomic publication, recovery,
+  and strict reopen verification; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
   capture tests.
 
