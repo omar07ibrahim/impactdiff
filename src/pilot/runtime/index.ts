@@ -7,6 +7,12 @@ export { PilotFixtureAuthoringCheckpointBytes } from "./checkpoint.js";
 export { PilotFixtureAuthoringRuntimeError } from "./errors.js";
 export { capturePilotFixtureAuthoringWorkflow } from "./capture.js";
 export type { PilotFixtureWorkflowCaptureAuthoringResult } from "./capture.js";
+export { measurePilotFixtureAuthoringWorkflowPredicates } from "./predicate-authoring.js";
+export type { PilotFixtureWorkflowPredicateAuthoringResult } from "./predicate-authoring.js";
+export type {
+  PilotMutationPredicateObservation,
+  PilotMutationPredicateObservationTuple,
+} from "./predicates.js";
 export { replayPilotFixtureAuthoringWorkflow } from "./replay.js";
 export type {
   PilotFixtureAuthoringCheckpointTuple,

@@ -42,6 +42,11 @@ import {
   type PilotFixtureAuthoringCheckpointBytes,
 } from "./checkpoint.js";
 import { PilotFixtureAuthoringRuntimeError } from "./errors.js";
+import {
+  measurePilotMutationPredicates,
+  type PilotMutationPredicateObservationTuple,
+  type PilotPredicatePageGuardApi,
+} from "./predicates.js";
 
 const fixtureOrigin = "https://pilot-fixture.impactdiff.invalid";
 const maximumAuditEvents = 256;
@@ -97,7 +102,7 @@ type PilotNativeControlState =
   | PilotNativeOptionState
   | { readonly kind: "other" };
 
-interface PilotPageGuardApi {
+interface PilotPageGuardApi extends PilotPredicatePageGuardApi {
   readonly controlState: (element: Element) => PilotNativeControlState;
   readonly controlMatches: (
     element: Element,
@@ -108,6 +113,8 @@ interface PilotPageGuardApi {
   readonly isConnected: (node: Node) => boolean;
   readonly getAttribute: (element: Element, name: string) => string | null;
   readonly textContent: (node: Node) => string | null;
+  readonly nativeButtonMatches: (element: Element, requireEnabled: boolean) => boolean;
+  readonly sourcePointerGeometry: (primary: Element) => SourcePointerGeometry;
   readonly createMutationAudit: (
     rootElement: Element,
     successElement: Element,
@@ -160,6 +167,12 @@ export type PilotFixtureAuthoringCheckpointTuple = readonly [
 export interface PilotFixtureWorkflowAuthoringCaptureSessionResult {
   readonly audit: PilotFixtureWorkflowAuthoringAudit;
   readonly checkpoints: PilotFixtureAuthoringCheckpointTuple;
+}
+
+/** @internal */
+export interface PilotFixtureWorkflowAuthoringPredicateSessionResult {
+  readonly audit: PilotFixtureWorkflowAuthoringAudit;
+  readonly source_predicates: PilotMutationPredicateObservationTuple;
 }
 
 interface BoundWorkflow {
@@ -769,6 +782,8 @@ async function installBrowserAudit(
   await context.route("**/*", (route) => serveRoute(route, bound, audit));
 }
 
+// This callback is serialized into Chromium; Node cannot observe its execution.
+/* node:coverage disable */
 function pilotPageGuardInit({
   apiName,
   terminalSentinel,
@@ -780,18 +795,22 @@ function pilotPageGuardInit({
   const NativeError = Error;
   const NativeMutationObserver = MutationObserver;
   const guardedDocument = document;
+  const guardedWindow = globalThis;
   const nativeConsole = console;
   const nativeConsoleError = console.error;
   const defineProperty = Object.defineProperty;
   const freeze = Object.freeze;
   const getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
   const getPrototypeOf = Object.getPrototypeOf;
+  const mathMin = Math.min;
+  const numberIsFinite = Number.isFinite;
   const reflectApply = Reflect.apply;
 
   const inputPrototype = HTMLInputElement.prototype;
   const textareaPrototype = HTMLTextAreaElement.prototype;
   const selectPrototype = HTMLSelectElement.prototype;
   const optionPrototype = HTMLOptionElement.prototype;
+  const buttonPrototype = HTMLButtonElement.prototype;
 
   const descriptorFor = (prototype: object, property: string): PropertyDescriptor => {
     let owner: object | null = prototype;
@@ -870,13 +889,40 @@ function pilotPageGuardInit({
   const nodeListItem = methodFor(NodeList.prototype, "item");
   const arrayPush = methodFor(Array.prototype, "push");
   const nodeParentGet = getterFor(Node.prototype, "parentNode");
+  const elementNodeType = Node.ELEMENT_NODE;
   const nodeTypeGet = getterFor(Node.prototype, "nodeType");
   const nodeIsConnectedGet = getterFor(Node.prototype, "isConnected");
   const nodeTextContentGet = getterFor(Node.prototype, "textContent");
   const elementLocalNameGet = getterFor(Element.prototype, "localName");
   const documentActiveElementGet = getterFor(Document.prototype, "activeElement");
+  const windowInnerWidthGet = getterFor(guardedWindow, "innerWidth");
+  const windowInnerHeightGet = getterFor(guardedWindow, "innerHeight");
+  const windowScrollXGet = getterFor(guardedWindow, "scrollX");
+  const windowScrollYGet = getterFor(guardedWindow, "scrollY");
   const documentQuerySelectorAll = methodFor(Document.prototype, "querySelectorAll");
+  const documentElementFromPoint = methodFor(Document.prototype, "elementFromPoint");
   const elementGetAttribute = methodFor(Element.prototype, "getAttribute");
+  const elementGetBoundingClientRect = methodFor(
+    Element.prototype,
+    "getBoundingClientRect",
+  );
+  const elementMatches = methodFor(Element.prototype, "matches");
+  const elementClientLeftGet = getterFor(Element.prototype, "clientLeft");
+  const elementClientTopGet = getterFor(Element.prototype, "clientTop");
+  const elementClientWidthGet = getterFor(Element.prototype, "clientWidth");
+  const elementClientHeightGet = getterFor(Element.prototype, "clientHeight");
+  const elementScrollWidthGet = getterFor(Element.prototype, "scrollWidth");
+  const elementScrollHeightGet = getterFor(Element.prototype, "scrollHeight");
+  const buttonDisabledGet = getterFor(buttonPrototype, "disabled");
+  const domRectXGet = getterFor(DOMRectReadOnly.prototype, "x");
+  const domRectYGet = getterFor(DOMRectReadOnly.prototype, "y");
+  const domRectWidthGet = getterFor(DOMRectReadOnly.prototype, "width");
+  const domRectHeightGet = getterFor(DOMRectReadOnly.prototype, "height");
+  const windowGetComputedStyle = methodFor(guardedWindow, "getComputedStyle");
+  const cssStyleGetPropertyValue = methodFor(
+    CSSStyleDeclaration.prototype,
+    "getPropertyValue",
+  );
   const mutationObserverObserve = methodFor(MutationObserver.prototype, "observe");
   const mutationObserverTakeRecords = methodFor(
     MutationObserver.prototype,
@@ -1053,7 +1099,7 @@ function pilotPageGuardInit({
     inputPrototype,
     selectPrototype,
     textareaPrototype,
-    HTMLButtonElement.prototype,
+    buttonPrototype,
   ]) {
     for (const property of ["checkValidity", "reportValidity", "setCustomValidity"]) {
       guardMethod(prototype, property);
@@ -1314,6 +1360,302 @@ function pilotPageGuardInit({
       state.groupPeerCount === 0
     );
   };
+  const nativeButtonMatches = (element: Element, requireEnabled: boolean): boolean =>
+    getPrototypeOf(element) === buttonPrototype &&
+    getOwnPropertyDescriptor(element, "disabled") === undefined &&
+    (!requireEnabled ||
+      (!read<boolean>(buttonDisabledGet, element) &&
+        !call<boolean>(elementMatches, element, [":disabled"])));
+  const sourcePointerGeometry = (primary: Element): SourcePointerGeometry => {
+    const rect = call<DOMRect>(elementGetBoundingClientRect, primary, []);
+    const x = read<number>(domRectXGet, rect);
+    const y = read<number>(domRectYGet, rect);
+    const width = read<number>(domRectWidthGet, rect);
+    const height = read<number>(domRectHeightGet, rect);
+    const centerX = x + width / 2;
+    const centerY = y + height / 2;
+    const viewportWidth = read<number>(windowInnerWidthGet, guardedWindow);
+    const viewportHeight = read<number>(windowInnerHeightGet, guardedWindow);
+    const scrollX = read<number>(windowScrollXGet, guardedWindow);
+    const scrollY = read<number>(windowScrollYGet, guardedWindow);
+    const style = call<CSSStyleDeclaration>(windowGetComputedStyle, guardedWindow, [
+      primary,
+    ]);
+    const property = (name: string): string =>
+      call<string>(cssStyleGetPropertyValue, style, [name]);
+    const hit = call<Element | null>(documentElementFromPoint, guardedDocument, [
+      centerX,
+      centerY,
+    ]);
+    const numericEvidence = [
+      x,
+      y,
+      width,
+      height,
+      centerX,
+      centerY,
+      viewportWidth,
+      viewportHeight,
+      scrollX,
+      scrollY,
+    ];
+    for (let index = 0; index < numericEvidence.length; index += 1) {
+      if (!numberIsFinite(numericEvidence[index])) {
+        throw new NativeError("primary source geometry is not finite");
+      }
+    }
+    if (
+      !read<boolean>(nodeIsConnectedGet, primary) ||
+      !nativeButtonMatches(primary, true) ||
+      width <= 0 ||
+      height <= 0 ||
+      x < 0 ||
+      y < 0 ||
+      x + width > viewportWidth ||
+      y + height > viewportHeight ||
+      scrollX !== 0 ||
+      scrollY !== 0 ||
+      property("display") === "none" ||
+      property("visibility") !== "visible" ||
+      property("pointer-events") === "none" ||
+      property("opacity") !== "1" ||
+      property("clip-path") !== "none" ||
+      property("filter") !== "none" ||
+      property("mask-image") !== "none" ||
+      property("content-visibility") === "hidden" ||
+      hit !== primary
+    ) {
+      throw new NativeError(
+        "primary source border box is not a fully visible exact native hit target",
+      );
+    }
+    return freeze({ x, y, width, height, centerX, centerY, scrollX, scrollY });
+  };
+  const predicateSnapshot = (
+    primary: Element,
+    clipHost: Element,
+    contentPressure: Element,
+    sourcePoint: { readonly x: number; readonly y: number },
+  ) => {
+    const rectFor = (element: Element) => {
+      const rect = call<DOMRect>(elementGetBoundingClientRect, element, []);
+      return freeze({
+        x: read<number>(domRectXGet, rect),
+        y: read<number>(domRectYGet, rect),
+        width: read<number>(domRectWidthGet, rect),
+        height: read<number>(domRectHeightGet, rect),
+      });
+    };
+    const property = (style: CSSStyleDeclaration, name: string): string =>
+      call<string>(cssStyleGetPropertyValue, style, [name]);
+    const primaryRect = rectFor(primary);
+    const clipRect = rectFor(clipHost);
+    const viewportWidth = read<number>(windowInnerWidthGet, guardedWindow);
+    const viewportHeight = read<number>(windowInnerHeightGet, guardedWindow);
+    const scrollX = read<number>(windowScrollXGet, guardedWindow);
+    const scrollY = read<number>(windowScrollYGet, guardedWindow);
+    const clipClientLeft = read<number>(elementClientLeftGet, clipHost);
+    const clipClientTop = read<number>(elementClientTopGet, clipHost);
+    const clipClientWidth = read<number>(elementClientWidthGet, clipHost);
+    const clipClientHeight = read<number>(elementClientHeightGet, clipHost);
+    const contentClientWidth = read<number>(elementClientWidthGet, contentPressure);
+    const contentClientHeight = read<number>(elementClientHeightGet, contentPressure);
+    const contentScrollWidth = read<number>(elementScrollWidthGet, contentPressure);
+    const contentScrollHeight = read<number>(elementScrollHeightGet, contentPressure);
+    const numericEvidence = [
+      primaryRect.x,
+      primaryRect.y,
+      primaryRect.width,
+      primaryRect.height,
+      clipRect.x,
+      clipRect.y,
+      clipRect.width,
+      clipRect.height,
+      sourcePoint.x,
+      sourcePoint.y,
+      viewportWidth,
+      viewportHeight,
+      scrollX,
+      scrollY,
+      clipClientLeft,
+      clipClientTop,
+      clipClientWidth,
+      clipClientHeight,
+      contentClientWidth,
+      contentClientHeight,
+      contentScrollWidth,
+      contentScrollHeight,
+    ];
+    for (let index = 0; index < numericEvidence.length; index += 1) {
+      if (!numberIsFinite(numericEvidence[index])) {
+        throw new NativeError("Pilot predicate geometry is not finite");
+      }
+    }
+    if (
+      !read<boolean>(nodeIsConnectedGet, primary) ||
+      !read<boolean>(nodeIsConnectedGet, clipHost) ||
+      !read<boolean>(nodeIsConnectedGet, contentPressure) ||
+      primaryRect.width <= 0 ||
+      primaryRect.height <= 0 ||
+      clipClientWidth <= 0 ||
+      clipClientHeight <= 0 ||
+      contentClientWidth <= 0 ||
+      contentClientHeight <= 0 ||
+      viewportWidth <= 0 ||
+      viewportHeight <= 0 ||
+      scrollX !== 0 ||
+      scrollY !== 0
+    ) {
+      throw new NativeError(
+        "Pilot predicate nodes, geometry, viewport, or scroll state is invalid",
+      );
+    }
+    const hit = call<Element | null>(documentElementFromPoint, guardedDocument, [
+      sourcePoint.x,
+      sourcePoint.y,
+    ]);
+    const hitPrimary = hit === primary;
+    const sourcePointWithinPrimary =
+      sourcePoint.x >= primaryRect.x &&
+      sourcePoint.y >= primaryRect.y &&
+      sourcePoint.x < primaryRect.x + primaryRect.width &&
+      sourcePoint.y < primaryRect.y + primaryRect.height;
+    const primaryStyle = call<CSSStyleDeclaration>(
+      windowGetComputedStyle,
+      guardedWindow,
+      [primary],
+    );
+    const insetX = mathMin(1, primaryRect.width / 4);
+    const insetY = mathMin(1, primaryRect.height / 4);
+    const cornerPoints = freeze([
+      freeze({ x: primaryRect.x + insetX, y: primaryRect.y + insetY }),
+      freeze({
+        x: primaryRect.x + primaryRect.width - insetX,
+        y: primaryRect.y + insetY,
+      }),
+      freeze({
+        x: primaryRect.x + insetX,
+        y: primaryRect.y + primaryRect.height - insetY,
+      }),
+      freeze({
+        x: primaryRect.x + primaryRect.width - insetX,
+        y: primaryRect.y + primaryRect.height - insetY,
+      }),
+    ]);
+    let cornersHitPrimary = true;
+    for (let index = 0; index < cornerPoints.length; index += 1) {
+      const point = cornerPoints[index];
+      if (
+        point === undefined ||
+        call<Element | null>(documentElementFromPoint, guardedDocument, [
+          point.x,
+          point.y,
+        ]) !== primary
+      ) {
+        cornersHitPrimary = false;
+      }
+    }
+    let ancestorsAdmitPrimary = true;
+    let clipHostSeen = false;
+    let ancestor = read<Node | null>(nodeParentGet, primary);
+    let ancestorDepth = 0;
+    while (ancestor !== null && ancestor !== guardedDocument) {
+      ancestorDepth += 1;
+      if (
+        ancestorDepth > 64 ||
+        read<number>(nodeTypeGet, ancestor) !== elementNodeType
+      ) {
+        throw new NativeError("primary ancestor chain is invalid or over budget");
+      }
+      const element = ancestor as Element;
+      if (element === clipHost) clipHostSeen = true;
+      const ancestorRect = rectFor(element);
+      const ancestorStyle = call<CSSStyleDeclaration>(
+        windowGetComputedStyle,
+        guardedWindow,
+        [element],
+      );
+      const clientLeft = read<number>(elementClientLeftGet, element);
+      const clientTop = read<number>(elementClientTopGet, element);
+      const clientWidth = read<number>(elementClientWidthGet, element);
+      const clientHeight = read<number>(elementClientHeightGet, element);
+      const ancestorNumericEvidence = [
+        ancestorRect.x,
+        ancestorRect.y,
+        ancestorRect.width,
+        ancestorRect.height,
+        clientLeft,
+        clientTop,
+        clientWidth,
+        clientHeight,
+      ];
+      for (let index = 0; index < ancestorNumericEvidence.length; index += 1) {
+        if (!numberIsFinite(ancestorNumericEvidence[index])) {
+          throw new NativeError("primary ancestor geometry is not finite");
+        }
+      }
+      const overflowX = property(ancestorStyle, "overflow-x");
+      const overflowY = property(ancestorStyle, "overflow-y");
+      const clientX = ancestorRect.x + clientLeft;
+      const clientY = ancestorRect.y + clientTop;
+      if (
+        property(ancestorStyle, "display") === "none" ||
+        property(ancestorStyle, "visibility") !== "visible" ||
+        property(ancestorStyle, "opacity") !== "1" ||
+        property(ancestorStyle, "clip-path") !== "none" ||
+        property(ancestorStyle, "filter") !== "none" ||
+        property(ancestorStyle, "mask-image") !== "none" ||
+        property(ancestorStyle, "content-visibility") === "hidden" ||
+        (overflowX !== "visible" &&
+          (clientWidth <= 0 ||
+            primaryRect.x < clientX ||
+            primaryRect.x + primaryRect.width > clientX + clientWidth)) ||
+        (overflowY !== "visible" &&
+          (clientHeight <= 0 ||
+            primaryRect.y < clientY ||
+            primaryRect.y + primaryRect.height > clientY + clientHeight))
+      ) {
+        ancestorsAdmitPrimary = false;
+      }
+      ancestor = read<Node | null>(nodeParentGet, element);
+    }
+    if (ancestor !== guardedDocument || !clipHostSeen) {
+      throw new NativeError(
+        "primary must reach the guarded document through its retained clip host",
+      );
+    }
+    const primaryFullyVisible =
+      primaryRect.x >= 0 &&
+      primaryRect.y >= 0 &&
+      primaryRect.x + primaryRect.width <= viewportWidth &&
+      primaryRect.y + primaryRect.height <= viewportHeight &&
+      property(primaryStyle, "display") !== "none" &&
+      property(primaryStyle, "visibility") === "visible" &&
+      property(primaryStyle, "pointer-events") !== "none" &&
+      property(primaryStyle, "opacity") === "1" &&
+      property(primaryStyle, "clip-path") === "none" &&
+      property(primaryStyle, "filter") === "none" &&
+      property(primaryStyle, "mask-image") === "none" &&
+      property(primaryStyle, "content-visibility") !== "hidden" &&
+      cornersHitPrimary &&
+      ancestorsAdmitPrimary;
+    const primaryEnabled = nativeButtonMatches(primary, true);
+    return freeze({
+      hitPrimary,
+      primaryFullyVisible,
+      sourcePointWithinPrimary,
+      primaryEnabled,
+      focusReachesPrimary:
+        read<Element | null>(documentActiveElementGet, guardedDocument) === primary,
+      contentContained:
+        contentScrollWidth <= contentClientWidth &&
+        contentScrollHeight <= contentClientHeight,
+      foregroundColor: property(primaryStyle, "color"),
+      backgroundColor: property(primaryStyle, "background-color"),
+      backgroundImage: property(primaryStyle, "background-image"),
+      opacity: property(primaryStyle, "opacity"),
+    });
+  };
   const createMutationAudit = (
     rootElement: Element,
     successElement: Element,
@@ -1456,6 +1798,9 @@ function pilotPageGuardInit({
   const api: PilotPageGuardApi = freeze({
     controlState,
     controlMatches,
+    nativeButtonMatches,
+    predicateSnapshot,
+    sourcePointerGeometry,
     activeElement: () => read<Element | null>(documentActiveElementGet, document),
     isConnected: (node: Node) => read<boolean>(nodeIsConnectedGet, node),
     getAttribute: (element: Element, name: string) =>
@@ -1513,6 +1858,7 @@ function pilotPageGuardInit({
     });
   }
 }
+/* node:coverage enable */
 
 async function installPageGuards(page: Page): Promise<void> {
   try {
@@ -2423,6 +2769,9 @@ async function retainAbi(
         typeof api.isConnected !== "function" ||
         typeof api.getAttribute !== "function" ||
         typeof api.textContent !== "function" ||
+        typeof api.nativeButtonMatches !== "function" ||
+        typeof api.predicateSnapshot !== "function" ||
+        typeof api.sourcePointerGeometry !== "function" ||
         typeof api.createMutationAudit !== "function" ||
         typeof api.sealTerminalBoundary !== "function"
       ) {
@@ -2571,9 +2920,8 @@ async function assertInitialWorkflowState(
       setupConnected: pageGuard.isConnected(setupElement),
       focusConnected: pageGuard.isConnected(focusElement),
       rootInitial: pageGuard.getAttribute(rootElement, rootAttribute),
-      primaryIsButton:
-        primaryElement instanceof HTMLButtonElement && !primaryElement.disabled,
-      peerIsButton: peerElement instanceof HTMLButtonElement,
+      primaryIsButton: pageGuard.nativeButtonMatches(primaryElement, true),
+      peerIsButton: pageGuard.nativeButtonMatches(peerElement, false),
       successFocusable:
         successElement instanceof HTMLElement && successElement.tabIndex === -1,
     }),
@@ -2775,44 +3123,22 @@ interface SourcePointerGeometry {
 }
 
 async function sourcePointerGeometry(
-  page: Page,
   primary: ElementHandle<Element>,
+  pageGuard: JSHandle<PilotPageGuardApi>,
 ): Promise<SourcePointerGeometry> {
-  const value = await page.evaluate((target) => {
-    const rect = target.getBoundingClientRect();
-    const style = getComputedStyle(target);
-    const centerX = rect.x + rect.width / 2;
-    const centerY = rect.y + rect.height / 2;
-    const hit = document.elementFromPoint(centerX, centerY);
-    if (
-      !target.isConnected ||
-      !(target instanceof HTMLButtonElement) ||
-      target.disabled ||
-      rect.width <= 0 ||
-      rect.height <= 0 ||
-      centerX < 0 ||
-      centerY < 0 ||
-      centerX >= innerWidth ||
-      centerY >= innerHeight ||
-      style.display === "none" ||
-      style.visibility === "hidden" ||
-      style.visibility === "collapse" ||
-      hit === null ||
-      (hit !== target && !target.contains(hit))
-    ) {
-      throw new Error("primary source center is not a visible exact hit target");
-    }
-    return {
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
-      centerX,
-      centerY,
-      scrollX: window.scrollX,
-      scrollY: window.scrollY,
-    };
-  }, primary);
+  let value: SourcePointerGeometry;
+  try {
+    value = await primary.evaluate(
+      (target, guard: PilotPageGuardApi) => guard.sourcePointerGeometry(target),
+      pageGuard,
+    );
+  } catch (error) {
+    fail(
+      "pilot_runtime.pointer_geometry",
+      "primary source geometry could not be collected through native guards",
+      { cause: error },
+    );
+  }
   if (
     !Object.values(value).every(Number.isFinite) ||
     value.width <= 0 ||
@@ -2861,8 +3187,8 @@ async function captureWorkflowCheckpoint(
   captureSpec: CaptureSpec,
   ordinal: 0 | 1 | 2,
   checkpointBuffer: PilotFixtureAuthoringCheckpointBytes[] | undefined,
-): Promise<void> {
-  if (checkpointBuffer === undefined) return;
+): Promise<PilotFixtureAuthoringCheckpointBytes | undefined> {
+  if (checkpointBuffer === undefined) return undefined;
   const checkpoint = await capturePilotFixtureAuthoringCheckpoint({
     page,
     capture_spec: captureSpec,
@@ -2879,6 +3205,12 @@ async function captureWorkflowCheckpoint(
     );
   }
   checkpointBuffer.push(checkpoint);
+  return checkpoint;
+}
+
+interface ExecutedWorkflow {
+  readonly retained: RetainedAbi;
+  readonly sourcePredicates: PilotMutationPredicateObservationTuple | undefined;
 }
 
 async function executeWorkflow(
@@ -2888,14 +3220,15 @@ async function executeWorkflow(
   audit: BrowserAuditState,
   captureSpec: CaptureSpec,
   checkpointBuffer: PilotFixtureAuthoringCheckpointBytes[] | undefined,
-): Promise<RetainedAbi> {
+  measurePredicates: boolean,
+): Promise<ExecutedWorkflow> {
   const integrityBounds = documentIntegrityBounds(captureSpec, bound.manifest);
   const retained = await retainAbi(page, bound.workflow, integrityBounds);
   await assertRetainedDocument(context, page, retained, bound, audit, captureSpec);
   await assertInitialWorkflowState(page, retained, bound.workflow);
   const frozenSourceGeometry = await sourcePointerGeometry(
-    page,
     abiHandle(retained, "primary"),
+    retained.pageGuard,
   );
   await assertClosedChromiumFonts(page, {
     expectedPlatformFamilyName: "Noto Sans",
@@ -3067,7 +3400,7 @@ async function executeWorkflow(
   }
   await assertRetainedDocument(context, page, retained, bound, audit, captureSpec);
   assertBrowserAuditClean(context, page, bound, audit);
-  const prePrimaryGeometry = await sourcePointerGeometry(page, primary);
+  const prePrimaryGeometry = await sourcePointerGeometry(primary, retained.pageGuard);
   if (!sameGeometry(frozenSourceGeometry, prePrimaryGeometry)) {
     fail(
       "pilot_runtime.pointer_geometry",
@@ -3081,7 +3414,34 @@ async function executeWorkflow(
       "workflow does not end with its source-bound primary pointer action",
     );
   }
-  await captureWorkflowCheckpoint(page, bound, captureSpec, 1, checkpointBuffer);
+  const prePrimaryCheckpoint = await captureWorkflowCheckpoint(
+    page,
+    bound,
+    captureSpec,
+    1,
+    checkpointBuffer,
+  );
+  if (measurePredicates && prePrimaryCheckpoint === undefined) {
+    fail(
+      "pilot_runtime.predicate_checkpoint",
+      "Pilot predicate measurement requires a private pre-primary checkpoint",
+    );
+  }
+  const sourcePredicates =
+    !measurePredicates || prePrimaryCheckpoint === undefined
+      ? undefined
+      : await measurePilotMutationPredicates({
+          primary,
+          clipHost: abiHandle(retained, "clip_host"),
+          contentPressure: abiHandle(retained, "content_pressure"),
+          pageGuard: retained.pageGuard,
+          sourcePoint: Object.freeze({
+            x: frozenSourceGeometry.centerX,
+            y: frozenSourceGeometry.centerY,
+          }),
+          prePrimaryCheckpoint,
+          primaryActionTargetId: bound.primaryActionTargetId,
+        });
   try {
     await page.mouse.click(frozenSourceGeometry.centerX, frozenSourceGeometry.centerY, {
       button: "left",
@@ -3137,7 +3497,7 @@ async function executeWorkflow(
     bound.workflow,
     "post-fingerprint workflow",
   );
-  return retained;
+  return Object.freeze({ retained, sourcePredicates });
 }
 
 function assertBrowserAuditClean(
@@ -3372,7 +3732,7 @@ function normalizeSessionFailure(
   );
 }
 
-type PilotFixtureWorkflowAuthoringSessionMode = "audit" | "capture";
+type PilotFixtureWorkflowAuthoringSessionMode = "audit" | "capture" | "predicate";
 
 function exactCheckpointTuple(
   checkpointBuffer: readonly PilotFixtureAuthoringCheckpointBytes[],
@@ -3413,17 +3773,26 @@ export function runPilotFixtureWorkflowAuthoringSession(
   mode: "capture",
 ): Promise<PilotFixtureWorkflowAuthoringCaptureSessionResult>;
 /** @internal Acquires no disk authority and always finalizes the supplied lease. */
+export function runPilotFixtureWorkflowAuthoringSession(
+  lease: PilotFixtureAuthoringEnvironmentLease,
+  workflowKey: string,
+  mode: "predicate",
+): Promise<PilotFixtureWorkflowAuthoringPredicateSessionResult>;
+/** @internal Acquires no disk authority and always finalizes the supplied lease. */
 export async function runPilotFixtureWorkflowAuthoringSession(
   lease: PilotFixtureAuthoringEnvironmentLease,
   workflowKey: string,
   mode: PilotFixtureWorkflowAuthoringSessionMode = "audit",
 ): Promise<
-  PilotFixtureWorkflowAuthoringAudit | PilotFixtureWorkflowAuthoringCaptureSessionResult
+  | PilotFixtureWorkflowAuthoringAudit
+  | PilotFixtureWorkflowAuthoringCaptureSessionResult
+  | PilotFixtureWorkflowAuthoringPredicateSessionResult
 > {
   let bound: BoundWorkflow | undefined;
   let context: BrowserContext | undefined;
   let page: Page | undefined;
   let retained: RetainedAbi | undefined;
+  let sourcePredicates: PilotMutationPredicateObservationTuple | undefined;
   let audit: BrowserAuditState | undefined;
   let completionSnapshot: BrowserAuditCompletionSnapshot | undefined;
   let executionComplete = false;
@@ -3433,7 +3802,7 @@ export async function runPilotFixtureWorkflowAuthoringSession(
   let reusable = true;
   let terminalBoundarySealed = false;
   const checkpointBuffer: PilotFixtureAuthoringCheckpointBytes[] | undefined =
-    mode === "capture" ? [] : undefined;
+    mode === "audit" ? undefined : [];
 
   try {
     bound = bindWorkflow(lease, workflowKey);
@@ -3473,14 +3842,17 @@ export async function runPilotFixtureWorkflowAuthoringSession(
         "fixture virtual clock did not pause at the CaptureSpec epoch",
       );
     }
-    retained = await executeWorkflow(
+    const executed = await executeWorkflow(
       context,
       page,
       bound,
       audit,
       lease.capture_spec,
       checkpointBuffer,
+      mode === "predicate",
     );
+    retained = executed.retained;
+    sourcePredicates = executed.sourcePredicates;
     assertBrowserAuditClean(context, page, bound, audit);
     completionSnapshot = snapshotBrowserAudit(audit);
     executionComplete = true;
@@ -3631,8 +4003,20 @@ export async function runPilotFixtureWorkflowAuthoringSession(
       "Pilot authoring capture produced no private checkpoint buffer",
     );
   }
+  if (mode === "capture") {
+    return Object.freeze({
+      audit: completedAudit,
+      checkpoints: exactCheckpointTuple(checkpointBuffer),
+    });
+  }
+  if (sourcePredicates === undefined) {
+    fail(
+      "pilot_runtime.predicate_probe",
+      "Pilot authoring capture produced no complete source predicate vector",
+    );
+  }
   return Object.freeze({
     audit: completedAudit,
-    checkpoints: exactCheckpointTuple(checkpointBuffer),
+    source_predicates: sourcePredicates,
   });
 }

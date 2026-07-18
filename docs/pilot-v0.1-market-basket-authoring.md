@@ -166,10 +166,34 @@ corresponding PNG, accessibility-tree, and layout-graph payload to be byte-ident
 This is evidence only for the current mutable market-basket authoring revision; it is
 not the full 20-application acceptance gate.
 
+## Source-predicate authoring API
+
+`measurePilotFixtureAuthoringWorkflowPredicates` keeps predicate observations outside
+the closed capture-result shape. It executes the same success-only workflow in a fresh
+context and returns a separate frozen
+`pilot_fixture_workflow_predicate_authoring_result` with the audit and exact ordered
+`P, O, D, N, F, A, C, V` source vector. Its result remains `official: false` and is not
+a model-visible artifact.
+
+The probe freezes native DOM, hit-test, geometry, disabled-state, and computed-style
+intrinsics before fixture JavaScript runs. At the pre-primary boundary it requires the
+source point and four inset border-box corners to hit the retained native button, walks
+the complete retained ancestor chain for clipping and visibility, verifies the declared
+focus path, measures content-box overflow, and computes opaque solid text contrast. The
+accessible-name row comes from the Chromium accessibility node linked to the exact
+primary-action layout target in a private pre-primary checkpoint. That checkpoint is
+never returned by this API.
+
+Malformed, ambiguous, or unbound browser evidence is a technical failure rather than a
+predicate `fail`. As with capture, the vector stays private until the final task oracle,
+context destruction, teardown audit, and lease finalization all succeed.
+
 ## Deliberate remaining boundary
 
 The capture-first result creates no `capture_id`, corpus row, mutation attempt,
 operator, task outcome, label, generation-plan execution, or benchmark result. It does
-not compile, apply, invert, or clean up a mutation operator. A later Pilot milestone
-must execute and restore all 16 family/relation operators and mechanically probe the
-eight predicates while its authoring results remain `official: false`.
+not compile, apply, invert, or clean up a mutation operator. Source rows alone do not
+satisfy an operator's installed predicate policy. A later Pilot milestone must execute
+and restore all 16 family/relation operators, compare every installed vector with its
+exact definition, and independently classify task outcomes while authoring results
+remain `official: false`.
