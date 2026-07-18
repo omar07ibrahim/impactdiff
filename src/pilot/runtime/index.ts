@@ -13,6 +13,14 @@ export type {
   PilotMutationPredicateObservation,
   PilotMutationPredicateObservationTuple,
 } from "./predicates.js";
+export { authorPilotFixturePointerHitTestingPair } from "./pointer-authoring.js";
+export type {
+  PilotFixturePointerHitTestingBaselineAuthoringRun,
+  PilotFixturePointerHitTestingCandidateAuthoringRun,
+  PilotFixturePointerHitTestingCandidateTaskOutcome,
+  PilotFixturePointerHitTestingDefinitionKey,
+  PilotFixturePointerHitTestingPairAuthoringResult,
+} from "./pointer-authoring.js";
 export { replayPilotFixtureAuthoringWorkflow } from "./replay.js";
 export type {
   PilotFixtureAuthoringCheckpointTuple,

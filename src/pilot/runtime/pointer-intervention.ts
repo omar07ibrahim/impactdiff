@@ -28,6 +28,7 @@ export interface PilotPointerRemovalProbe {
   readonly applicationOrdinal: 0 | 1;
   readonly mutationRecordExact: boolean;
   readonly ownedHandlesAbsent: boolean;
+  readonly mutationPreimagesEqual: boolean;
   readonly listenerRegistryEqual: boolean;
   readonly runtimeClean: boolean;
 }
@@ -214,6 +215,7 @@ const removalKeys = Object.freeze([
   "applicationOrdinal",
   "mutationRecordExact",
   "ownedHandlesAbsent",
+  "mutationPreimagesEqual",
   "listenerRegistryEqual",
   "runtimeClean",
 ] as const);
@@ -227,6 +229,7 @@ function assertRemovalProbe(
     record.applicationOrdinal !== applicationOrdinal ||
     record.mutationRecordExact !== true ||
     record.ownedHandlesAbsent !== true ||
+    record.mutationPreimagesEqual !== true ||
     record.listenerRegistryEqual !== true ||
     record.runtimeClean !== true
   ) {
@@ -239,6 +242,7 @@ function assertRemovalProbe(
     applicationOrdinal,
     mutationRecordExact: true,
     ownedHandlesAbsent: true,
+    mutationPreimagesEqual: true,
     listenerRegistryEqual: true,
     runtimeClean: true,
   });

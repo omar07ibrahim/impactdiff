@@ -39,9 +39,33 @@ import type {
 import type { PilotFixtureAuthoringEnvironmentLease } from "./environment.js";
 import {
   capturePilotFixtureAuthoringCheckpoint,
+  capturePilotFixtureAuthoringObservation,
   type PilotFixtureAuthoringCheckpointBytes,
+  type PilotFixtureAuthoringObservationBytes,
 } from "./checkpoint.js";
 import { PilotFixtureAuthoringRuntimeError } from "./errors.js";
+import {
+  beginPilotPointerIntervention,
+  finishPilotPointerIntervention,
+  installPilotPointerIntervention,
+  probePilotPointerIntervention,
+  removePilotPointerIntervention,
+  type PilotPointerLayerProbe,
+  type PilotPointerLifecycleProbe,
+  type PilotPointerMode,
+  type PilotPointerMutationAuditApi,
+  type PilotPointerRemovalProbe,
+} from "./pointer-intervention.js";
+import {
+  assertPilotPointerInstalledPredicates,
+  assertPilotPointerSourcePredicates,
+  assertSelectedPilotPointerOperator,
+  createPilotPointerCleanupProbeObservations,
+  createPilotPointerInstalledProbeObservations,
+  createPilotPointerRoundtripProbeObservations,
+  createPilotPointerSourceProbeObservations,
+  type SelectedPilotPointerOperator,
+} from "./pointer-operator.js";
 import {
   measurePilotMutationPredicates,
   type PilotMutationPredicateObservationTuple,
@@ -115,12 +139,49 @@ interface PilotPageGuardApi extends PilotPredicatePageGuardApi {
   readonly textContent: (node: Node) => string | null;
   readonly nativeButtonMatches: (element: Element, requireEnabled: boolean) => boolean;
   readonly sourcePointerGeometry: (primary: Element) => SourcePointerGeometry;
+  readonly pointerCleanBoundaryProjection: (
+    primary: Element,
+    sourcePoint: Readonly<{ x: number; y: number }>,
+    trackedElements: readonly Element[],
+  ) => PilotPointerCleanBoundaryProjection;
   readonly createMutationAudit: (
     rootElement: Element,
     successElement: Element,
     rootAttribute: string,
   ) => PilotMutationAudit;
   readonly sealTerminalBoundary: (elements: readonly Element[]) => void;
+}
+
+interface PilotPointerCleanBoundaryProjection {
+  readonly computedStyles: readonly {
+    readonly depth: number;
+    readonly localName: string;
+    readonly testId: string | null;
+    readonly properties: readonly string[];
+  }[];
+  readonly hitTest: {
+    readonly geometry: SourcePointerGeometry;
+    readonly samplesHitPrimary: readonly [true, true, true, true, true];
+  };
+  readonly focusAndScroll: {
+    readonly activeSlotIndex: number;
+    readonly windowScrollX: number;
+    readonly windowScrollY: number;
+    readonly visualViewport: {
+      readonly offsetLeft: number;
+      readonly offsetTop: number;
+      readonly pageLeft: number;
+      readonly pageTop: number;
+      readonly scale: number;
+    } | null;
+    readonly elements: readonly {
+      readonly index: number;
+      readonly localName: string;
+      readonly testId: string | null;
+      readonly scrollLeft: number;
+      readonly scrollTop: number;
+    }[];
+  };
 }
 
 interface PilotMutationSnapshot {
@@ -130,7 +191,7 @@ interface PilotMutationSnapshot {
   readonly successMutationObserved: boolean;
 }
 
-interface PilotMutationAudit {
+interface PilotMutationAudit extends PilotPointerMutationAuditApi {
   readonly drain: () => PilotMutationSnapshot;
   readonly drainAndDisconnect: () => PilotMutationSnapshot;
   readonly seal: () => PilotMutationSnapshot;
@@ -173,6 +234,19 @@ export interface PilotFixtureWorkflowAuthoringCaptureSessionResult {
 export interface PilotFixtureWorkflowAuthoringPredicateSessionResult {
   readonly audit: PilotFixtureWorkflowAuthoringAudit;
   readonly source_predicates: PilotMutationPredicateObservationTuple;
+}
+
+/** @internal */
+export interface PilotFixturePointerBaselineAuthoringSessionResult {
+  readonly audit: PilotFixtureWorkflowAuthoringAudit;
+  readonly source_predicates: PilotMutationPredicateObservationTuple;
+  readonly pointer_baseline: PilotPointerBaselineEvidence;
+}
+
+/** @internal */
+export interface PilotFixturePointerCandidateAuthoringSessionResult {
+  readonly audit: PilotFixtureWorkflowAuthoringAudit;
+  readonly task_outcome: PilotPointerCandidateTaskOutcome;
 }
 
 interface BoundWorkflow {
@@ -786,14 +860,19 @@ async function installBrowserAudit(
 /* node:coverage disable */
 function pilotPageGuardInit({
   apiName,
+  styleCspNonce,
   terminalSentinel,
 }: {
   readonly apiName: string;
+  readonly styleCspNonce: string;
   readonly terminalSentinel: string;
 }): void {
   const NativeArray = Array;
+  const NativeBoolean = Boolean;
   const NativeError = Error;
   const NativeMutationObserver = MutationObserver;
+  const NativeString = String;
+  const NativeWeakSet = WeakSet;
   const guardedDocument = document;
   const guardedWindow = globalThis;
   const nativeConsole = console;
@@ -801,16 +880,23 @@ function pilotPageGuardInit({
   const defineProperty = Object.defineProperty;
   const freeze = Object.freeze;
   const getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+  const getOwnPropertyNames = Object.getOwnPropertyNames;
   const getPrototypeOf = Object.getPrototypeOf;
+  const objectIs = Object.is;
   const mathMin = Math.min;
+  const mathAbs = Math.abs;
   const numberIsFinite = Number.isFinite;
   const reflectApply = Reflect.apply;
+  const reflectGet = Reflect.get;
 
   const inputPrototype = HTMLInputElement.prototype;
   const textareaPrototype = HTMLTextAreaElement.prototype;
   const selectPrototype = HTMLSelectElement.prototype;
   const optionPrototype = HTMLOptionElement.prototype;
   const buttonPrototype = HTMLButtonElement.prototype;
+  const bodyPrototype = HTMLBodyElement.prototype;
+  const divPrototype = HTMLDivElement.prototype;
+  const stylePrototype = HTMLStyleElement.prototype;
 
   const descriptorFor = (prototype: object, property: string): PropertyDescriptor => {
     let owner: object | null = prototype;
@@ -830,6 +916,16 @@ function pilotPageGuardInit({
       throw new NativeError(`native ${property} getter is unavailable`);
     }
     return descriptor.get;
+  };
+  const setterFor = (
+    prototype: object,
+    property: string,
+  ): ((this: unknown, value: unknown) => void) => {
+    const descriptor = descriptorFor(prototype, property);
+    if (descriptor.set === undefined) {
+      throw new NativeError(`native ${property} setter is unavailable`);
+    }
+    return descriptor.set;
   };
   const methodFor = (
     prototype: object,
@@ -887,12 +983,35 @@ function pilotPageGuardInit({
   const fileListLengthGet = getterFor(FileList.prototype, "length");
   const nodeListLengthGet = getterFor(NodeList.prototype, "length");
   const nodeListItem = methodFor(NodeList.prototype, "item");
+  const arrayJoin = methodFor(Array.prototype, "join");
   const arrayPush = methodFor(Array.prototype, "push");
+  const documentBodyGet = getterFor(Document.prototype, "body");
+  const documentCreateElement = methodFor(Document.prototype, "createElement");
+  const eventTargetAddEventListener = methodFor(
+    EventTarget.prototype,
+    "addEventListener",
+  );
+  const eventTargetRemoveEventListener = methodFor(
+    EventTarget.prototype,
+    "removeEventListener",
+  );
+  const eventTargetGet = getterFor(Event.prototype, "target");
+  const eventPreventDefault = methodFor(Event.prototype, "preventDefault");
+  const nodeAppendChild = methodFor(Node.prototype, "appendChild");
+  const nodeRemoveChild = methodFor(Node.prototype, "removeChild");
+  const nodeChildNodesGet = getterFor(Node.prototype, "childNodes");
+  const nodeFirstChildGet = getterFor(Node.prototype, "firstChild");
+  const nodeLastChildGet = getterFor(Node.prototype, "lastChild");
+  const nodePreviousSiblingGet = getterFor(Node.prototype, "previousSibling");
+  const nodeNextSiblingGet = getterFor(Node.prototype, "nextSibling");
+  const nodeOwnerDocumentGet = getterFor(Node.prototype, "ownerDocument");
   const nodeParentGet = getterFor(Node.prototype, "parentNode");
   const elementNodeType = Node.ELEMENT_NODE;
   const nodeTypeGet = getterFor(Node.prototype, "nodeType");
   const nodeIsConnectedGet = getterFor(Node.prototype, "isConnected");
   const nodeTextContentGet = getterFor(Node.prototype, "textContent");
+  const nodeTextContentSet = setterFor(Node.prototype, "textContent");
+  const elementAttributesGet = getterFor(Element.prototype, "attributes");
   const elementLocalNameGet = getterFor(Element.prototype, "localName");
   const documentActiveElementGet = getterFor(Document.prototype, "activeElement");
   const windowInnerWidthGet = getterFor(guardedWindow, "innerWidth");
@@ -902,6 +1021,7 @@ function pilotPageGuardInit({
   const documentQuerySelectorAll = methodFor(Document.prototype, "querySelectorAll");
   const documentElementFromPoint = methodFor(Document.prototype, "elementFromPoint");
   const elementGetAttribute = methodFor(Element.prototype, "getAttribute");
+  const elementSetAttribute = methodFor(Element.prototype, "setAttribute");
   const elementGetBoundingClientRect = methodFor(
     Element.prototype,
     "getBoundingClientRect",
@@ -911,6 +1031,8 @@ function pilotPageGuardInit({
   const elementClientTopGet = getterFor(Element.prototype, "clientTop");
   const elementClientWidthGet = getterFor(Element.prototype, "clientWidth");
   const elementClientHeightGet = getterFor(Element.prototype, "clientHeight");
+  const elementScrollLeftGet = getterFor(Element.prototype, "scrollLeft");
+  const elementScrollTopGet = getterFor(Element.prototype, "scrollTop");
   const elementScrollWidthGet = getterFor(Element.prototype, "scrollWidth");
   const elementScrollHeightGet = getterFor(Element.prototype, "scrollHeight");
   const buttonDisabledGet = getterFor(buttonPrototype, "disabled");
@@ -923,6 +1045,19 @@ function pilotPageGuardInit({
     CSSStyleDeclaration.prototype,
     "getPropertyValue",
   );
+  const htmlElementTabIndexGet = getterFor(HTMLElement.prototype, "tabIndex");
+  const htmlElementNonceGet = getterFor(HTMLElement.prototype, "nonce");
+  const htmlElementIsContentEditableGet = getterFor(
+    HTMLElement.prototype,
+    "isContentEditable",
+  );
+  const namedNodeMapLengthGet = getterFor(NamedNodeMap.prototype, "length");
+  const windowVisualViewportGet = getterFor(guardedWindow, "visualViewport");
+  const visualViewportOffsetLeftGet = getterFor(VisualViewport.prototype, "offsetLeft");
+  const visualViewportOffsetTopGet = getterFor(VisualViewport.prototype, "offsetTop");
+  const visualViewportPageLeftGet = getterFor(VisualViewport.prototype, "pageLeft");
+  const visualViewportPageTopGet = getterFor(VisualViewport.prototype, "pageTop");
+  const visualViewportScaleGet = getterFor(VisualViewport.prototype, "scale");
   const mutationObserverObserve = methodFor(MutationObserver.prototype, "observe");
   const mutationObserverTakeRecords = methodFor(
     MutationObserver.prototype,
@@ -935,6 +1070,9 @@ function pilotPageGuardInit({
   const mutationRecordGetters = freeze({
     addedNodes: getterFor(MutationRecord.prototype, "addedNodes"),
     attributeName: getterFor(MutationRecord.prototype, "attributeName"),
+    nextSibling: getterFor(MutationRecord.prototype, "nextSibling"),
+    oldValue: getterFor(MutationRecord.prototype, "oldValue"),
+    previousSibling: getterFor(MutationRecord.prototype, "previousSibling"),
     removedNodes: getterFor(MutationRecord.prototype, "removedNodes"),
     target: getterFor(MutationRecord.prototype, "target"),
     type: getterFor(MutationRecord.prototype, "type"),
@@ -983,10 +1121,367 @@ function pilotPageGuardInit({
   ]);
 
   let terminalSealed = false;
+  let activeOwnedPointerOverlay: Element | null = null;
+  let activeOwnedPointerIntercept = false;
+  let mutationAuditCreated = false;
   const signalTerminalMutation = (): never => {
     reflectApply(nativeConsoleError, nativeConsole, [terminalSentinel]);
     throw new NativeError(terminalSentinel);
   };
+  const preserveOwnedPointerFocus = freeze(function preserveOwnedPointerFocus(
+    event: Event,
+  ): void {
+    if (
+      activeOwnedPointerIntercept &&
+      activeOwnedPointerOverlay !== null &&
+      read<EventTarget | null>(eventTargetGet, event) === activeOwnedPointerOverlay
+    ) {
+      call<void>(eventPreventDefault, event, []);
+    }
+  });
+  call<void>(eventTargetAddEventListener, guardedWindow, [
+    "mousedown",
+    preserveOwnedPointerFocus,
+    true,
+  ]);
+  interface GuardedListenerRecord {
+    readonly target: EventTarget;
+    readonly type: string;
+    readonly callback: object;
+    readonly nativeCallback: object;
+    readonly capture: boolean;
+    readonly once: boolean;
+    readonly passive: boolean;
+  }
+  let listenerRecords = new NativeArray() as GuardedListenerRecord[];
+  const maximumListenerOperations = 256;
+  let listenerEpoch = 0;
+  let listenerRegistryOverflow = false;
+  const advanceListenerEpoch = (): void => {
+    listenerEpoch += 1;
+    if (listenerEpoch > maximumListenerOperations) listenerRegistryOverflow = true;
+  };
+  const addListenerOptions = (
+    options: unknown,
+  ): {
+    readonly capture: boolean;
+    readonly once: boolean;
+    readonly passive: boolean;
+  } => {
+    if (typeof options === "boolean") {
+      return freeze({ capture: options, once: false, passive: false });
+    }
+    if (
+      options === null ||
+      options === undefined ||
+      (typeof options !== "object" && typeof options !== "function")
+    ) {
+      return freeze({ capture: false, once: false, passive: false });
+    }
+    const capture = NativeBoolean(reflectGet(options, "capture"));
+    const once = NativeBoolean(reflectGet(options, "once"));
+    const passive = NativeBoolean(reflectGet(options, "passive"));
+    const signal = reflectGet(options, "signal");
+    if (signal !== undefined) {
+      throw new NativeError("abort-driven event listener registration is not admitted");
+    }
+    return freeze({ capture, once, passive });
+  };
+  const removeListenerCapture = (options: unknown): boolean => {
+    if (typeof options === "boolean") return options;
+    if (
+      options === null ||
+      options === undefined ||
+      (typeof options !== "object" && typeof options !== "function")
+    ) {
+      return false;
+    }
+    return NativeBoolean(reflectGet(options, "capture"));
+  };
+  const findListenerRecord = (
+    target: EventTarget,
+    type: string,
+    callback: object,
+    capture: boolean,
+  ): number => {
+    for (let index = 0; index < listenerRecords.length; index += 1) {
+      const record = listenerRecords[index];
+      if (
+        record !== undefined &&
+        record.target === target &&
+        record.type === type &&
+        record.callback === callback &&
+        record.capture === capture
+      ) {
+        return index;
+      }
+    }
+    return -1;
+  };
+  const removeListenerRecordAt = (index: number): void => {
+    if (index < 0 || index >= listenerRecords.length) {
+      throw new NativeError("listener registry removal index is invalid");
+    }
+    const retainedRecords = new NativeArray() as GuardedListenerRecord[];
+    for (let cursor = 0; cursor < listenerRecords.length; cursor += 1) {
+      if (cursor === index) continue;
+      const retainedRecord = listenerRecords[cursor];
+      if (retainedRecord === undefined) {
+        throw new NativeError("listener registry entry disappeared");
+      }
+      defineProperty(retainedRecords, retainedRecords.length, {
+        configurable: false,
+        enumerable: true,
+        value: retainedRecord,
+        writable: false,
+      });
+    }
+    listenerRecords = retainedRecords;
+    advanceListenerEpoch();
+  };
+  const appendListenerRecord = (record: GuardedListenerRecord): void => {
+    defineProperty(listenerRecords, listenerRecords.length, {
+      configurable: false,
+      enumerable: true,
+      value: record,
+      writable: false,
+    });
+  };
+  defineProperty(EventTarget.prototype, "addEventListener", {
+    configurable: false,
+    enumerable: false,
+    writable: false,
+    value: function guardedAddEventListener(
+      this: EventTarget,
+      typeValue: unknown,
+      callbackValue: unknown,
+      optionsValue?: unknown,
+    ): void {
+      if (terminalSealed) signalTerminalMutation();
+      if (typeof typeValue !== "string") {
+        throw new NativeError("event listener type must be a primitive string");
+      }
+      const type = typeValue;
+      const normalized = addListenerOptions(optionsValue);
+      if (
+        callbackValue === null ||
+        callbackValue === undefined ||
+        (typeof callbackValue !== "function" && typeof callbackValue !== "object")
+      ) {
+        call<void>(eventTargetAddEventListener, this, [
+          type,
+          callbackValue,
+          normalized,
+        ]);
+        return;
+      }
+      const callback = callbackValue as object;
+      const existingIndex = findListenerRecord(
+        this,
+        type,
+        callback,
+        normalized.capture,
+      );
+      if (existingIndex >= 0) {
+        const existing = listenerRecords[existingIndex];
+        if (existing === undefined) {
+          throw new NativeError("listener registry entry disappeared");
+        }
+        call<void>(eventTargetAddEventListener, this, [
+          type,
+          existing.nativeCallback,
+          normalized,
+        ]);
+        return;
+      }
+
+      let record: GuardedListenerRecord | undefined;
+      const nativeCallback = normalized.once
+        ? freeze(function guardedOnceListener(this: EventTarget, event: Event): void {
+            if (terminalSealed) signalTerminalMutation();
+            if (record === undefined) {
+              throw new NativeError("once listener registry entry is unavailable");
+            }
+            const index = findListenerRecord(
+              record.target,
+              record.type,
+              record.callback,
+              record.capture,
+            );
+            if (index < 0 || listenerRecords[index] !== record) {
+              throw new NativeError("once listener registry identity changed");
+            }
+            removeListenerRecordAt(index);
+            if (typeof callbackValue === "function") {
+              reflectApply(callbackValue, this, [event]);
+              return;
+            }
+            const handleEvent = reflectGet(callbackValue, "handleEvent");
+            if (typeof handleEvent === "function") {
+              reflectApply(handleEvent, callbackValue, [event]);
+            }
+          })
+        : callback;
+      record = freeze({
+        target: this,
+        type,
+        callback,
+        nativeCallback,
+        capture: normalized.capture,
+        once: normalized.once,
+        passive: normalized.passive,
+      });
+      call<void>(eventTargetAddEventListener, this, [type, nativeCallback, normalized]);
+      appendListenerRecord(record);
+      advanceListenerEpoch();
+    },
+  });
+  defineProperty(EventTarget.prototype, "removeEventListener", {
+    configurable: false,
+    enumerable: false,
+    writable: false,
+    value: function guardedRemoveEventListener(
+      this: EventTarget,
+      typeValue: unknown,
+      callbackValue: unknown,
+      optionsValue?: unknown,
+    ): void {
+      if (terminalSealed) signalTerminalMutation();
+      if (typeof typeValue !== "string") {
+        throw new NativeError("event listener type must be a primitive string");
+      }
+      const type = typeValue;
+      const capture = removeListenerCapture(optionsValue);
+      if (
+        callbackValue === null ||
+        callbackValue === undefined ||
+        (typeof callbackValue !== "function" && typeof callbackValue !== "object")
+      ) {
+        call<void>(eventTargetRemoveEventListener, this, [
+          type,
+          callbackValue,
+          capture,
+        ]);
+        return;
+      }
+      const callback = callbackValue as object;
+      const index = findListenerRecord(this, type, callback, capture);
+      if (index < 0) {
+        call<void>(eventTargetRemoveEventListener, this, [type, callback, capture]);
+        return;
+      }
+      const record = listenerRecords[index];
+      if (record === undefined) {
+        throw new NativeError("listener registry entry disappeared");
+      }
+      call<void>(eventTargetRemoveEventListener, this, [
+        type,
+        record.nativeCallback,
+        capture,
+      ]);
+      removeListenerRecordAt(index);
+    },
+  });
+  const handlerPrototypes = new NativeArray() as object[];
+  const seenHandlerPrototypes = new NativeWeakSet<object>();
+  const appendHandlerPrototype = (prototype: object): void => {
+    if (seenHandlerPrototypes.has(prototype)) return;
+    seenHandlerPrototypes.add(prototype);
+    defineProperty(handlerPrototypes, handlerPrototypes.length, {
+      configurable: false,
+      enumerable: true,
+      value: prototype,
+      writable: false,
+    });
+  };
+  for (const prototype of [
+    EventTarget.prototype,
+    Window.prototype,
+    Document.prototype,
+    Element.prototype,
+    HTMLElement.prototype,
+    SVGElement.prototype,
+    HTMLBodyElement.prototype,
+  ]) {
+    appendHandlerPrototype(prototype);
+  }
+  const globalPropertyNames = getOwnPropertyNames(guardedWindow);
+  for (let index = 0; index < globalPropertyNames.length; index += 1) {
+    const name = globalPropertyNames[index];
+    if (name === undefined) continue;
+    const descriptor = getOwnPropertyDescriptor(guardedWindow, name);
+    if (
+      descriptor === undefined ||
+      !("value" in descriptor) ||
+      typeof descriptor.value !== "function"
+    ) {
+      continue;
+    }
+    const prototypeDescriptor = getOwnPropertyDescriptor(descriptor.value, "prototype");
+    if (
+      prototypeDescriptor === undefined ||
+      !("value" in prototypeDescriptor) ||
+      prototypeDescriptor.value === null ||
+      typeof prototypeDescriptor.value !== "object"
+    ) {
+      continue;
+    }
+    const prototype = prototypeDescriptor.value;
+    let ancestor: object | null = prototype;
+    let depth = 0;
+    while (ancestor !== null && ancestor !== EventTarget.prototype && depth < 32) {
+      ancestor = getPrototypeOf(ancestor);
+      depth += 1;
+    }
+    if (ancestor === EventTarget.prototype) appendHandlerPrototype(prototype);
+  }
+  for (
+    let prototypeIndex = 0;
+    prototypeIndex < handlerPrototypes.length;
+    prototypeIndex += 1
+  ) {
+    const prototype = handlerPrototypes[prototypeIndex];
+    if (prototype === undefined) {
+      throw new NativeError("event-handler prototype registry is sparse");
+    }
+    const propertyNames = getOwnPropertyNames(prototype);
+    for (let index = 0; index < propertyNames.length; index += 1) {
+      const property = propertyNames[index];
+      if (
+        property === undefined ||
+        property.length < 3 ||
+        property[0] !== "o" ||
+        property[1] !== "n"
+      ) {
+        continue;
+      }
+      const descriptor = getOwnPropertyDescriptor(prototype, property);
+      if (
+        descriptor === undefined ||
+        descriptor.get === undefined ||
+        descriptor.set === undefined ||
+        !descriptor.configurable
+      ) {
+        throw new NativeError(`event handler ${property} cannot be guarded`);
+      }
+      const nativeGet = descriptor.get;
+      const nativeSet = descriptor.set;
+      defineProperty(prototype, property, {
+        configurable: false,
+        enumerable: descriptor.enumerable ?? true,
+        get() {
+          return reflectApply(nativeGet, this, []);
+        },
+        set(value: unknown): void {
+          if (terminalSealed) signalTerminalMutation();
+          const before = reflectApply(nativeGet, this, []);
+          reflectApply(nativeSet, this, [value]);
+          const after = reflectApply(nativeGet, this, []);
+          if (before !== after) advanceListenerEpoch();
+        },
+      });
+    }
+  }
   const guardAccessor = (prototype: object, property: string): void => {
     const descriptor = descriptorFor(prototype, property);
     if (descriptor.get === undefined || !descriptor.configurable) {
@@ -1656,11 +2151,275 @@ function pilotPageGuardInit({
       opacity: property(primaryStyle, "opacity"),
     });
   };
+  const pointerComputedStyleProperties = freeze([
+    "display",
+    "position",
+    "visibility",
+    "opacity",
+    "pointer-events",
+    "cursor",
+    "overflow-x",
+    "overflow-y",
+    "clip-path",
+    "filter",
+    "mask-image",
+    "content-visibility",
+    "transform",
+    "z-index",
+    "box-sizing",
+    "left",
+    "top",
+    "width",
+    "height",
+    "margin-top",
+    "margin-right",
+    "margin-bottom",
+    "margin-left",
+    "padding-top",
+    "padding-right",
+    "padding-bottom",
+    "padding-left",
+    "border-top-width",
+    "border-right-width",
+    "border-bottom-width",
+    "border-left-width",
+    "color",
+    "background-color",
+    "background-image",
+    "box-shadow",
+    "outline-width",
+  ]);
+  const pointerCleanBoundaryProjection = (
+    primary: Element,
+    sourcePoint: Readonly<{ x: number; y: number }>,
+    trackedElements: readonly Element[],
+  ): PilotPointerCleanBoundaryProjection => {
+    const defineArrayValue = <Value>(
+      array: Value[],
+      index: number,
+      value: Value,
+    ): void => {
+      defineProperty(array, index, {
+        configurable: false,
+        enumerable: true,
+        value,
+        writable: false,
+      });
+    };
+    const geometry = sourcePointerGeometry(primary);
+    if (
+      sourcePoint === null ||
+      typeof sourcePoint !== "object" ||
+      !numberIsFinite(sourcePoint.x) ||
+      !numberIsFinite(sourcePoint.y) ||
+      mathAbs(sourcePoint.x - geometry.centerX) > 0.001 ||
+      mathAbs(sourcePoint.y - geometry.centerY) > 0.001
+    ) {
+      throw new NativeError("pointer boundary source point is not the frozen center");
+    }
+    if (trackedElements.length === 0 || trackedElements.length > 16) {
+      throw new NativeError("pointer boundary tracked ABI slots are out of bounds");
+    }
+    let activeSlotIndex = -1;
+    const activeElement = read<Element | null>(
+      documentActiveElementGet,
+      guardedDocument,
+    );
+    for (let index = 0; index < trackedElements.length; index += 1) {
+      const element = trackedElements[index];
+      if (
+        element === undefined ||
+        !read<boolean>(nodeIsConnectedGet, element) ||
+        read<Document | null>(nodeOwnerDocumentGet, element) !== guardedDocument
+      ) {
+        throw new NativeError("pointer boundary tracked ABI identity is invalid");
+      }
+      if (activeSlotIndex < 0 && activeElement === element) activeSlotIndex = index;
+    }
+    if (activeSlotIndex < 0) {
+      throw new NativeError("pointer boundary focus is outside the retained ABI");
+    }
+
+    const insetX = mathMin(1, geometry.width / 4);
+    const insetY = mathMin(1, geometry.height / 4);
+    const hitPoints = freeze([
+      freeze({ x: geometry.centerX, y: geometry.centerY }),
+      freeze({ x: geometry.x + insetX, y: geometry.y + insetY }),
+      freeze({
+        x: geometry.x + geometry.width - insetX,
+        y: geometry.y + insetY,
+      }),
+      freeze({
+        x: geometry.x + insetX,
+        y: geometry.y + geometry.height - insetY,
+      }),
+      freeze({
+        x: geometry.x + geometry.width - insetX,
+        y: geometry.y + geometry.height - insetY,
+      }),
+    ]);
+    const sampleHits = new NativeArray(hitPoints.length) as true[];
+    for (let index = 0; index < hitPoints.length; index += 1) {
+      const point = hitPoints[index];
+      if (
+        point === undefined ||
+        call<Element | null>(documentElementFromPoint, guardedDocument, [
+          point.x,
+          point.y,
+        ]) !== primary
+      ) {
+        throw new NativeError("pointer boundary hit-test projection changed");
+      }
+      defineArrayValue(sampleHits, index, true);
+    }
+
+    const computedStyles = new NativeArray() as {
+      readonly depth: number;
+      readonly localName: string;
+      readonly testId: string | null;
+      readonly properties: readonly string[];
+    }[];
+    let ancestor: Node | null = primary;
+    let depth = 0;
+    while (ancestor !== guardedDocument) {
+      if (
+        ancestor === null ||
+        depth > 64 ||
+        read<number>(nodeTypeGet, ancestor) !== elementNodeType
+      ) {
+        throw new NativeError("pointer boundary ancestor chain is invalid");
+      }
+      const element = ancestor as Element;
+      const style = call<CSSStyleDeclaration>(windowGetComputedStyle, guardedWindow, [
+        element,
+      ]);
+      const properties = new NativeArray(
+        pointerComputedStyleProperties.length,
+      ) as string[];
+      for (let index = 0; index < pointerComputedStyleProperties.length; index += 1) {
+        const propertyName = pointerComputedStyleProperties[index];
+        if (propertyName === undefined) {
+          throw new NativeError("pointer computed-style property is absent");
+        }
+        defineArrayValue(
+          properties,
+          index,
+          call<string>(cssStyleGetPropertyValue, style, [propertyName]),
+        );
+      }
+      defineArrayValue(
+        computedStyles,
+        computedStyles.length,
+        freeze({
+          depth,
+          localName: read<string>(elementLocalNameGet, element),
+          testId: call<string | null>(elementGetAttribute, element, ["data-testid"]),
+          properties: freeze(properties),
+        }),
+      );
+      depth += 1;
+      ancestor = read<Node | null>(nodeParentGet, element);
+    }
+
+    const allElements = call<NodeListOf<Element>>(
+      documentQuerySelectorAll,
+      guardedDocument,
+      ["*"],
+    );
+    const elementCount = read<number>(nodeListLengthGet, allElements);
+    if (elementCount < 1 || elementCount > 2_048) {
+      throw new NativeError("pointer boundary document element count is out of bounds");
+    }
+    const elementScrolls = new NativeArray(elementCount) as {
+      readonly index: number;
+      readonly localName: string;
+      readonly testId: string | null;
+      readonly scrollLeft: number;
+      readonly scrollTop: number;
+    }[];
+    for (let index = 0; index < elementCount; index += 1) {
+      const element = call<Element | null>(nodeListItem, allElements, [index]);
+      if (element === null) {
+        throw new NativeError("pointer boundary document element is absent");
+      }
+      const scrollLeft = read<number>(elementScrollLeftGet, element);
+      const scrollTop = read<number>(elementScrollTopGet, element);
+      if (!numberIsFinite(scrollLeft) || !numberIsFinite(scrollTop)) {
+        throw new NativeError("pointer boundary element scroll is not finite");
+      }
+      defineArrayValue(
+        elementScrolls,
+        index,
+        freeze({
+          index,
+          localName: read<string>(elementLocalNameGet, element),
+          testId: call<string | null>(elementGetAttribute, element, ["data-testid"]),
+          scrollLeft,
+          scrollTop,
+        }),
+      );
+    }
+
+    const windowScrollX = read<number>(windowScrollXGet, guardedWindow);
+    const windowScrollY = read<number>(windowScrollYGet, guardedWindow);
+    if (!numberIsFinite(windowScrollX) || !numberIsFinite(windowScrollY)) {
+      throw new NativeError("pointer boundary window scroll is not finite");
+    }
+    const visualViewport = read<VisualViewport | null>(
+      windowVisualViewportGet,
+      guardedWindow,
+    );
+    const visualViewportProjection =
+      visualViewport === null
+        ? null
+        : freeze({
+            offsetLeft: read<number>(visualViewportOffsetLeftGet, visualViewport),
+            offsetTop: read<number>(visualViewportOffsetTopGet, visualViewport),
+            pageLeft: read<number>(visualViewportPageLeftGet, visualViewport),
+            pageTop: read<number>(visualViewportPageTopGet, visualViewport),
+            scale: read<number>(visualViewportScaleGet, visualViewport),
+          });
+    if (
+      visualViewportProjection !== null &&
+      (!numberIsFinite(visualViewportProjection.offsetLeft) ||
+        !numberIsFinite(visualViewportProjection.offsetTop) ||
+        !numberIsFinite(visualViewportProjection.pageLeft) ||
+        !numberIsFinite(visualViewportProjection.pageTop) ||
+        !numberIsFinite(visualViewportProjection.scale))
+    ) {
+      throw new NativeError("pointer boundary visual viewport is not finite");
+    }
+
+    return freeze({
+      computedStyles: freeze(computedStyles),
+      hitTest: freeze({
+        geometry,
+        samplesHitPrimary: freeze(sampleHits) as unknown as readonly [
+          true,
+          true,
+          true,
+          true,
+          true,
+        ],
+      }),
+      focusAndScroll: freeze({
+        activeSlotIndex,
+        windowScrollX,
+        windowScrollY,
+        visualViewport: visualViewportProjection,
+        elements: freeze(elementScrolls),
+      }),
+    });
+  };
   const createMutationAudit = (
     rootElement: Element,
     successElement: Element,
     rootAttribute: string,
   ): PilotMutationAudit => {
+    if (mutationAuditCreated) {
+      throw new NativeError("Pilot mutation audit can be created only once");
+    }
+    mutationAuditCreated = true;
     let overflow = false;
     let rootMutationObserved = false;
     let successMutationObserved = false;
@@ -1668,6 +2427,39 @@ function pilotPageGuardInit({
     const maximumRecords = 64;
     let recordCount = 0;
     let sealed = false;
+    let pointerState: PilotPointerLifecycleProbe["state"] = "unstarted";
+    let pointerPrimary: Element | null = null;
+    let pointerMode: PilotPointerMode | null = null;
+    let pointerGeometry: SourcePointerGeometry | null = null;
+    let pointerBody: HTMLElement | null = null;
+    let pointerWrapper: HTMLDivElement | null = null;
+    let pointerStyle: HTMLStyleElement | null = null;
+    let pointerOverlay: HTMLDivElement | null = null;
+    let pointerCssText: string | null = null;
+    let pointerInstallCount = 0;
+    let pointerRemovalCount = 0;
+    let ownedMutationRecordExact = false;
+    let pointerMutationAdmissionClean = true;
+    let listenerBaselineEpoch = -1;
+    let listenerBaseline: readonly GuardedListenerRecord[] | null = null;
+    let bodyBaseline: readonly Node[] | null = null;
+    let ownedAdmission: {
+      readonly change: "added" | "removed";
+      readonly wrapper: Node;
+      readonly previousSibling: Node | null;
+      readonly nextSibling: Node | null;
+      readonly nonceStyle: HTMLStyleElement | null;
+      readonly nextExpected: "nonce_hiding" | "child_list";
+    } | null = null;
+    const nodeListIs = (nodes: NodeList, expected: readonly Node[]): boolean => {
+      if (read<number>(nodeListLengthGet, nodes) !== expected.length) return false;
+      for (let index = 0; index < expected.length; index += 1) {
+        if (call<Node | null>(nodeListItem, nodes, [index]) !== expected[index]) {
+          return false;
+        }
+      }
+      return true;
+    };
     const nodeListEveryText = (nodes: NodeList): boolean => {
       const length = read<number>(nodeListLengthGet, nodes);
       for (let index = 0; index < length; index += 1) {
@@ -1694,6 +2486,73 @@ function pilotPageGuardInit({
           mutationRecordGetters.attributeName,
           record,
         );
+        if (ownedAdmission !== null) {
+          const addedNodes = read<NodeList>(mutationRecordGetters.addedNodes, record);
+          const removedNodes = read<NodeList>(
+            mutationRecordGetters.removedNodes,
+            record,
+          );
+          const previousSibling = read<Node | null>(
+            mutationRecordGetters.previousSibling,
+            record,
+          );
+          const nextSibling = read<Node | null>(
+            mutationRecordGetters.nextSibling,
+            record,
+          );
+          const oldValue = read<string | null>(mutationRecordGetters.oldValue, record);
+          const admission = ownedAdmission;
+          const exactNonceHidingRecord =
+            admission.nextExpected === "nonce_hiding" &&
+            admission.change === "added" &&
+            admission.nonceStyle !== null &&
+            type === "attributes" &&
+            target === admission.nonceStyle &&
+            attributeName === "nonce" &&
+            oldValue === styleCspNonce &&
+            previousSibling === null &&
+            nextSibling === null &&
+            nodeListIs(addedNodes, []) &&
+            nodeListIs(removedNodes, []) &&
+            call<string | null>(elementGetAttribute, admission.nonceStyle, [
+              "nonce",
+            ]) === "" &&
+            read<string>(htmlElementNonceGet, admission.nonceStyle) === styleCspNonce;
+          if (exactNonceHidingRecord) {
+            ownedAdmission = freeze({
+              change: admission.change,
+              wrapper: admission.wrapper,
+              previousSibling: admission.previousSibling,
+              nextSibling: admission.nextSibling,
+              nonceStyle: admission.nonceStyle,
+              nextExpected: "child_list" as const,
+            });
+            continue;
+          }
+          const exactOwnedChildListRecord =
+            admission.nextExpected === "child_list" &&
+            type === "childList" &&
+            target === pointerBody &&
+            attributeName === null &&
+            oldValue === null &&
+            previousSibling === admission.previousSibling &&
+            nextSibling === admission.nextSibling &&
+            nodeListIs(
+              addedNodes,
+              admission.change === "added" ? [admission.wrapper] : [],
+            ) &&
+            nodeListIs(
+              removedNodes,
+              admission.change === "removed" ? [admission.wrapper] : [],
+            );
+          if (exactOwnedChildListRecord) {
+            ownedMutationRecordExact = true;
+            ownedAdmission = null;
+            continue;
+          }
+          pointerMutationAdmissionClean = false;
+          pointerState = "poisoned";
+        }
         if (
           type === "attributes" &&
           target === rootElement &&
@@ -1734,6 +2593,10 @@ function pilotPageGuardInit({
             ? (call<string | null>(elementGetAttribute, target, ["data-testid"]) ??
               read<string>(elementLocalNameGet, target))
             : `node-${targetType}`;
+        if (pointerState !== "unstarted" && pointerState !== "closed") {
+          pointerMutationAdmissionClean = false;
+          pointerState = "poisoned";
+        }
         call<number>(arrayPush, unexpected, [
           `${type}:${targetName}:${attributeName ?? "$NULL"}`,
         ]);
@@ -1774,24 +2637,700 @@ function pilotPageGuardInit({
       recordCount = 0;
       return snapshot;
     };
+    const pointerFailure = (message: string): never => {
+      pointerState = "poisoned";
+      pointerMutationAdmissionClean = false;
+      throw new NativeError(message);
+    };
+    const copyChildren = (parent: Node): readonly Node[] => {
+      const children = read<NodeList>(nodeChildNodesGet, parent);
+      const length = read<number>(nodeListLengthGet, children);
+      const copied = new NativeArray(length) as Node[];
+      for (let index = 0; index < length; index += 1) {
+        const child = call<Node | null>(nodeListItem, children, [index]);
+        if (child === null) throw new NativeError("body child identity is absent");
+        defineProperty(copied, index, {
+          configurable: false,
+          enumerable: true,
+          value: child,
+          writable: false,
+        });
+      }
+      return freeze(copied);
+    };
+    const sameBodyChildren = (): boolean => {
+      if (pointerBody === null || bodyBaseline === null) return false;
+      const children = read<NodeList>(nodeChildNodesGet, pointerBody);
+      if (read<number>(nodeListLengthGet, children) !== bodyBaseline.length) {
+        return false;
+      }
+      for (let index = 0; index < bodyBaseline.length; index += 1) {
+        if (
+          call<Node | null>(nodeListItem, children, [index]) !== bodyBaseline[index]
+        ) {
+          return false;
+        }
+      }
+      return true;
+    };
+    const sameListenerRegistry = (): boolean => {
+      if (
+        listenerBaseline === null ||
+        listenerRegistryOverflow ||
+        listenerEpoch !== listenerBaselineEpoch ||
+        listenerRecords.length !== listenerBaseline.length
+      ) {
+        return false;
+      }
+      for (let index = 0; index < listenerBaseline.length; index += 1) {
+        if (listenerRecords[index] !== listenerBaseline[index]) return false;
+      }
+      return true;
+    };
+    const lifecycleProbe = (): PilotPointerLifecycleProbe =>
+      freeze({
+        state: pointerState,
+        installCount: pointerInstallCount as 0 | 1 | 2,
+        removalCount: pointerRemovalCount as 0 | 1 | 2,
+        activeOwnedHandleCount:
+          pointerWrapper === null &&
+          pointerOverlay === null &&
+          pointerStyle === null &&
+          activeOwnedPointerOverlay === null &&
+          !activeOwnedPointerIntercept
+            ? 0
+            : 1,
+        listenerRegistryEqual: sameListenerRegistry(),
+        listenerRegistryOverflow,
+        mutationAdmissionClean:
+          pointerMutationAdmissionClean &&
+          ownedAdmission === null &&
+          unexpected.length === 0 &&
+          !overflow,
+      });
+    const samePointerGeometry = (
+      left: SourcePointerGeometry,
+      right: SourcePointerGeometry,
+    ): boolean =>
+      left.x === right.x &&
+      left.y === right.y &&
+      left.width === right.width &&
+      left.height === right.height &&
+      left.centerX === right.centerX &&
+      left.centerY === right.centerY &&
+      left.scrollX === right.scrollX &&
+      left.scrollY === right.scrollY;
+    const boundPrimaryGeometryEqual = (): boolean => {
+      if (pointerPrimary === null || pointerGeometry === null) return false;
+      const rect = call<DOMRect>(elementGetBoundingClientRect, pointerPrimary, []);
+      const x = read<number>(domRectXGet, rect);
+      const y = read<number>(domRectYGet, rect);
+      const width = read<number>(domRectWidthGet, rect);
+      const height = read<number>(domRectHeightGet, rect);
+      return (
+        numberIsFinite(x) &&
+        numberIsFinite(y) &&
+        numberIsFinite(width) &&
+        numberIsFinite(height) &&
+        x === pointerGeometry.x &&
+        y === pointerGeometry.y &&
+        width === pointerGeometry.width &&
+        height === pointerGeometry.height &&
+        x + width / 2 === pointerGeometry.centerX &&
+        y + height / 2 === pointerGeometry.centerY &&
+        read<number>(windowScrollXGet, guardedWindow) === pointerGeometry.scrollX &&
+        read<number>(windowScrollYGet, guardedWindow) === pointerGeometry.scrollY &&
+        read<boolean>(nodeIsConnectedGet, pointerPrimary)
+      );
+    };
+    const exactAttributes = (
+      element: Element,
+      expected: readonly (readonly [string, string])[],
+    ): boolean => {
+      const attributes = read<NamedNodeMap>(elementAttributesGet, element);
+      if (read<number>(namedNodeMapLengthGet, attributes) !== expected.length) {
+        return false;
+      }
+      for (let index = 0; index < expected.length; index += 1) {
+        const pair = expected[index];
+        if (
+          pair === undefined ||
+          call<string | null>(elementGetAttribute, element, [pair[0]]) !== pair[1]
+        ) {
+          return false;
+        }
+      }
+      return true;
+    };
+    const cssNumber = (value: number): string =>
+      objectIs(value, -0) ? "0" : NativeString(value);
+    const buildPointerCss = (
+      geometry: SourcePointerGeometry,
+      mode: PilotPointerMode,
+    ): string => {
+      const rows = [
+        '[data-impactdiff-pilot-owned="pointer-h0"] {',
+        "  display: contents !important;",
+        "  pointer-events: none !important;",
+        "}",
+        '[data-impactdiff-pilot-owned="pointer-h0"]::before,',
+        '[data-impactdiff-pilot-owned="pointer-h0"]::after,',
+        '[data-impactdiff-pilot-owned="pointer-h0"] > [data-impactdiff-pilot-layer="pointer-h0"]::before,',
+        '[data-impactdiff-pilot-owned="pointer-h0"] > [data-impactdiff-pilot-layer="pointer-h0"]::after {',
+        "  content: none !important;",
+        "  display: none !important;",
+        "  background: transparent !important;",
+        "  background-image: none !important;",
+        "  border: 0 !important;",
+        "  outline: 0 !important;",
+        "  box-shadow: none !important;",
+        "  filter: none !important;",
+        "  backdrop-filter: none !important;",
+        "  opacity: 1 !important;",
+        "  animation: none !important;",
+        "  transition: none !important;",
+        "}",
+        '[data-impactdiff-pilot-owned="pointer-h0"] > [data-impactdiff-pilot-layer="pointer-h0"] {',
+        "  position: fixed !important;",
+        `  left: ${cssNumber(geometry.x)}px !important;`,
+        `  top: ${cssNumber(geometry.y)}px !important;`,
+        `  width: ${cssNumber(geometry.width)}px !important;`,
+        `  height: ${cssNumber(geometry.height)}px !important;`,
+        "  z-index: 2147483647 !important;",
+        "  display: block !important;",
+        "  box-sizing: border-box !important;",
+        "  margin: 0 !important;",
+        "  padding: 0 !important;",
+        "  border: 0 !important;",
+        "  outline: 0 !important;",
+        "  outline-style: none !important;",
+        "  background: transparent !important;",
+        "  background-image: none !important;",
+        "  opacity: 1 !important;",
+        "  visibility: visible !important;",
+        "  box-shadow: none !important;",
+        "  filter: none !important;",
+        "  backdrop-filter: none !important;",
+        "  transform: none !important;",
+        "  clip-path: none !important;",
+        "  mask-image: none !important;",
+        "  overflow: visible !important;",
+        "  content-visibility: visible !important;",
+        "  mix-blend-mode: normal !important;",
+        "  text-shadow: none !important;",
+        "  animation: none !important;",
+        "  transition: none !important;",
+        "  cursor: pointer !important;",
+        `  pointer-events: ${mode === "intercept" ? "auto" : "none"} !important;`,
+        "}",
+      ];
+      return call<string>(arrayJoin, rows, ["\n"]);
+    };
+    const pointerLayerProbe = (): PilotPointerLayerProbe => {
+      if (
+        pointerState !== "installed" ||
+        pointerPrimary === null ||
+        pointerMode === null ||
+        pointerGeometry === null ||
+        pointerBody === null ||
+        pointerWrapper === null ||
+        pointerStyle === null ||
+        pointerOverlay === null ||
+        activeOwnedPointerOverlay !== pointerOverlay ||
+        activeOwnedPointerIntercept !== (pointerMode === "intercept") ||
+        pointerCssText === null ||
+        pointerInstallCount < 1 ||
+        pointerInstallCount > 2
+      ) {
+        return pointerFailure(
+          "owned pointer layer is not in one exact installed state",
+        );
+      }
+      const wrapperChildren = read<NodeList>(nodeChildNodesGet, pointerWrapper);
+      const wrapperStyle = call<CSSStyleDeclaration>(
+        windowGetComputedStyle,
+        guardedWindow,
+        [pointerWrapper],
+      );
+      const overlayStyle = call<CSSStyleDeclaration>(
+        windowGetComputedStyle,
+        guardedWindow,
+        [pointerOverlay],
+      );
+      const property = (style: CSSStyleDeclaration, name: string): string =>
+        call<string>(cssStyleGetPropertyValue, style, [name]);
+      const pseudoPaintAbsent = (
+        element: Element,
+        pseudo: "::before" | "::after",
+      ): boolean => {
+        const style = call<CSSStyleDeclaration>(windowGetComputedStyle, guardedWindow, [
+          element,
+          pseudo,
+        ]);
+        return (
+          property(style, "content") === "none" &&
+          property(style, "display") === "none" &&
+          property(style, "background-color") === "rgba(0, 0, 0, 0)" &&
+          property(style, "background-image") === "none" &&
+          property(style, "border-top-width") === "0px" &&
+          property(style, "border-right-width") === "0px" &&
+          property(style, "border-bottom-width") === "0px" &&
+          property(style, "border-left-width") === "0px" &&
+          property(style, "outline-width") === "0px" &&
+          property(style, "box-shadow") === "none" &&
+          property(style, "filter") === "none" &&
+          property(style, "backdrop-filter") === "none" &&
+          property(style, "opacity") === "1" &&
+          property(style, "animation-name") === "none" &&
+          property(style, "transition-duration") === "0s"
+        );
+      };
+      const rect = call<DOMRect>(elementGetBoundingClientRect, pointerOverlay, []);
+      const overlayX = read<number>(domRectXGet, rect);
+      const overlayY = read<number>(domRectYGet, rect);
+      const overlayWidth = read<number>(domRectWidthGet, rect);
+      const overlayHeight = read<number>(domRectHeightGet, rect);
+      const sourceHit = call<Element | null>(
+        documentElementFromPoint,
+        guardedDocument,
+        [pointerGeometry.centerX, pointerGeometry.centerY],
+      );
+      const structureExact =
+        getPrototypeOf(pointerWrapper) === divPrototype &&
+        getPrototypeOf(pointerStyle) === stylePrototype &&
+        getPrototypeOf(pointerOverlay) === divPrototype &&
+        read<Document | null>(nodeOwnerDocumentGet, pointerWrapper) ===
+          guardedDocument &&
+        read<Document | null>(nodeOwnerDocumentGet, pointerStyle) === guardedDocument &&
+        read<Document | null>(nodeOwnerDocumentGet, pointerOverlay) ===
+          guardedDocument &&
+        read<number>(nodeListLengthGet, wrapperChildren) === 2 &&
+        call<Node | null>(nodeListItem, wrapperChildren, [0]) === pointerStyle &&
+        call<Node | null>(nodeListItem, wrapperChildren, [1]) === pointerOverlay &&
+        read<Node | null>(nodeFirstChildGet, pointerWrapper) === pointerStyle &&
+        read<Node | null>(nodeLastChildGet, pointerWrapper) === pointerOverlay &&
+        activeOwnedPointerOverlay === pointerOverlay &&
+        activeOwnedPointerIntercept === (pointerMode === "intercept");
+      const attributesExact =
+        exactAttributes(pointerWrapper, [
+          ["aria-hidden", "true"],
+          ["data-impactdiff-pilot-owned", "pointer-h0"],
+        ]) &&
+        read<number>(
+          namedNodeMapLengthGet,
+          read<NamedNodeMap>(elementAttributesGet, pointerStyle),
+        ) === 1 &&
+        read<string>(htmlElementNonceGet, pointerStyle) === styleCspNonce &&
+        exactAttributes(pointerOverlay, [
+          ["aria-hidden", "true"],
+          ["data-impactdiff-pilot-layer", "pointer-h0"],
+        ]);
+      const geometryExact =
+        numberIsFinite(overlayX) &&
+        numberIsFinite(overlayY) &&
+        numberIsFinite(overlayWidth) &&
+        numberIsFinite(overlayHeight) &&
+        mathAbs(overlayX - pointerGeometry.x) <= 0.001 &&
+        mathAbs(overlayY - pointerGeometry.y) <= 0.001 &&
+        mathAbs(overlayWidth - pointerGeometry.width) <= 0.001 &&
+        mathAbs(overlayHeight - pointerGeometry.height) <= 0.001 &&
+        boundPrimaryGeometryEqual();
+      const transparentPaint =
+        property(overlayStyle, "background-color") === "rgba(0, 0, 0, 0)" &&
+        property(overlayStyle, "background-image") === "none" &&
+        property(overlayStyle, "opacity") === "1" &&
+        property(overlayStyle, "visibility") === "visible" &&
+        property(overlayStyle, "border-top-width") === "0px" &&
+        property(overlayStyle, "border-right-width") === "0px" &&
+        property(overlayStyle, "border-bottom-width") === "0px" &&
+        property(overlayStyle, "border-left-width") === "0px" &&
+        property(overlayStyle, "outline-width") === "0px" &&
+        property(overlayStyle, "outline-style") === "none" &&
+        property(overlayStyle, "box-shadow") === "none" &&
+        property(overlayStyle, "text-shadow") === "none" &&
+        property(overlayStyle, "filter") === "none" &&
+        property(overlayStyle, "backdrop-filter") === "none" &&
+        property(overlayStyle, "transform") === "none" &&
+        property(overlayStyle, "clip-path") === "none" &&
+        property(overlayStyle, "mask-image") === "none" &&
+        property(overlayStyle, "mix-blend-mode") === "normal" &&
+        property(overlayStyle, "animation-name") === "none" &&
+        property(overlayStyle, "transition-duration") === "0s" &&
+        pseudoPaintAbsent(pointerWrapper, "::before") &&
+        pseudoPaintAbsent(pointerWrapper, "::after") &&
+        pseudoPaintAbsent(pointerOverlay, "::before") &&
+        pseudoPaintAbsent(pointerOverlay, "::after");
+      const stylesheetExact =
+        read<Node | null>(nodeParentGet, pointerStyle) === pointerWrapper &&
+        read<string | null>(nodeTextContentGet, pointerStyle) === pointerCssText &&
+        read<string>(htmlElementNonceGet, pointerStyle) === styleCspNonce &&
+        property(wrapperStyle, "display") === "contents" &&
+        property(wrapperStyle, "pointer-events") === "none" &&
+        property(overlayStyle, "position") === "fixed" &&
+        property(overlayStyle, "display") === "block" &&
+        property(overlayStyle, "z-index") === "2147483647" &&
+        property(overlayStyle, "cursor") === "pointer" &&
+        property(overlayStyle, "pointer-events") ===
+          (pointerMode === "intercept" ? "auto" : "none");
+      return freeze({
+        applicationOrdinal: (pointerInstallCount - 1) as 0 | 1,
+        pointerMode,
+        connected:
+          read<boolean>(nodeIsConnectedGet, pointerWrapper) &&
+          read<boolean>(nodeIsConnectedGet, pointerOverlay),
+        parentIsBody: read<Node | null>(nodeParentGet, pointerWrapper) === pointerBody,
+        structureExact,
+        attributesExact,
+        stylesheetExact,
+        geometryExact,
+        transparentPaint,
+        accessibilityHidden:
+          call<string | null>(elementGetAttribute, pointerWrapper, ["aria-hidden"]) ===
+            "true" &&
+          call<string | null>(elementGetAttribute, pointerOverlay, ["aria-hidden"]) ===
+            "true" &&
+          call<string | null>(elementGetAttribute, pointerOverlay, ["role"]) === null,
+        nonFocusable:
+          read<number>(htmlElementTabIndexGet, pointerOverlay) === -1 &&
+          !read<boolean>(htmlElementIsContentEditableGet, pointerOverlay) &&
+          call<string | null>(elementGetAttribute, pointerOverlay, ["tabindex"]) ===
+            null &&
+          call<string | null>(elementGetAttribute, pointerOverlay, [
+            "contenteditable",
+          ]) === null &&
+          read<string | null>(nodeTextContentGet, pointerOverlay) === "",
+        sourceHit:
+          sourceHit === pointerOverlay
+            ? "owned_layer"
+            : sourceHit === pointerPrimary
+              ? "primary"
+              : "other",
+        mutationRecordExact: ownedMutationRecordExact,
+      });
+    };
+    const processOwnedRecords = (): void => {
+      process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
+      if (ownedAdmission !== null || !ownedMutationRecordExact) {
+        pointerFailure("owned pointer mutation record was absent or malformed");
+      }
+    };
     return freeze({
       drain(): PilotMutationSnapshot {
         process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
         return snapshotAndReset();
       },
       drainAndDisconnect(): PilotMutationSnapshot {
+        const incompletePointerLifecycle =
+          pointerState !== "unstarted" && pointerState !== "closed";
         process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
         call<void>(mutationObserverDisconnect, observer, []);
-        return snapshotAndReset();
+        const snapshot = snapshotAndReset();
+        if (incompletePointerLifecycle) {
+          return pointerFailure(
+            "owned pointer lifecycle was not closed before audit disconnect",
+          );
+        }
+        return snapshot;
       },
       seal(): PilotMutationSnapshot {
         if (sealed) {
           throw new NativeError("mutation audit was sealed more than once");
         }
+        if (pointerState !== "unstarted" && pointerState !== "closed") {
+          pointerFailure("owned pointer lifecycle was not closed before audit seal");
+        }
         process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
         const snapshot = snapshotAndReset();
         sealed = true;
         return snapshot;
+      },
+      beginOwnedPointerLifecycle(
+        primary: Element,
+        sourcePoint: Readonly<{ x: number; y: number }>,
+        mode: PilotPointerMode,
+      ): PilotPointerLifecycleProbe {
+        if (sealed || pointerState !== "unstarted") {
+          return pointerFailure("owned pointer lifecycle began from an invalid state");
+        }
+        process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
+        if (
+          overflow ||
+          unexpected.length !== 0 ||
+          rootMutationObserved ||
+          successMutationObserved ||
+          ownedAdmission !== null
+        ) {
+          return pointerFailure("owned pointer lifecycle began with a dirty runtime");
+        }
+        snapshotAndReset();
+        if (
+          (mode !== "intercept" && mode !== "pass_through") ||
+          sourcePoint === null ||
+          typeof sourcePoint !== "object" ||
+          !numberIsFinite(sourcePoint.x) ||
+          !numberIsFinite(sourcePoint.y) ||
+          typeof styleCspNonce !== "string" ||
+          styleCspNonce.length < 1 ||
+          styleCspNonce.length > 192
+        ) {
+          return pointerFailure("owned pointer lifecycle input is malformed");
+        }
+        const reservedNodes = call<NodeListOf<Element>>(
+          documentQuerySelectorAll,
+          guardedDocument,
+          ["[data-impactdiff-pilot-owned], [data-impactdiff-pilot-layer]"],
+        );
+        if (read<number>(nodeListLengthGet, reservedNodes) !== 0) {
+          return pointerFailure(
+            "fixture DOM collides with the reserved pointer intervention namespace",
+          );
+        }
+        const geometry = sourcePointerGeometry(primary);
+        const primaryStyle = call<CSSStyleDeclaration>(
+          windowGetComputedStyle,
+          guardedWindow,
+          [primary],
+        );
+        const primaryCursor = call<string>(cssStyleGetPropertyValue, primaryStyle, [
+          "cursor",
+        ]);
+        if (
+          mathAbs(sourcePoint.x - geometry.centerX) > 0.001 ||
+          mathAbs(sourcePoint.y - geometry.centerY) > 0.001
+        ) {
+          return pointerFailure(
+            "owned pointer source point differs from the native center",
+          );
+        }
+        if (primaryCursor !== "pointer") {
+          return pointerFailure(
+            "owned pointer lifecycle requires the exact source pointer cursor",
+          );
+        }
+        const body = read<HTMLElement | null>(documentBodyGet, guardedDocument);
+        if (
+          body === null ||
+          getPrototypeOf(body) !== bodyPrototype ||
+          read<Document | null>(nodeOwnerDocumentGet, body) !== guardedDocument
+        ) {
+          return pointerFailure(
+            "owned pointer lifecycle requires the exact native body",
+          );
+        }
+        const listeners = new NativeArray(
+          listenerRecords.length,
+        ) as GuardedListenerRecord[];
+        for (let index = 0; index < listenerRecords.length; index += 1) {
+          const record = listenerRecords[index];
+          if (record === undefined) {
+            return pointerFailure("listener baseline entry is absent");
+          }
+          defineProperty(listeners, index, {
+            configurable: false,
+            enumerable: true,
+            value: record,
+            writable: false,
+          });
+        }
+        pointerPrimary = primary;
+        pointerMode = mode;
+        pointerGeometry = geometry;
+        pointerBody = body;
+        listenerBaseline = freeze(listeners);
+        listenerBaselineEpoch = listenerEpoch;
+        bodyBaseline = copyChildren(body);
+        pointerState = "clean";
+        return lifecycleProbe();
+      },
+      installOwnedPointerLayer(): PilotPointerLayerProbe {
+        if (
+          sealed ||
+          pointerState !== "clean" ||
+          pointerPrimary === null ||
+          pointerMode === null ||
+          pointerGeometry === null ||
+          pointerBody === null ||
+          pointerInstallCount >= 2 ||
+          pointerRemovalCount !== pointerInstallCount ||
+          !sameBodyChildren() ||
+          !sameListenerRegistry()
+        ) {
+          return pointerFailure(
+            "owned pointer layer installation preconditions failed",
+          );
+        }
+        const currentGeometry = sourcePointerGeometry(pointerPrimary);
+        if (!samePointerGeometry(currentGeometry, pointerGeometry)) {
+          return pointerFailure(
+            "owned pointer source geometry drifted before installation",
+          );
+        }
+        const wrapper = call<HTMLDivElement>(documentCreateElement, guardedDocument, [
+          "div",
+        ]);
+        const style = call<HTMLStyleElement>(documentCreateElement, guardedDocument, [
+          "style",
+        ]);
+        const overlay = call<HTMLDivElement>(documentCreateElement, guardedDocument, [
+          "div",
+        ]);
+        if (
+          getPrototypeOf(wrapper) !== divPrototype ||
+          getPrototypeOf(style) !== stylePrototype ||
+          getPrototypeOf(overlay) !== divPrototype
+        ) {
+          return pointerFailure(
+            "owned pointer layer elements are not exact native nodes",
+          );
+        }
+        const cssText = buildPointerCss(pointerGeometry, pointerMode);
+        call<void>(elementSetAttribute, wrapper, ["aria-hidden", "true"]);
+        call<void>(elementSetAttribute, wrapper, [
+          "data-impactdiff-pilot-owned",
+          "pointer-h0",
+        ]);
+        call<void>(elementSetAttribute, style, ["nonce", styleCspNonce]);
+        reflectApply(nodeTextContentSet, style, [cssText]);
+        call<void>(elementSetAttribute, overlay, ["aria-hidden", "true"]);
+        call<void>(elementSetAttribute, overlay, [
+          "data-impactdiff-pilot-layer",
+          "pointer-h0",
+        ]);
+        call<Node>(nodeAppendChild, wrapper, [style]);
+        call<Node>(nodeAppendChild, wrapper, [overlay]);
+        const previousSibling = read<Node | null>(nodeLastChildGet, pointerBody);
+        ownedMutationRecordExact = false;
+        ownedAdmission = freeze({
+          change: "added" as const,
+          wrapper,
+          previousSibling,
+          nextSibling: null,
+          nonceStyle: style,
+          nextExpected: "nonce_hiding" as const,
+        });
+        pointerWrapper = wrapper;
+        pointerStyle = style;
+        pointerOverlay = overlay;
+        activeOwnedPointerOverlay = overlay;
+        activeOwnedPointerIntercept = pointerMode === "intercept";
+        pointerCssText = cssText;
+        call<Node>(nodeAppendChild, pointerBody, [wrapper]);
+        processOwnedRecords();
+        pointerInstallCount += 1;
+        pointerState = "installed";
+        return pointerLayerProbe();
+      },
+      probeOwnedPointerLayer(): PilotPointerLayerProbe {
+        return pointerLayerProbe();
+      },
+      removeOwnedPointerLayer(): PilotPointerRemovalProbe {
+        if (
+          sealed ||
+          pointerState !== "installed" ||
+          pointerBody === null ||
+          pointerWrapper === null ||
+          pointerStyle === null ||
+          pointerOverlay === null ||
+          activeOwnedPointerOverlay !== pointerOverlay ||
+          activeOwnedPointerIntercept !== (pointerMode === "intercept") ||
+          pointerInstallCount !== pointerRemovalCount + 1
+        ) {
+          return pointerFailure("owned pointer layer removal preconditions failed");
+        }
+        const installed = pointerLayerProbe();
+        const installedExact =
+          installed.connected &&
+          installed.parentIsBody &&
+          installed.structureExact &&
+          installed.attributesExact &&
+          installed.stylesheetExact &&
+          installed.geometryExact &&
+          installed.transparentPaint &&
+          installed.accessibilityHidden &&
+          installed.nonFocusable &&
+          installed.mutationRecordExact &&
+          installed.sourceHit ===
+            (pointerMode === "intercept" ? "owned_layer" : "primary");
+        const wrapper = pointerWrapper;
+        const overlay = pointerOverlay;
+        const applicationOrdinal = (pointerInstallCount - 1) as 0 | 1;
+        const previousSibling = read<Node | null>(nodePreviousSiblingGet, wrapper);
+        const nextSibling = read<Node | null>(nodeNextSiblingGet, wrapper);
+        ownedMutationRecordExact = false;
+        ownedAdmission = freeze({
+          change: "removed" as const,
+          wrapper,
+          previousSibling,
+          nextSibling,
+          nonceStyle: null,
+          nextExpected: "child_list" as const,
+        });
+        activeOwnedPointerOverlay = null;
+        activeOwnedPointerIntercept = false;
+        call<Node>(nodeRemoveChild, pointerBody, [wrapper]);
+        processOwnedRecords();
+        const disconnected =
+          !read<boolean>(nodeIsConnectedGet, wrapper) &&
+          !read<boolean>(nodeIsConnectedGet, overlay) &&
+          read<Node | null>(nodeParentGet, wrapper) === null;
+        pointerWrapper = null;
+        pointerStyle = null;
+        pointerOverlay = null;
+        pointerCssText = null;
+        pointerRemovalCount += 1;
+        const listenerEqual = sameListenerRegistry();
+        const bodyEqual = sameBodyChildren();
+        const runtimeClean =
+          installedExact &&
+          ownedMutationRecordExact &&
+          disconnected &&
+          activeOwnedPointerOverlay === null &&
+          !activeOwnedPointerIntercept &&
+          listenerEqual &&
+          bodyEqual &&
+          pointerMutationAdmissionClean &&
+          ownedAdmission === null &&
+          unexpected.length === 0 &&
+          !overflow;
+        pointerState = runtimeClean ? "clean" : "poisoned";
+        return freeze({
+          applicationOrdinal,
+          mutationRecordExact: ownedMutationRecordExact,
+          ownedHandlesAbsent: disconnected,
+          mutationPreimagesEqual: bodyEqual,
+          listenerRegistryEqual: listenerEqual,
+          runtimeClean,
+        });
+      },
+      finishOwnedPointerLifecycle(): PilotPointerLifecycleProbe {
+        if (
+          sealed ||
+          pointerState !== "clean" ||
+          pointerInstallCount !== 2 ||
+          pointerRemovalCount !== 2
+        ) {
+          return pointerFailure("owned pointer lifecycle did not complete twice");
+        }
+        process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
+        if (
+          !sameBodyChildren() ||
+          !sameListenerRegistry() ||
+          ownedAdmission !== null ||
+          pointerWrapper !== null ||
+          pointerStyle !== null ||
+          pointerOverlay !== null ||
+          activeOwnedPointerOverlay !== null ||
+          activeOwnedPointerIntercept ||
+          overflow ||
+          unexpected.length !== 0 ||
+          rootMutationObserved ||
+          successMutationObserved ||
+          !pointerMutationAdmissionClean
+        ) {
+          return pointerFailure("owned pointer lifecycle finished with dirty state");
+        }
+        pointerState = "closed";
+        return lifecycleProbe();
       },
     });
   };
@@ -1801,6 +3340,7 @@ function pilotPageGuardInit({
     nativeButtonMatches,
     predicateSnapshot,
     sourcePointerGeometry,
+    pointerCleanBoundaryProjection,
     activeElement: () => read<Element | null>(documentActiveElementGet, document),
     isConnected: (node: Node) => read<boolean>(nodeIsConnectedGet, node),
     getAttribute: (element: Element, name: string) =>
@@ -1860,10 +3400,12 @@ function pilotPageGuardInit({
 }
 /* node:coverage enable */
 
-async function installPageGuards(page: Page): Promise<void> {
+async function installPageGuards(page: Page, styleNonce: string): Promise<void> {
+  const styleCspNonce = Buffer.from(styleNonce, "utf8").toString("base64");
   try {
     await page.addInitScript(pilotPageGuardInit, {
       apiName: pageGuardApiName,
+      styleCspNonce,
       terminalSentinel: terminalMutationSentinel,
     });
   } catch (error) {
@@ -2205,11 +3747,16 @@ function abiHandle(
   return handle;
 }
 
+interface PilotDocumentFingerprintOptions {
+  readonly controlPhase: "initial" | "selected";
+  readonly normalization: "workflow_transition" | "exact";
+}
+
 async function documentFingerprint(
   page: Page,
   retained: Pick<RetainedAbi, "documentElement" | "slots" | "pageGuard">,
   workflow: PilotFixtureWorkflow,
-  phase: "initial" | "selected",
+  options: PilotDocumentFingerprintOptions,
   bounds: DocumentIntegrityBounds,
 ): Promise<string> {
   const root = retained.slots.get("root");
@@ -2242,6 +3789,7 @@ async function documentFingerprint(
         focusEntryStateName,
         expectedSetupState,
         expectedFocusEntryState,
+        normalization,
         pageGuard,
         limits,
       }) => {
@@ -2337,11 +3885,13 @@ async function documentFingerprint(
             top: finiteNumber(node.scrollTop, "element scrollTop"),
           };
           const normalizedStateName =
-            node === setupElement
-              ? setupStateName
-              : node === focusEntryElement
-                ? focusEntryStateName
-                : null;
+            normalization === "workflow_transition"
+              ? node === setupElement
+                ? setupStateName
+                : node === focusEntryElement
+                  ? focusEntryStateName
+                  : null
+              : null;
           const nativeControlState = pageGuard.controlState(node);
           if (nativeControlState.kind === "select") {
             const normalizedValue = normalizedStateName === "value";
@@ -2367,8 +3917,9 @@ async function documentFingerprint(
               form: {
                 kind: "option",
                 selected:
-                  nativeControlState.ownerSelect === setupElement ||
-                  nativeControlState.ownerSelect === focusEntryElement
+                  normalization === "workflow_transition" &&
+                  (nativeControlState.ownerSelect === setupElement ||
+                    nativeControlState.ownerSelect === focusEntryElement)
                     ? "$EXPECTED_SETUP_SELECTED"
                     : nativeControlState.selected,
               },
@@ -2485,6 +4036,7 @@ async function documentFingerprint(
             }
             addAttribute(attribute.name, attribute.value, attribute.namespaceURI);
             const normalizeRootAttribute =
+              normalization === "workflow_transition" &&
               node === rootElement &&
               attribute.namespaceURI === null &&
               attribute.name === rootAttribute;
@@ -2497,7 +4049,12 @@ async function documentFingerprint(
               ]);
             }
           }
-          if (project && node === rootElement && !normalizedRootAttributePresent) {
+          if (
+            project &&
+            normalization === "workflow_transition" &&
+            node === rootElement &&
+            !normalizedRootAttributePresent
+          ) {
             attributes.push([null, rootAttribute, "$EXPECTED_ROOT_VALUE"]);
           }
           if (project) {
@@ -2507,7 +4064,8 @@ async function documentFingerprint(
               return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
             });
           }
-          const normalizeSuccessChildren = node === successElement;
+          const normalizeSuccessChildren =
+            normalization === "workflow_transition" && node === successElement;
           const children: unknown[] = [];
           const rawChildCount = node.childNodes.length;
           if (
@@ -2697,9 +4255,10 @@ async function documentFingerprint(
         rootAttribute: workflow.expectations.final.root_attribute.name,
         setupStateName: workflow.expectations.setup_attribute.name,
         focusEntryStateName: workflow.expectations.focus_entry_attribute?.name ?? null,
-        expectedSetupState: workflow.expectations.setup_attribute[phase],
+        expectedSetupState: workflow.expectations.setup_attribute[options.controlPhase],
         expectedFocusEntryState:
-          workflow.expectations.focus_entry_attribute?.[phase] ?? null,
+          workflow.expectations.focus_entry_attribute?.[options.controlPhase] ?? null,
+        normalization: options.normalization,
         pageGuard: retained.pageGuard,
         limits: bounds,
       },
@@ -2715,10 +4274,10 @@ async function documentFingerprint(
   }
   if (!exactControlStates) {
     fail(
-      phase === "initial"
+      options.controlPhase === "initial"
         ? "pilot_runtime.workflow_state"
         : "pilot_runtime.final_expectation",
-      `fixture ${phase} control states differ from their exact manifest expectations`,
+      `fixture ${options.controlPhase} control states differ from their exact manifest expectations`,
     );
   }
   return sha256Hex(Buffer.from(canonicalJson(snapshot), "utf8"));
@@ -2772,6 +4331,7 @@ async function retainAbi(
         typeof api.nativeButtonMatches !== "function" ||
         typeof api.predicateSnapshot !== "function" ||
         typeof api.sourcePointerGeometry !== "function" ||
+        typeof api.pointerCleanBoundaryProjection !== "function" ||
         typeof api.createMutationAudit !== "function" ||
         typeof api.sealTerminalBoundary !== "function"
       ) {
@@ -2811,7 +4371,7 @@ async function retainAbi(
       page,
       partial,
       workflow,
-      "initial",
+      { controlPhase: "initial", normalization: "workflow_transition" },
       integrityBounds,
     ),
   });
@@ -3211,6 +4771,231 @@ async function captureWorkflowCheckpoint(
 interface ExecutedWorkflow {
   readonly retained: RetainedAbi;
   readonly sourcePredicates: PilotMutationPredicateObservationTuple | undefined;
+  readonly pointerBaseline: PilotPointerBaselineEvidence | undefined;
+  readonly pointerCandidateOutcome: PilotPointerCandidateTaskOutcome | undefined;
+  readonly pointerTerminalSealed: boolean;
+}
+
+/** @internal */
+export type PilotPointerCandidateTaskOutcome = "exact_success" | "exact_unchanged";
+
+interface PilotPointerCleanBoundary {
+  readonly exactDocumentSha256: string;
+  readonly computedStylesSha256: string;
+  readonly observation: PilotFixtureAuthoringObservationBytes;
+  readonly hitTestSha256: string;
+  readonly focusAndScrollSha256: string;
+}
+
+/** @internal */
+export interface PilotPointerBaselineEvidence {
+  readonly prePrimary: PilotPointerCleanBoundary;
+  readonly postPrimary: PilotPointerCleanBoundary;
+}
+
+/** @internal */
+export interface PilotPointerCandidateExecutionInput {
+  readonly selected: SelectedPilotPointerOperator;
+  readonly sourcePredicates: PilotMutationPredicateObservationTuple;
+  readonly baseline: PilotPointerBaselineEvidence;
+}
+
+async function capturePilotPointerCleanBoundary(
+  page: Page,
+  retained: RetainedAbi,
+  bound: BoundWorkflow,
+  captureSpec: CaptureSpec,
+  integrityBounds: DocumentIntegrityBounds,
+  sourcePoint: Readonly<{ x: number; y: number }>,
+  controlPhase: "initial" | "selected",
+): Promise<PilotPointerCleanBoundary> {
+  let projection: PilotPointerCleanBoundaryProjection;
+  try {
+    const trackedElements = pilotFixtureAbiSlots.map((slot) =>
+      abiHandle(retained, slot),
+    );
+    const collect = (
+      primary: Element,
+      {
+        guard,
+        point,
+        tracked,
+      }: {
+        readonly guard: PilotPageGuardApi;
+        readonly point: Readonly<{ x: number; y: number }>;
+        readonly tracked: readonly Element[];
+      },
+    ): PilotPointerCleanBoundaryProjection =>
+      guard.pointerCleanBoundaryProjection(primary, point, tracked);
+    const evaluate = abiHandle(retained, "primary").evaluate.bind(
+      abiHandle(retained, "primary"),
+    ) as unknown as (
+      pageFunction: typeof collect,
+      argument: unknown,
+    ) => Promise<PilotPointerCleanBoundaryProjection>;
+    projection = await evaluate(collect, {
+      guard: retained.pageGuard,
+      point: sourcePoint,
+      tracked: trackedElements,
+    });
+  } catch (error) {
+    fail(
+      "pilot_runtime.pointer_roundtrip",
+      "pointer clean-boundary browser projection could not be collected",
+      { cause: error },
+    );
+  }
+  const observation = await capturePilotFixtureAuthoringObservation({
+    page,
+    capture_spec: captureSpec,
+    action_plan: bound.actionPlan,
+    primary_action_target_id: bound.primaryActionTargetId,
+    primary_action_test_id: bound.primaryActionTestId,
+  });
+  return Object.freeze({
+    exactDocumentSha256: await documentFingerprint(
+      page,
+      retained,
+      bound.workflow,
+      { controlPhase, normalization: "exact" },
+      integrityBounds,
+    ),
+    computedStylesSha256: sha256Hex(
+      Buffer.from(canonicalJson(projection.computedStyles), "utf8"),
+    ),
+    observation,
+    hitTestSha256: sha256Hex(Buffer.from(canonicalJson(projection.hitTest), "utf8")),
+    focusAndScrollSha256: sha256Hex(
+      Buffer.from(canonicalJson(projection.focusAndScroll), "utf8"),
+    ),
+  });
+}
+
+/** @internal */
+export function comparePilotPointerCleanBoundaries(
+  actual: PilotPointerCleanBoundary,
+  expected: PilotPointerCleanBoundary,
+): Readonly<{
+  dom: boolean;
+  computedStyle: boolean;
+  pixel: boolean;
+  accessibility: boolean;
+  layout: boolean;
+  hitTest: boolean;
+  focusAndScroll: boolean;
+}> {
+  return Object.freeze({
+    dom: actual.exactDocumentSha256 === expected.exactDocumentSha256,
+    computedStyle: actual.computedStylesSha256 === expected.computedStylesSha256,
+    pixel: actual.observation.screenshot.equals(expected.observation.screenshot),
+    accessibility: actual.observation.accessibility_tree.equals(
+      expected.observation.accessibility_tree,
+    ),
+    layout: actual.observation.layout_graph.equals(expected.observation.layout_graph),
+    hitTest: actual.hitTestSha256 === expected.hitTestSha256,
+    focusAndScroll: actual.focusAndScrollSha256 === expected.focusAndScrollSha256,
+  });
+}
+
+function pointerBoundaryComparisonPasses(
+  comparison: ReturnType<typeof comparePilotPointerCleanBoundaries>,
+): boolean {
+  return (
+    comparison.dom &&
+    comparison.computedStyle &&
+    comparison.pixel &&
+    comparison.accessibility &&
+    comparison.layout &&
+    comparison.hitTest &&
+    comparison.focusAndScroll
+  );
+}
+
+function passingPointerProbeRows(probes: readonly string[]): readonly unknown[] {
+  return probes.map((probe) => ({ probe, state: "pass" as const }));
+}
+
+function verifyPilotPointerRoundtrip(
+  selected: SelectedPilotPointerOperator,
+  removal: PilotPointerRemovalProbe,
+  comparison: ReturnType<typeof comparePilotPointerCleanBoundaries>,
+  phase: "inverse" | "cleanup",
+): void {
+  const states = [
+    removal.ownedHandlesAbsent,
+    removal.mutationPreimagesEqual,
+    removal.listenerRegistryEqual,
+    comparison.dom,
+    comparison.computedStyle,
+    comparison.pixel,
+    comparison.accessibility,
+    comparison.layout,
+    comparison.hitTest,
+    comparison.focusAndScroll,
+    removal.runtimeClean,
+  ];
+  const probeCodes =
+    phase === "inverse"
+      ? selected.definition.required_probes.inverse_roundtrip
+      : selected.definition.cleanup_audit.required;
+  const rows = probeCodes.map((probe, index) => ({
+    probe,
+    state: states[index] === true ? ("pass" as const) : ("fail" as const),
+  }));
+  if (phase === "inverse") {
+    createPilotPointerRoundtripProbeObservations(selected, rows);
+  } else {
+    createPilotPointerCleanupProbeObservations(selected, rows);
+  }
+}
+
+async function sealPilotPointerTerminalBoundary(
+  page: Page,
+  retained: RetainedAbi,
+): Promise<void> {
+  const elements = pilotFixtureAbiSlots.map((slot) => abiHandle(retained, slot));
+  const seal = ({
+    audit,
+    guard,
+    retainedElements,
+  }: {
+    readonly audit: PilotMutationAudit;
+    readonly guard: PilotPageGuardApi;
+    readonly retainedElements: readonly Element[];
+  }): PilotMutationSnapshot => {
+    const snapshot = audit.seal();
+    guard.sealTerminalBoundary(retainedElements);
+    return snapshot;
+  };
+  const evaluate = page.evaluate.bind(page) as unknown as (
+    pageFunction: typeof seal,
+    argument: unknown,
+  ) => Promise<PilotMutationSnapshot>;
+  let snapshot: PilotMutationSnapshot;
+  try {
+    snapshot = await evaluate(seal, {
+      audit: retained.mutationAudit,
+      guard: retained.pageGuard,
+      retainedElements: elements,
+    });
+  } catch (error) {
+    fail(
+      "pilot_runtime.pointer_cleanup",
+      "pointer candidate terminal boundary could not be sealed",
+      { cause: error },
+    );
+  }
+  if (
+    snapshot.overflow ||
+    snapshot.unexpected.length !== 0 ||
+    snapshot.rootMutationObserved ||
+    snapshot.successMutationObserved
+  ) {
+    fail(
+      "pilot_runtime.pointer_cleanup",
+      "pointer candidate changed after its cleanup boundary",
+    );
+  }
 }
 
 async function executeWorkflow(
@@ -3221,7 +5006,13 @@ async function executeWorkflow(
   captureSpec: CaptureSpec,
   checkpointBuffer: PilotFixtureAuthoringCheckpointBytes[] | undefined,
   measurePredicates: boolean,
+  collectPointerBaseline = false,
+  pointerCandidate?: PilotPointerCandidateExecutionInput,
 ): Promise<ExecutedWorkflow> {
+  const selectedPointer =
+    pointerCandidate === undefined
+      ? undefined
+      : assertSelectedPilotPointerOperator(pointerCandidate.selected);
   const integrityBounds = documentIntegrityBounds(captureSpec, bound.manifest);
   const retained = await retainAbi(page, bound.workflow, integrityBounds);
   await assertRetainedDocument(context, page, retained, bound, audit, captureSpec);
@@ -3239,6 +5030,27 @@ async function executeWorkflow(
         options,
       ),
   });
+  const pointerSourcePoint = Object.freeze({
+    x: frozenSourceGeometry.centerX,
+    y: frozenSourceGeometry.centerY,
+  });
+  if (selectedPointer !== undefined && pointerCandidate !== undefined) {
+    assertPilotPointerSourcePredicates(
+      selectedPointer,
+      pointerCandidate.sourcePredicates,
+    );
+    createPilotPointerSourceProbeObservations(
+      selectedPointer,
+      passingPointerProbeRows(selectedPointer.definition.required_probes.source),
+    );
+    await beginPilotPointerIntervention(
+      retained.mutationAudit,
+      abiHandle(retained, "primary"),
+      pointerSourcePoint,
+      selectedPointer,
+    );
+    await installPilotPointerIntervention(retained.mutationAudit, selectedPointer, 0);
+  }
   await captureWorkflowCheckpoint(page, bound, captureSpec, 0, checkpointBuffer);
 
   const focusEntry = abiHandle(retained, "focus_entry");
@@ -3400,11 +5212,20 @@ async function executeWorkflow(
   }
   await assertRetainedDocument(context, page, retained, bound, audit, captureSpec);
   assertBrowserAuditClean(context, page, bound, audit);
-  const prePrimaryGeometry = await sourcePointerGeometry(primary, retained.pageGuard);
-  if (!sameGeometry(frozenSourceGeometry, prePrimaryGeometry)) {
-    fail(
-      "pilot_runtime.pointer_geometry",
-      "primary geometry drifted after the source center was frozen",
+  let installedLayerProbe: PilotPointerLayerProbe | undefined;
+  if (selectedPointer === undefined) {
+    const prePrimaryGeometry = await sourcePointerGeometry(primary, retained.pageGuard);
+    if (!sameGeometry(frozenSourceGeometry, prePrimaryGeometry)) {
+      fail(
+        "pilot_runtime.pointer_geometry",
+        "primary geometry drifted after the source center was frozen",
+      );
+    }
+  } else {
+    installedLayerProbe = await probePilotPointerIntervention(
+      retained.mutationAudit,
+      selectedPointer,
+      0,
     );
   }
   const primaryAction = bound.workflow.actions[primaryOrdinal];
@@ -3421,14 +5242,18 @@ async function executeWorkflow(
     1,
     checkpointBuffer,
   );
-  if (measurePredicates && prePrimaryCheckpoint === undefined) {
+  if (
+    (measurePredicates || selectedPointer !== undefined) &&
+    prePrimaryCheckpoint === undefined
+  ) {
     fail(
       "pilot_runtime.predicate_checkpoint",
       "Pilot predicate measurement requires a private pre-primary checkpoint",
     );
   }
-  const sourcePredicates =
-    !measurePredicates || prePrimaryCheckpoint === undefined
+  const measuredPredicates =
+    (!measurePredicates && selectedPointer === undefined) ||
+    prePrimaryCheckpoint === undefined
       ? undefined
       : await measurePilotMutationPredicates({
           primary,
@@ -3442,6 +5267,107 @@ async function executeWorkflow(
           prePrimaryCheckpoint,
           primaryActionTargetId: bound.primaryActionTargetId,
         });
+  const sourcePredicates =
+    selectedPointer === undefined ? measuredPredicates : undefined;
+  const prePrimaryPointerBoundary = collectPointerBaseline
+    ? await capturePilotPointerCleanBoundary(
+        page,
+        retained,
+        bound,
+        captureSpec,
+        integrityBounds,
+        Object.freeze({
+          x: frozenSourceGeometry.centerX,
+          y: frozenSourceGeometry.centerY,
+        }),
+        "selected",
+      )
+    : undefined;
+  if (selectedPointer !== undefined && pointerCandidate !== undefined) {
+    if (measuredPredicates === undefined || prePrimaryCheckpoint === undefined) {
+      fail(
+        "pilot_runtime.pointer_predicate_policy",
+        "pointer candidate produced no installed predicate vector",
+      );
+    }
+    const installedPredicates = assertPilotPointerInstalledPredicates(
+      selectedPointer,
+      measuredPredicates,
+    );
+    if (installedLayerProbe === undefined) {
+      fail(
+        "pilot_runtime.pointer_intervention_probe",
+        "pointer candidate produced no mechanical installed-layer evidence",
+      );
+    }
+    const changedSurfaceBounded =
+      prePrimaryCheckpoint.screenshot.equals(
+        pointerCandidate.baseline.prePrimary.observation.screenshot,
+      ) &&
+      prePrimaryCheckpoint.accessibility_tree.equals(
+        pointerCandidate.baseline.prePrimary.observation.accessibility_tree,
+      );
+    const installedProbeStates = [
+      installedLayerProbe.connected &&
+        installedLayerProbe.parentIsBody &&
+        installedLayerProbe.structureExact &&
+        installedLayerProbe.attributesExact &&
+        installedLayerProbe.stylesheetExact &&
+        installedLayerProbe.geometryExact &&
+        installedLayerProbe.transparentPaint &&
+        installedLayerProbe.accessibilityHidden &&
+        installedLayerProbe.nonFocusable &&
+        installedLayerProbe.mutationRecordExact,
+      installedLayerProbe.sourceHit ===
+        (selectedPointer.pointer_mode === "intercept" ? "owned_layer" : "primary"),
+      changedSurfaceBounded,
+      installedPredicates[0].state ===
+        selectedPointer.definition.expected_local_task_predicate.state,
+      installedPredicates.every(
+        ({ predicate, state }, index) =>
+          predicate ===
+            selectedPointer.definition.installed_predicate_policy.vector[index]
+              ?.predicate &&
+          state ===
+            selectedPointer.definition.installed_predicate_policy.vector[index]
+              ?.expected_state,
+      ),
+    ];
+    createPilotPointerInstalledProbeObservations(
+      selectedPointer,
+      selectedPointer.definition.required_probes.installed.map((probe, index) => ({
+        probe,
+        state:
+          installedProbeStates[index] === true ? ("pass" as const) : ("fail" as const),
+      })),
+    );
+    const inverseRemoval = await removePilotPointerIntervention(
+      retained.mutationAudit,
+      0,
+    );
+    assertBrowserAuditClean(context, page, bound, audit);
+    const inverseBoundary = await capturePilotPointerCleanBoundary(
+      page,
+      retained,
+      bound,
+      captureSpec,
+      integrityBounds,
+      pointerSourcePoint,
+      "selected",
+    );
+    const inverseComparison = comparePilotPointerCleanBoundaries(
+      inverseBoundary,
+      pointerCandidate.baseline.prePrimary,
+    );
+    verifyPilotPointerRoundtrip(
+      selectedPointer,
+      inverseRemoval,
+      inverseComparison,
+      "inverse",
+    );
+    await installPilotPointerIntervention(retained.mutationAudit, selectedPointer, 1);
+    await probePilotPointerIntervention(retained.mutationAudit, selectedPointer, 1);
+  }
   try {
     await page.mouse.click(frozenSourceGeometry.centerX, frozenSourceGeometry.centerY, {
       button: "left",
@@ -3453,9 +5379,87 @@ async function executeWorkflow(
   }
   await captureWorkflowCheckpoint(page, bound, captureSpec, 2, checkpointBuffer);
 
-  await assertExactFinalWorkflowState(page, retained, bound.workflow, "workflow");
-
   const mutations = await retained.mutationAudit.evaluate((guard) => guard.drain());
+  if (selectedPointer !== undefined && pointerCandidate !== undefined) {
+    if (mutations.overflow || mutations.unexpected.length !== 0) {
+      fail(
+        "pilot_runtime.pointer_outcome",
+        "pointer candidate changed DOM outside the declared task fields",
+      );
+    }
+    const cleanupRemoval = await removePilotPointerIntervention(
+      retained.mutationAudit,
+      1,
+    );
+    await assertRetainedDocument(context, page, retained, bound, audit, captureSpec);
+    assertBrowserAuditClean(context, page, bound, audit);
+    const cleanupBoundary = await capturePilotPointerCleanBoundary(
+      page,
+      retained,
+      bound,
+      captureSpec,
+      integrityBounds,
+      pointerSourcePoint,
+      "selected",
+    );
+    const unchangedComparison = comparePilotPointerCleanBoundaries(
+      cleanupBoundary,
+      pointerCandidate.baseline.prePrimary,
+    );
+    const successComparison = comparePilotPointerCleanBoundaries(
+      cleanupBoundary,
+      pointerCandidate.baseline.postPrimary,
+    );
+    const exactUnchanged = pointerBoundaryComparisonPasses(unchangedComparison);
+    const exactSuccess = pointerBoundaryComparisonPasses(successComparison);
+    if (exactUnchanged === exactSuccess) {
+      fail(
+        "pilot_runtime.pointer_outcome",
+        "pointer candidate outcome is neither one exact state nor is ambiguous",
+      );
+    }
+    const pointerCandidateOutcome: PilotPointerCandidateTaskOutcome = exactSuccess
+      ? "exact_success"
+      : "exact_unchanged";
+    if (
+      (pointerCandidateOutcome === "exact_success" &&
+        (!mutations.rootMutationObserved || !mutations.successMutationObserved)) ||
+      (pointerCandidateOutcome === "exact_unchanged" &&
+        (mutations.rootMutationObserved || mutations.successMutationObserved))
+    ) {
+      fail(
+        "pilot_runtime.pointer_outcome",
+        "pointer candidate mutation trace disagrees with its independently measured task state",
+      );
+    }
+    verifyPilotPointerRoundtrip(
+      selectedPointer,
+      cleanupRemoval,
+      exactSuccess ? successComparison : unchangedComparison,
+      "cleanup",
+    );
+    await finishPilotPointerIntervention(retained.mutationAudit);
+    assertBrowserAuditClean(context, page, bound, audit);
+    await assertClosedChromiumFonts(page, {
+      expectedPlatformFamilyName: "Noto Sans",
+      createError: (message, options) =>
+        new PilotFixtureAuthoringRuntimeError(
+          "pilot_runtime.fixture_font",
+          message,
+          options,
+        ),
+    });
+    await sealPilotPointerTerminalBoundary(page, retained);
+    return Object.freeze({
+      retained,
+      sourcePredicates: undefined,
+      pointerBaseline: undefined,
+      pointerCandidateOutcome,
+      pointerTerminalSealed: true,
+    });
+  }
+
+  await assertExactFinalWorkflowState(page, retained, bound.workflow, "workflow");
   if (
     mutations.overflow ||
     mutations.unexpected.length !== 0 ||
@@ -3473,7 +5477,7 @@ async function executeWorkflow(
     page,
     retained,
     bound.workflow,
-    "selected",
+    { controlPhase: "selected", normalization: "workflow_transition" },
     integrityBounds,
   );
   if (finalDocumentSha256 !== retained.pristineDocumentSha256) {
@@ -3497,7 +5501,34 @@ async function executeWorkflow(
     bound.workflow,
     "post-fingerprint workflow",
   );
-  return Object.freeze({ retained, sourcePredicates });
+  const postPrimaryPointerBoundary = collectPointerBaseline
+    ? await capturePilotPointerCleanBoundary(
+        page,
+        retained,
+        bound,
+        captureSpec,
+        integrityBounds,
+        Object.freeze({
+          x: frozenSourceGeometry.centerX,
+          y: frozenSourceGeometry.centerY,
+        }),
+        "selected",
+      )
+    : undefined;
+  const pointerBaseline =
+    prePrimaryPointerBoundary === undefined || postPrimaryPointerBoundary === undefined
+      ? undefined
+      : Object.freeze({
+          prePrimary: prePrimaryPointerBoundary,
+          postPrimary: postPrimaryPointerBoundary,
+        });
+  return Object.freeze({
+    retained,
+    sourcePredicates,
+    pointerBaseline,
+    pointerCandidateOutcome: undefined,
+    pointerTerminalSealed: false,
+  });
 }
 
 function assertBrowserAuditClean(
@@ -3732,7 +5763,8 @@ function normalizeSessionFailure(
   );
 }
 
-type PilotFixtureWorkflowAuthoringSessionMode = "audit" | "capture" | "predicate";
+type PilotFixtureWorkflowAuthoringSessionMode =
+  "audit" | "capture" | "predicate" | "pointer_baseline" | "pointer_candidate";
 
 function exactCheckpointTuple(
   checkpointBuffer: readonly PilotFixtureAuthoringCheckpointBytes[],
@@ -3779,20 +5811,38 @@ export function runPilotFixtureWorkflowAuthoringSession(
   mode: "predicate",
 ): Promise<PilotFixtureWorkflowAuthoringPredicateSessionResult>;
 /** @internal Acquires no disk authority and always finalizes the supplied lease. */
+export function runPilotFixtureWorkflowAuthoringSession(
+  lease: PilotFixtureAuthoringEnvironmentLease,
+  workflowKey: string,
+  mode: "pointer_baseline",
+): Promise<PilotFixturePointerBaselineAuthoringSessionResult>;
+/** @internal Acquires no disk authority and always finalizes the supplied lease. */
+export function runPilotFixtureWorkflowAuthoringSession(
+  lease: PilotFixtureAuthoringEnvironmentLease,
+  workflowKey: string,
+  mode: "pointer_candidate",
+  pointerCandidate: PilotPointerCandidateExecutionInput,
+): Promise<PilotFixturePointerCandidateAuthoringSessionResult>;
+/** @internal Acquires no disk authority and always finalizes the supplied lease. */
 export async function runPilotFixtureWorkflowAuthoringSession(
   lease: PilotFixtureAuthoringEnvironmentLease,
   workflowKey: string,
   mode: PilotFixtureWorkflowAuthoringSessionMode = "audit",
+  pointerCandidate?: PilotPointerCandidateExecutionInput,
 ): Promise<
   | PilotFixtureWorkflowAuthoringAudit
   | PilotFixtureWorkflowAuthoringCaptureSessionResult
   | PilotFixtureWorkflowAuthoringPredicateSessionResult
+  | PilotFixturePointerBaselineAuthoringSessionResult
+  | PilotFixturePointerCandidateAuthoringSessionResult
 > {
   let bound: BoundWorkflow | undefined;
   let context: BrowserContext | undefined;
   let page: Page | undefined;
   let retained: RetainedAbi | undefined;
   let sourcePredicates: PilotMutationPredicateObservationTuple | undefined;
+  let pointerBaseline: PilotPointerBaselineEvidence | undefined;
+  let pointerCandidateOutcome: PilotPointerCandidateTaskOutcome | undefined;
   let audit: BrowserAuditState | undefined;
   let completionSnapshot: BrowserAuditCompletionSnapshot | undefined;
   let executionComplete = false;
@@ -3806,6 +5856,15 @@ export async function runPilotFixtureWorkflowAuthoringSession(
 
   try {
     bound = bindWorkflow(lease, workflowKey);
+    if (
+      (mode === "pointer_candidate" && pointerCandidate === undefined) ||
+      (mode !== "pointer_candidate" && pointerCandidate !== undefined)
+    ) {
+      fail(
+        "pilot_runtime.pointer_intervention_input",
+        "pointer candidate evidence must accompany only pointer-candidate mode",
+      );
+    }
     contextCreationAttempted = true;
     if (lease.browser.contexts().length !== 0) {
       fail(
@@ -3817,7 +5876,7 @@ export async function runPilotFixtureWorkflowAuthoringSession(
     page = await context.newPage();
     audit = newBrowserAudit();
     await installBrowserAudit(context, page, bound, audit);
-    await installPageGuards(page);
+    await installPageGuards(page, bound.manifest.mutation_policy.style_nonce);
     page.setDefaultNavigationTimeout(lease.capture_spec.budgets.navigation_timeout_ms);
     page.setDefaultTimeout(lease.capture_spec.budgets.action_timeout_ms);
     await page.clock.install({ time: lease.capture_spec.clock.epoch_ms });
@@ -3849,10 +5908,15 @@ export async function runPilotFixtureWorkflowAuthoringSession(
       audit,
       lease.capture_spec,
       checkpointBuffer,
-      mode === "predicate",
+      mode === "predicate" || mode === "pointer_baseline",
+      mode === "pointer_baseline",
+      pointerCandidate,
     );
     retained = executed.retained;
     sourcePredicates = executed.sourcePredicates;
+    pointerBaseline = executed.pointerBaseline;
+    pointerCandidateOutcome = executed.pointerCandidateOutcome;
+    terminalBoundarySealed = executed.pointerTerminalSealed;
     assertBrowserAuditClean(context, page, bound, audit);
     completionSnapshot = snapshotBrowserAudit(audit);
     executionComplete = true;
@@ -3870,7 +5934,7 @@ export async function runPilotFixtureWorkflowAuthoringSession(
     }
   }
   if (retained !== undefined) {
-    if (executionComplete) {
+    if (executionComplete && !terminalBoundarySealed) {
       try {
         if (bound === undefined || page === undefined) {
           throw new Error("retained Pilot ABI has no bound workflow and owned page");
@@ -4009,11 +6073,37 @@ export async function runPilotFixtureWorkflowAuthoringSession(
       checkpoints: exactCheckpointTuple(checkpointBuffer),
     });
   }
+  exactCheckpointTuple(checkpointBuffer);
+  if (mode === "pointer_candidate") {
+    if (pointerCandidateOutcome === undefined) {
+      fail(
+        "pilot_runtime.pointer_outcome",
+        "Pilot pointer candidate produced no exact task outcome",
+      );
+    }
+    return Object.freeze({
+      audit: completedAudit,
+      task_outcome: pointerCandidateOutcome,
+    });
+  }
   if (sourcePredicates === undefined) {
     fail(
       "pilot_runtime.predicate_probe",
       "Pilot authoring capture produced no complete source predicate vector",
     );
+  }
+  if (mode === "pointer_baseline") {
+    if (pointerBaseline === undefined) {
+      fail(
+        "pilot_runtime.pointer_roundtrip",
+        "Pilot pointer baseline produced no exact clean-boundary evidence",
+      );
+    }
+    return Object.freeze({
+      audit: completedAudit,
+      source_predicates: sourcePredicates,
+      pointer_baseline: pointerBaseline,
+    });
   }
   return Object.freeze({
     audit: completedAudit,
