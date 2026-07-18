@@ -99,7 +99,19 @@ const keyActionSchema = exactObject({
   target: { type: "null" },
   value: exactObject({
     kind: { const: "key" },
-    key: { enum: ["ArrowDown", "Tab"] },
+    key: {
+      enum: ["ArrowDown", "ArrowLeft", "ArrowRight", "ArrowUp", "Space", "Tab"],
+    },
+  }),
+  pointer_source_point: { type: "null" },
+});
+
+const fillTextActionSchema = exactObject({
+  intent: { const: "fill_text" },
+  target: { const: "focus_entry" },
+  value: exactObject({
+    kind: { const: "text" },
+    text: { type: "string", minLength: 1, maxLength: 512 },
   }),
   pointer_source_point: { type: "null" },
 });
@@ -115,7 +127,12 @@ const pointerActionSchema = exactObject({
 });
 
 const actionSchema = {
-  oneOf: [focusActionSchema, keyActionSchema, pointerActionSchema],
+  oneOf: [
+    focusActionSchema,
+    fillTextActionSchema,
+    keyActionSchema,
+    pointerActionSchema,
+  ],
 } as const satisfies JSONSchema;
 
 const checkpointSchema = exactObject({
@@ -127,38 +144,29 @@ const checkpointSchema = exactObject({
   },
 });
 
-const workflowSchema = exactObject({
-  workflow_key: {
-    type: "string",
-    minLength: 1,
-    maxLength: 64,
-    pattern: "^[a-z][a-z0-9_]*$",
-  },
-  abi: abiSchema,
-  actions: {
-    type: "array",
-    minItems: 1,
-    maxItems: 256,
-    items: actionSchema,
-  },
-  checkpoints: {
-    type: "array",
-    minItems: 3,
-    maxItems: 3,
-    items: checkpointSchema,
-  },
-  predicate_keys: { const: pilotMutationLocalPredicateKeys },
-  expectations: exactObject({
-    setup_attribute: exactObject({
-      name: {
-        type: "string",
-        minLength: 1,
-        maxLength: 64,
-        pattern: "^[a-z][a-z0-9_-]*$",
-      },
-      initial: { type: "string", minLength: 1, maxLength: 256 },
-      selected: { type: "string", minLength: 1, maxLength: 256 },
-    }),
+const valueStateExpectationSchema = exactObject({
+  name: { const: "value" },
+  initial: { type: "string", maxLength: 512 },
+  selected: { type: "string", minLength: 1, maxLength: 512 },
+});
+
+const checkedStateExpectationSchema = exactObject({
+  name: { const: "checked" },
+  initial: { const: false },
+  selected: { const: true },
+});
+
+const controlStateExpectationSchema = {
+  oneOf: [valueStateExpectationSchema, checkedStateExpectationSchema],
+} as const satisfies JSONSchema;
+
+const workflowExpectationsSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["setup_attribute", "pre_primary_focus", "final"],
+  properties: {
+    setup_attribute: controlStateExpectationSchema,
+    focus_entry_attribute: controlStateExpectationSchema,
     pre_primary_focus: { enum: pilotFixtureAbiSlots },
     final: exactObject({
       root_attribute: exactObject({
@@ -173,7 +181,31 @@ const workflowSchema = exactObject({
       success_text: { type: "string", minLength: 1, maxLength: 512 },
       focus: { enum: pilotFixtureAbiSlots },
     }),
-  }),
+  },
+} as const satisfies JSONSchema;
+
+const workflowSchema = exactObject({
+  workflow_key: {
+    type: "string",
+    minLength: 1,
+    maxLength: 64,
+    pattern: "^[a-z][a-z0-9_]*$",
+  },
+  abi: abiSchema,
+  actions: {
+    type: "array",
+    minItems: 4,
+    maxItems: 32,
+    items: actionSchema,
+  },
+  checkpoints: {
+    type: "array",
+    minItems: 3,
+    maxItems: 3,
+    items: checkpointSchema,
+  },
+  predicate_keys: { const: pilotMutationLocalPredicateKeys },
+  expectations: workflowExpectationsSchema,
 });
 
 export const pilotFixtureManifestSchema = {

@@ -40,6 +40,88 @@ import { PilotFixtureAuthoringRuntimeError } from "./errors.js";
 const fixtureOrigin = "https://pilot-fixture.impactdiff.invalid";
 const maximumAuditEvents = 256;
 const maximumAuditTextLength = 2_048;
+const terminalMutationSentinel = "ImpactDiff Pilot terminal boundary mutation";
+const pageGuardApiName = "__impactdiffPilotPageGuardV1";
+
+interface PilotNativeSelectState {
+  readonly kind: "select";
+  readonly disabled: boolean;
+  readonly multiple: boolean;
+  readonly value: string;
+  readonly selectedIndex: number;
+  readonly optionValues: readonly string[];
+  readonly optionSelected: readonly boolean[];
+}
+
+interface PilotNativeInputState {
+  readonly kind: "input";
+  readonly type: string;
+  readonly disabled: boolean;
+  readonly readOnly: boolean;
+  readonly value: string;
+  readonly checked: boolean;
+  readonly indeterminate: boolean;
+  readonly groupPeerCount: number;
+  readonly filesLength: number;
+  readonly selectionStart: number | null;
+  readonly selectionEnd: number | null;
+  readonly selectionDirection: string | null;
+}
+
+interface PilotNativeTextareaState {
+  readonly kind: "textarea";
+  readonly disabled: boolean;
+  readonly readOnly: boolean;
+  readonly value: string;
+  readonly selectionStart: number;
+  readonly selectionEnd: number;
+  readonly selectionDirection: string;
+}
+
+interface PilotNativeOptionState {
+  readonly kind: "option";
+  readonly selected: boolean;
+  readonly ownerSelect: HTMLSelectElement | null;
+}
+
+type PilotNativeControlState =
+  | PilotNativeSelectState
+  | PilotNativeInputState
+  | PilotNativeTextareaState
+  | PilotNativeOptionState
+  | { readonly kind: "other" };
+
+interface PilotPageGuardApi {
+  readonly controlState: (element: Element) => PilotNativeControlState;
+  readonly controlMatches: (
+    element: Element,
+    stateName: "value" | "checked" | null,
+    expectedState: string | boolean | null,
+  ) => boolean;
+  readonly activeElement: () => Element | null;
+  readonly isConnected: (node: Node) => boolean;
+  readonly getAttribute: (element: Element, name: string) => string | null;
+  readonly textContent: (node: Node) => string | null;
+  readonly createMutationAudit: (
+    rootElement: Element,
+    successElement: Element,
+    rootAttribute: string,
+  ) => PilotMutationAudit;
+  readonly sealTerminalBoundary: (elements: readonly Element[]) => void;
+}
+
+interface PilotMutationSnapshot {
+  readonly overflow: boolean;
+  readonly unexpected: readonly string[];
+  readonly rootMutationObserved: boolean;
+  readonly successMutationObserved: boolean;
+}
+
+interface PilotMutationAudit {
+  readonly drain: () => PilotMutationSnapshot;
+  readonly drainAndDisconnect: () => PilotMutationSnapshot;
+  readonly seal: () => PilotMutationSnapshot;
+}
 
 export interface PilotFixtureResourceRequestAudit {
   readonly path: string;
@@ -55,8 +137,8 @@ export interface PilotFixtureWorkflowAuthoringAudit {
   readonly workflow_key: string;
   readonly task_id: string;
   readonly environment_id: string;
-  readonly actions_executed: 4;
-  readonly checkpoint_after_action_ordinals: readonly [-1, 2, 3];
+  readonly actions_executed: number;
+  readonly checkpoint_after_action_ordinals: readonly [number, number, number];
   readonly resource_requests: readonly PilotFixtureResourceRequestAudit[];
   readonly blocked_external_requests: readonly [];
   readonly unexpected_fixture_requests: readonly [];
@@ -105,20 +187,8 @@ interface BrowserAuditCompletionSnapshot {
 interface RetainedAbi {
   readonly documentElement: ElementHandle<HTMLElement>;
   readonly slots: ReadonlyMap<PilotFixtureAbiSlot, ElementHandle<Element>>;
-  readonly mutationAudit: JSHandle<{
-    readonly drain: () => {
-      readonly overflow: boolean;
-      readonly unexpected: readonly string[];
-      readonly rootMutationObserved: boolean;
-      readonly successMutationObserved: boolean;
-    };
-    readonly drainAndDisconnect: () => {
-      readonly overflow: boolean;
-      readonly unexpected: readonly string[];
-      readonly rootMutationObserved: boolean;
-      readonly successMutationObserved: boolean;
-    };
-  }>;
+  readonly pageGuard: JSHandle<PilotPageGuardApi>;
+  readonly mutationAudit: JSHandle<PilotMutationAudit>;
   readonly pristineDocumentSha256: string;
 }
 
@@ -575,7 +645,11 @@ async function installBrowserAudit(
   );
   page.on("console", (message) => {
     const text = message.text();
-    if (/content security policy|violates the following directive/iu.test(text)) {
+    if (text === terminalMutationSentinel) {
+      recordEvent(audit, "transientEvents", text);
+    } else if (
+      /content security policy|violates the following directive/iu.test(text)
+    ) {
       recordEvent(audit, "cspViolations", text);
     }
   });
@@ -615,34 +689,756 @@ async function installBrowserAudit(
   await context.route("**/*", (route) => serveRoute(route, bound, audit));
 }
 
-async function installPageGuards(page: Page): Promise<void> {
-  try {
-    await page.addInitScript(() => {
-      const denyAuthorShadowRoot = Object.freeze(
-        function denyAuthorShadowRoot(): never {
-          throw new DOMException(
-            "author shadow roots are disabled in Pilot authoring",
-            "NotSupportedError",
-          );
-        },
-      );
-      Object.defineProperty(Element.prototype, "attachShadow", {
-        value: denyAuthorShadowRoot,
-        writable: false,
-        enumerable: false,
+function pilotPageGuardInit({
+  apiName,
+  terminalSentinel,
+}: {
+  readonly apiName: string;
+  readonly terminalSentinel: string;
+}): void {
+  const NativeArray = Array;
+  const NativeError = Error;
+  const NativeMutationObserver = MutationObserver;
+  const guardedDocument = document;
+  const nativeConsole = console;
+  const nativeConsoleError = console.error;
+  const defineProperty = Object.defineProperty;
+  const freeze = Object.freeze;
+  const getOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+  const getPrototypeOf = Object.getPrototypeOf;
+  const reflectApply = Reflect.apply;
+
+  const inputPrototype = HTMLInputElement.prototype;
+  const textareaPrototype = HTMLTextAreaElement.prototype;
+  const selectPrototype = HTMLSelectElement.prototype;
+  const optionPrototype = HTMLOptionElement.prototype;
+
+  const descriptorFor = (prototype: object, property: string): PropertyDescriptor => {
+    let owner: object | null = prototype;
+    while (owner !== null) {
+      const descriptor = getOwnPropertyDescriptor(owner, property);
+      if (descriptor !== undefined) return descriptor;
+      owner = getPrototypeOf(owner) as object | null;
+    }
+    throw new NativeError(`native ${property} descriptor is unavailable`);
+  };
+  const getterFor = (
+    prototype: object,
+    property: string,
+  ): ((this: unknown) => unknown) => {
+    const descriptor = descriptorFor(prototype, property);
+    if (descriptor.get === undefined) {
+      throw new NativeError(`native ${property} getter is unavailable`);
+    }
+    return descriptor.get;
+  };
+  const methodFor = (
+    prototype: object,
+    property: string,
+  ): ((this: unknown, ...args: unknown[]) => unknown) => {
+    const descriptor = descriptorFor(prototype, property);
+    if (typeof descriptor.value !== "function") {
+      throw new NativeError(`native ${property} method is unavailable`);
+    }
+    return descriptor.value as (this: unknown, ...args: unknown[]) => unknown;
+  };
+  const read = <Value>(getter: (this: unknown) => unknown, receiver: unknown): Value =>
+    reflectApply(getter, receiver, []) as Value;
+  const call = <Value>(
+    method: (this: unknown, ...args: unknown[]) => unknown,
+    receiver: unknown,
+    args: readonly unknown[],
+  ): Value => reflectApply(method, receiver, args) as Value;
+
+  const inputGetters = freeze({
+    checked: getterFor(inputPrototype, "checked"),
+    disabled: getterFor(inputPrototype, "disabled"),
+    files: getterFor(inputPrototype, "files"),
+    form: getterFor(inputPrototype, "form"),
+    indeterminate: getterFor(inputPrototype, "indeterminate"),
+    name: getterFor(inputPrototype, "name"),
+    readOnly: getterFor(inputPrototype, "readOnly"),
+    selectionDirection: getterFor(inputPrototype, "selectionDirection"),
+    selectionEnd: getterFor(inputPrototype, "selectionEnd"),
+    selectionStart: getterFor(inputPrototype, "selectionStart"),
+    type: getterFor(inputPrototype, "type"),
+    value: getterFor(inputPrototype, "value"),
+  });
+  const textareaGetters = freeze({
+    disabled: getterFor(textareaPrototype, "disabled"),
+    readOnly: getterFor(textareaPrototype, "readOnly"),
+    selectionDirection: getterFor(textareaPrototype, "selectionDirection"),
+    selectionEnd: getterFor(textareaPrototype, "selectionEnd"),
+    selectionStart: getterFor(textareaPrototype, "selectionStart"),
+    value: getterFor(textareaPrototype, "value"),
+  });
+  const selectGetters = freeze({
+    disabled: getterFor(selectPrototype, "disabled"),
+    multiple: getterFor(selectPrototype, "multiple"),
+    options: getterFor(selectPrototype, "options"),
+    selectedIndex: getterFor(selectPrototype, "selectedIndex"),
+    value: getterFor(selectPrototype, "value"),
+  });
+  const optionGetters = freeze({
+    selected: getterFor(optionPrototype, "selected"),
+    value: getterFor(optionPrototype, "value"),
+  });
+  const collectionLengthGet = getterFor(HTMLCollection.prototype, "length");
+  const collectionItem = methodFor(HTMLCollection.prototype, "item");
+  const fileListLengthGet = getterFor(FileList.prototype, "length");
+  const nodeListLengthGet = getterFor(NodeList.prototype, "length");
+  const nodeListItem = methodFor(NodeList.prototype, "item");
+  const arrayPush = methodFor(Array.prototype, "push");
+  const nodeParentGet = getterFor(Node.prototype, "parentNode");
+  const nodeTypeGet = getterFor(Node.prototype, "nodeType");
+  const nodeIsConnectedGet = getterFor(Node.prototype, "isConnected");
+  const nodeTextContentGet = getterFor(Node.prototype, "textContent");
+  const elementLocalNameGet = getterFor(Element.prototype, "localName");
+  const documentActiveElementGet = getterFor(Document.prototype, "activeElement");
+  const documentQuerySelectorAll = methodFor(Document.prototype, "querySelectorAll");
+  const elementGetAttribute = methodFor(Element.prototype, "getAttribute");
+  const mutationObserverObserve = methodFor(MutationObserver.prototype, "observe");
+  const mutationObserverTakeRecords = methodFor(
+    MutationObserver.prototype,
+    "takeRecords",
+  );
+  const mutationObserverDisconnect = methodFor(
+    MutationObserver.prototype,
+    "disconnect",
+  );
+  const mutationRecordGetters = freeze({
+    addedNodes: getterFor(MutationRecord.prototype, "addedNodes"),
+    attributeName: getterFor(MutationRecord.prototype, "attributeName"),
+    removedNodes: getterFor(MutationRecord.prototype, "removedNodes"),
+    target: getterFor(MutationRecord.prototype, "target"),
+    type: getterFor(MutationRecord.prototype, "type"),
+  });
+
+  const inputStateProperties = freeze([
+    "checked",
+    "disabled",
+    "files",
+    "form",
+    "indeterminate",
+    "name",
+    "readOnly",
+    "selectionDirection",
+    "selectionEnd",
+    "selectionStart",
+    "type",
+    "value",
+  ]);
+  const textareaStateProperties = freeze([
+    "disabled",
+    "readOnly",
+    "selectionDirection",
+    "selectionEnd",
+    "selectionStart",
+    "value",
+  ]);
+  const selectStateProperties = freeze([
+    "disabled",
+    "form",
+    "length",
+    "multiple",
+    "options",
+    "selectedIndex",
+    "value",
+  ]);
+  const optionStateProperties = freeze([
+    "defaultSelected",
+    "disabled",
+    "form",
+    "index",
+    "label",
+    "selected",
+    "text",
+    "value",
+  ]);
+
+  let terminalSealed = false;
+  const signalTerminalMutation = (): never => {
+    reflectApply(nativeConsoleError, nativeConsole, [terminalSentinel]);
+    throw new NativeError(terminalSentinel);
+  };
+  const guardAccessor = (prototype: object, property: string): void => {
+    const descriptor = descriptorFor(prototype, property);
+    if (descriptor.get === undefined || !descriptor.configurable) {
+      throw new NativeError(`terminal ${property} accessor cannot be guarded`);
+    }
+    const nativeGet = descriptor.get;
+    const nativeSet = descriptor.set;
+    const guardedDescriptor: PropertyDescriptor = {
+      configurable: false,
+      enumerable: descriptor.enumerable ?? true,
+      get() {
+        return reflectApply(nativeGet, this, []);
+      },
+    };
+    if (nativeSet !== undefined) {
+      guardedDescriptor.set = function guardedTerminalStateWrite(
+        this: unknown,
+        value: unknown,
+      ): void {
+        if (terminalSealed) signalTerminalMutation();
+        reflectApply(nativeSet, this, [value]);
+      };
+    }
+    defineProperty(prototype, property, guardedDescriptor);
+  };
+  const guardMethod = (prototype: object, property: string): void => {
+    const descriptor = descriptorFor(prototype, property);
+    if (typeof descriptor.value !== "function" || !descriptor.configurable) {
+      throw new NativeError(`terminal ${property} method cannot be guarded`);
+    }
+    const nativeMethod = descriptor.value as (
+      this: unknown,
+      ...args: unknown[]
+    ) => unknown;
+    defineProperty(prototype, property, {
+      configurable: false,
+      enumerable: descriptor.enumerable ?? false,
+      writable: false,
+      value: function guardedTerminalOperation(...args: unknown[]): unknown {
+        if (terminalSealed) signalTerminalMutation();
+        return reflectApply(nativeMethod, this, args);
+      },
+    });
+  };
+  for (const property of [
+    "checked",
+    "defaultChecked",
+    "defaultValue",
+    "disabled",
+    "files",
+    "form",
+    "indeterminate",
+    "name",
+    "readOnly",
+    "selectionDirection",
+    "selectionEnd",
+    "selectionStart",
+    "type",
+    "value",
+    "valueAsDate",
+    "valueAsNumber",
+  ]) {
+    guardAccessor(inputPrototype, property);
+  }
+  for (const property of [
+    "defaultValue",
+    "disabled",
+    "form",
+    "readOnly",
+    "selectionDirection",
+    "selectionEnd",
+    "selectionStart",
+    "value",
+  ]) {
+    guardAccessor(textareaPrototype, property);
+  }
+  for (const property of [
+    "disabled",
+    "form",
+    "length",
+    "multiple",
+    "options",
+    "selectedIndex",
+    "value",
+  ]) {
+    guardAccessor(selectPrototype, property);
+  }
+  for (const property of optionStateProperties) {
+    guardAccessor(optionPrototype, property);
+  }
+  guardAccessor(Document.prototype, "activeElement");
+  guardAccessor(Document.prototype, "adoptedStyleSheets");
+  guardAccessor(Node.prototype, "isConnected");
+  guardAccessor(Node.prototype, "textContent");
+  guardAccessor(Element.prototype, "scrollLeft");
+  guardAccessor(Element.prototype, "scrollTop");
+  for (const property of [
+    "select",
+    "setRangeText",
+    "setSelectionRange",
+    "stepDown",
+    "stepUp",
+  ]) {
+    guardMethod(inputPrototype, property);
+  }
+  for (const property of ["select", "setRangeText", "setSelectionRange"]) {
+    guardMethod(textareaPrototype, property);
+  }
+  for (const prototype of [
+    inputPrototype,
+    selectPrototype,
+    textareaPrototype,
+    HTMLButtonElement.prototype,
+  ]) {
+    for (const property of ["checkValidity", "reportValidity", "setCustomValidity"]) {
+      guardMethod(prototype, property);
+    }
+  }
+  guardMethod(HTMLFormElement.prototype, "reset");
+  for (const property of ["reportValidity", "requestSubmit", "submit"]) {
+    guardMethod(HTMLFormElement.prototype, property);
+  }
+  for (const property of ["blur", "click", "focus"]) {
+    guardMethod(HTMLElement.prototype, property);
+  }
+  guardMethod(EventTarget.prototype, "dispatchEvent");
+  guardMethod(Element.prototype, "animate");
+  for (const property of ["scroll", "scrollBy", "scrollIntoView", "scrollTo"]) {
+    guardMethod(Element.prototype, property);
+  }
+  for (const property of ["scroll", "scrollBy", "scrollTo"]) {
+    guardMethod(globalThis, property);
+  }
+  for (const property of [
+    "addRule",
+    "deleteRule",
+    "insertRule",
+    "removeRule",
+    "replace",
+    "replaceSync",
+  ]) {
+    guardMethod(CSSStyleSheet.prototype, property);
+  }
+
+  const assertExactPrototypeAndNoOwnState = (
+    element: Element,
+    prototype: object,
+    properties: readonly string[],
+  ): void => {
+    if (getPrototypeOf(element) !== prototype) {
+      throw new NativeError("control prototype differs from its native ABI");
+    }
+    for (let index = 0; index < properties.length; index += 1) {
+      const property = properties[index];
+      if (
+        property !== undefined &&
+        getOwnPropertyDescriptor(element, property) !== undefined
+      ) {
+        throw new NativeError(`control has an own ${property} state descriptor`);
+      }
+    }
+  };
+  const optionElements = (element: HTMLSelectElement): readonly Element[] => {
+    const collection = read<HTMLCollection>(selectGetters.options, element);
+    const length = read<number>(collectionLengthGet, collection);
+    const result = new NativeArray(length) as Element[];
+    for (let index = 0; index < length; index += 1) {
+      const option = call<Element | null>(collectionItem, collection, [index]);
+      if (option === null || getPrototypeOf(option) !== optionPrototype) {
+        throw new NativeError("select options differ from the native option ABI");
+      }
+      defineProperty(result, index, {
         configurable: false,
+        enumerable: true,
+        value: option,
+        writable: false,
       });
-      for (const property of [
-        "RTCPeerConnection",
-        "webkitRTCPeerConnection",
-      ] as const) {
-        Object.defineProperty(globalThis, property, {
-          value: undefined,
-          writable: false,
-          enumerable: false,
+    }
+    return freeze(result);
+  };
+  const ownerSelect = (element: HTMLOptionElement): HTMLSelectElement | null => {
+    let parent = read<Node | null>(nodeParentGet, element);
+    while (parent !== null) {
+      if (getPrototypeOf(parent) === selectPrototype) {
+        return parent as HTMLSelectElement;
+      }
+      parent = read<Node | null>(nodeParentGet, parent);
+    }
+    return null;
+  };
+  const radioGroupPeerCount = (element: HTMLInputElement): number => {
+    const name = read<string>(inputGetters.name, element);
+    if (name === "") return 0;
+    const form = read<HTMLFormElement | null>(inputGetters.form, element);
+    const candidates = call<NodeList>(documentQuerySelectorAll, document, [
+      'input[type="radio"]',
+    ]);
+    const length = read<number>(nodeListLengthGet, candidates);
+    let count = 0;
+    for (let index = 0; index < length; index += 1) {
+      const candidate = call<Node | null>(nodeListItem, candidates, [index]);
+      if (
+        candidate !== null &&
+        candidate !== element &&
+        read<string>(inputGetters.type, candidate) === "radio" &&
+        read<string>(inputGetters.name, candidate) === name &&
+        read<HTMLFormElement | null>(inputGetters.form, candidate) === form
+      ) {
+        count += 1;
+      }
+    }
+    return count;
+  };
+  const controlState = (element: Element): PilotNativeControlState => {
+    const prototype = getPrototypeOf(element);
+    if (prototype === selectPrototype) {
+      assertExactPrototypeAndNoOwnState(
+        element,
+        selectPrototype,
+        selectStateProperties,
+      );
+      const options = optionElements(element as HTMLSelectElement);
+      const optionValues = new NativeArray(options.length) as string[];
+      const optionSelected = new NativeArray(options.length) as boolean[];
+      for (let index = 0; index < options.length; index += 1) {
+        const option = options[index];
+        if (option === undefined) {
+          throw new NativeError("select option collection is sparse");
+        }
+        assertExactPrototypeAndNoOwnState(
+          option,
+          optionPrototype,
+          optionStateProperties,
+        );
+        defineProperty(optionValues, index, {
           configurable: false,
+          enumerable: true,
+          value: read<string>(optionGetters.value, option),
+          writable: false,
+        });
+        defineProperty(optionSelected, index, {
+          configurable: false,
+          enumerable: true,
+          value: read<boolean>(optionGetters.selected, option),
+          writable: false,
         });
       }
+      return freeze({
+        kind: "select" as const,
+        disabled: read<boolean>(selectGetters.disabled, element),
+        multiple: read<boolean>(selectGetters.multiple, element),
+        value: read<string>(selectGetters.value, element),
+        selectedIndex: read<number>(selectGetters.selectedIndex, element),
+        optionValues: freeze(optionValues),
+        optionSelected: freeze(optionSelected),
+      });
+    }
+    if (prototype === inputPrototype) {
+      assertExactPrototypeAndNoOwnState(element, inputPrototype, inputStateProperties);
+      const files = read<FileList | null>(inputGetters.files, element);
+      const type = read<string>(inputGetters.type, element);
+      return freeze({
+        kind: "input" as const,
+        type,
+        disabled: read<boolean>(inputGetters.disabled, element),
+        readOnly: read<boolean>(inputGetters.readOnly, element),
+        value: read<string>(inputGetters.value, element),
+        checked: read<boolean>(inputGetters.checked, element),
+        indeterminate: read<boolean>(inputGetters.indeterminate, element),
+        groupPeerCount:
+          type === "radio" ? radioGroupPeerCount(element as HTMLInputElement) : 0,
+        filesLength: files === null ? 0 : read<number>(fileListLengthGet, files),
+        selectionStart: read<number | null>(inputGetters.selectionStart, element),
+        selectionEnd: read<number | null>(inputGetters.selectionEnd, element),
+        selectionDirection: read<string | null>(
+          inputGetters.selectionDirection,
+          element,
+        ),
+      });
+    }
+    if (prototype === textareaPrototype) {
+      assertExactPrototypeAndNoOwnState(
+        element,
+        textareaPrototype,
+        textareaStateProperties,
+      );
+      return freeze({
+        kind: "textarea" as const,
+        disabled: read<boolean>(textareaGetters.disabled, element),
+        readOnly: read<boolean>(textareaGetters.readOnly, element),
+        value: read<string>(textareaGetters.value, element),
+        selectionStart: read<number>(textareaGetters.selectionStart, element),
+        selectionEnd: read<number>(textareaGetters.selectionEnd, element),
+        selectionDirection: read<string>(textareaGetters.selectionDirection, element),
+      });
+    }
+    if (prototype === optionPrototype) {
+      assertExactPrototypeAndNoOwnState(
+        element,
+        optionPrototype,
+        optionStateProperties,
+      );
+      return freeze({
+        kind: "option" as const,
+        selected: read<boolean>(optionGetters.selected, element),
+        ownerSelect: ownerSelect(element as HTMLOptionElement),
+      });
+    }
+    return freeze({ kind: "other" as const });
+  };
+  const controlMatches = (
+    element: Element,
+    stateName: "value" | "checked" | null,
+    expectedState: string | boolean | null,
+  ): boolean => {
+    const state = controlState(element);
+    if (stateName === "value" && typeof expectedState === "string") {
+      if (state.kind === "select") {
+        let selectedCount = 0;
+        let selectedIndex = -1;
+        let uniqueValues = true;
+        for (let index = 0; index < state.optionValues.length; index += 1) {
+          if (state.optionSelected[index] === true) {
+            selectedCount += 1;
+            selectedIndex = index;
+          }
+          for (let peer = 0; peer < index; peer += 1) {
+            if (state.optionValues[peer] === state.optionValues[index]) {
+              uniqueValues = false;
+            }
+          }
+        }
+        return (
+          !state.disabled &&
+          !state.multiple &&
+          state.optionValues.length >= 2 &&
+          uniqueValues &&
+          selectedCount === 1 &&
+          selectedIndex === state.selectedIndex &&
+          state.optionValues[state.selectedIndex] === expectedState &&
+          state.value === expectedState
+        );
+      }
+      if (state.kind === "input") {
+        return (
+          (state.type === "email" ||
+            state.type === "search" ||
+            state.type === "tel" ||
+            state.type === "text" ||
+            state.type === "url") &&
+          !state.disabled &&
+          !state.readOnly &&
+          state.value === expectedState
+        );
+      }
+      return (
+        state.kind === "textarea" &&
+        !state.disabled &&
+        !state.readOnly &&
+        state.value === expectedState
+      );
+    }
+    return (
+      stateName === "checked" &&
+      typeof expectedState === "boolean" &&
+      state.kind === "input" &&
+      state.type === "radio" &&
+      !state.disabled &&
+      !state.indeterminate &&
+      state.checked === expectedState &&
+      state.groupPeerCount === 0
+    );
+  };
+  const createMutationAudit = (
+    rootElement: Element,
+    successElement: Element,
+    rootAttribute: string,
+  ): PilotMutationAudit => {
+    let overflow = false;
+    let rootMutationObserved = false;
+    let successMutationObserved = false;
+    const unexpected = new NativeArray() as string[];
+    const maximumRecords = 64;
+    let recordCount = 0;
+    let sealed = false;
+    const nodeListEveryText = (nodes: NodeList): boolean => {
+      const length = read<number>(nodeListLengthGet, nodes);
+      for (let index = 0; index < length; index += 1) {
+        const node = call<Node | null>(nodeListItem, nodes, [index]);
+        if (node === null || read<number>(nodeTypeGet, node) !== 3) return false;
+      }
+      return true;
+    };
+    const process = (records: readonly MutationRecord[]): void => {
+      if (sealed && records.length > 0) signalTerminalMutation();
+      for (let index = 0; index < records.length; index += 1) {
+        const record = records[index];
+        if (record === undefined) {
+          throw new NativeError("mutation audit record is absent");
+        }
+        recordCount += 1;
+        if (recordCount > maximumRecords) {
+          overflow = true;
+          continue;
+        }
+        const type = read<string>(mutationRecordGetters.type, record);
+        const target = read<Node>(mutationRecordGetters.target, record);
+        const attributeName = read<string | null>(
+          mutationRecordGetters.attributeName,
+          record,
+        );
+        if (
+          type === "attributes" &&
+          target === rootElement &&
+          attributeName === rootAttribute
+        ) {
+          rootMutationObserved = true;
+          continue;
+        }
+        if (type === "childList" && target === successElement) {
+          const addedNodes = read<NodeList>(mutationRecordGetters.addedNodes, record);
+          const removedNodes = read<NodeList>(
+            mutationRecordGetters.removedNodes,
+            record,
+          );
+          const changedNodeCount =
+            read<number>(nodeListLengthGet, addedNodes) +
+            read<number>(nodeListLengthGet, removedNodes);
+          if (
+            changedNodeCount > 0 &&
+            nodeListEveryText(addedNodes) &&
+            nodeListEveryText(removedNodes)
+          ) {
+            successMutationObserved = true;
+            continue;
+          }
+        }
+        if (
+          type === "characterData" &&
+          read<number>(nodeTypeGet, target) === 3 &&
+          read<Node | null>(nodeParentGet, target) === successElement
+        ) {
+          successMutationObserved = true;
+          continue;
+        }
+        const targetType = read<number>(nodeTypeGet, target);
+        const targetName =
+          targetType === 1
+            ? (call<string | null>(elementGetAttribute, target, ["data-testid"]) ??
+              read<string>(elementLocalNameGet, target))
+            : `node-${targetType}`;
+        call<number>(arrayPush, unexpected, [
+          `${type}:${targetName}:${attributeName ?? "$NULL"}`,
+        ]);
+      }
+    };
+    const observer = new NativeMutationObserver(process);
+    call<void>(mutationObserverObserve, observer, [
+      guardedDocument,
+      {
+        subtree: true,
+        attributes: true,
+        attributeOldValue: true,
+        childList: true,
+        characterData: true,
+        characterDataOldValue: true,
+      },
+    ]);
+    const snapshotAndReset = (): PilotMutationSnapshot => {
+      const copiedUnexpected = new NativeArray(unexpected.length) as string[];
+      for (let index = 0; index < unexpected.length; index += 1) {
+        defineProperty(copiedUnexpected, index, {
+          configurable: false,
+          enumerable: true,
+          value: unexpected[index],
+          writable: false,
+        });
+      }
+      const snapshot = freeze({
+        overflow,
+        unexpected: freeze(copiedUnexpected),
+        rootMutationObserved,
+        successMutationObserved,
+      });
+      overflow = false;
+      rootMutationObserved = false;
+      successMutationObserved = false;
+      unexpected.length = 0;
+      recordCount = 0;
+      return snapshot;
+    };
+    return freeze({
+      drain(): PilotMutationSnapshot {
+        process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
+        return snapshotAndReset();
+      },
+      drainAndDisconnect(): PilotMutationSnapshot {
+        process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
+        call<void>(mutationObserverDisconnect, observer, []);
+        return snapshotAndReset();
+      },
+      seal(): PilotMutationSnapshot {
+        if (sealed) {
+          throw new NativeError("mutation audit was sealed more than once");
+        }
+        process(call<MutationRecord[]>(mutationObserverTakeRecords, observer, []));
+        const snapshot = snapshotAndReset();
+        sealed = true;
+        return snapshot;
+      },
+    });
+  };
+  const api: PilotPageGuardApi = freeze({
+    controlState,
+    controlMatches,
+    activeElement: () => read<Element | null>(documentActiveElementGet, document),
+    isConnected: (node: Node) => read<boolean>(nodeIsConnectedGet, node),
+    getAttribute: (element: Element, name: string) =>
+      call<string | null>(elementGetAttribute, element, [name]),
+    textContent: (node: Node) => read<string | null>(nodeTextContentGet, node),
+    createMutationAudit,
+    sealTerminalBoundary(elements: readonly Element[]): void {
+      if (terminalSealed) {
+        throw new NativeError("terminal boundary was sealed more than once");
+      }
+      for (let index = 0; index < elements.length; index += 1) {
+        const element = elements[index];
+        if (element === undefined) {
+          throw new NativeError("terminal boundary element is absent");
+        }
+        const state = controlState(element);
+        if (state.kind === "select") {
+          const options = optionElements(element as HTMLSelectElement);
+          for (let optionIndex = 0; optionIndex < options.length; optionIndex += 1) {
+            const option = options[optionIndex];
+            if (option === undefined) {
+              throw new NativeError("terminal select option is absent");
+            }
+          }
+        }
+      }
+      terminalSealed = true;
+    },
+  });
+  defineProperty(globalThis, apiName, {
+    configurable: false,
+    enumerable: false,
+    writable: false,
+    value: api,
+  });
+
+  const denyAuthorShadowRoot = freeze(function denyAuthorShadowRoot(): never {
+    throw new DOMException(
+      "author shadow roots are disabled in Pilot authoring",
+      "NotSupportedError",
+    );
+  });
+  defineProperty(Element.prototype, "attachShadow", {
+    value: denyAuthorShadowRoot,
+    writable: false,
+    enumerable: false,
+    configurable: false,
+  });
+  for (const property of ["RTCPeerConnection", "webkitRTCPeerConnection"] as const) {
+    defineProperty(globalThis, property, {
+      value: undefined,
+      writable: false,
+      enumerable: false,
+      configurable: false,
+    });
+  }
+}
+
+async function installPageGuards(page: Page): Promise<void> {
+  try {
+    await page.addInitScript(pilotPageGuardInit, {
+      apiName: pageGuardApiName,
+      terminalSentinel: terminalMutationSentinel,
     });
   } catch (error) {
     fail(
@@ -652,7 +1448,6 @@ async function installPageGuards(page: Page): Promise<void> {
     );
   }
 }
-
 async function assertNoAuthorShadowRoots(
   page: Page,
   maximumNodes: number,
@@ -986,37 +1781,53 @@ function abiHandle(
 
 async function documentFingerprint(
   page: Page,
-  retained: Pick<RetainedAbi, "documentElement" | "slots">,
+  retained: Pick<RetainedAbi, "documentElement" | "slots" | "pageGuard">,
   workflow: PilotFixtureWorkflow,
+  phase: "initial" | "selected",
   bounds: DocumentIntegrityBounds,
 ): Promise<string> {
   const root = retained.slots.get("root");
   const success = retained.slots.get("success");
   const setup = retained.slots.get("setup");
-  if (root === undefined || success === undefined || setup === undefined) {
+  const focusEntry = retained.slots.get("focus_entry");
+  if (
+    root === undefined ||
+    success === undefined ||
+    setup === undefined ||
+    focusEntry === undefined
+  ) {
     fail(
       "pilot_runtime.abi",
-      "document fingerprint requires root, setup, and success ABI slots",
+      "document fingerprint requires root, setup, focus-entry, and success ABI slots",
     );
   }
   let snapshot: unknown;
+  let exactControlStates = false;
   try {
-    snapshot = await page.evaluate(
+    const projection = await page.evaluate(
       ({
         documentElement,
         rootElement,
         setupElement,
+        focusEntryElement,
         successElement,
         rootAttribute,
+        setupStateName,
+        focusEntryStateName,
+        expectedSetupState,
+        expectedFocusEntryState,
+        pageGuard,
         limits,
       }) => {
         if (
           documentElement !== document.documentElement ||
           !rootElement.isConnected ||
           !setupElement.isConnected ||
+          !focusEntryElement.isConnected ||
           !successElement.isConnected ||
           !documentElement.contains(rootElement) ||
           !documentElement.contains(setupElement) ||
+          !documentElement.contains(focusEntryElement) ||
           !documentElement.contains(successElement)
         ) {
           throw new Error("retained integrity nodes are not in the exact document");
@@ -1089,65 +1900,107 @@ async function documentFingerprint(
           }
           return value;
         };
+        const controlStateMatches = (
+          element: Element,
+          stateName: "value" | "checked" | null,
+          expectedState: string | boolean | null,
+        ): boolean => pageGuard.controlMatches(element, stateName, expectedState);
         const projectLiveElementState = (node: Element): unknown => {
           const scroll = {
             left: finiteNumber(node.scrollLeft, "element scrollLeft"),
             top: finiteNumber(node.scrollTop, "element scrollTop"),
           };
-          if (node instanceof HTMLSelectElement) {
-            const normalizedSetup = node === setupElement;
+          const normalizedStateName =
+            node === setupElement
+              ? setupStateName
+              : node === focusEntryElement
+                ? focusEntryStateName
+                : null;
+          const nativeControlState = pageGuard.controlState(node);
+          if (nativeControlState.kind === "select") {
+            const normalizedValue = normalizedStateName === "value";
             return {
               scroll,
               form: {
                 kind: "select",
-                value: normalizedSetup ? "$EXPECTED_SETUP_VALUE" : addText(node.value),
-                selectedIndex: normalizedSetup
+                value: normalizedValue
+                  ? "$EXPECTED_CONTROL_VALUE"
+                  : addText(nativeControlState.value),
+                selectedIndex: normalizedValue
                   ? "$EXPECTED_SETUP_INDEX"
-                  : node.selectedIndex,
-                optionSelected: Array.from(node.options, (option) =>
-                  normalizedSetup ? "$EXPECTED_SETUP_SELECTED" : option.selected,
-                ),
+                  : nativeControlState.selectedIndex,
+                optionSelected: normalizedValue
+                  ? "$EXPECTED_SETUP_SELECTED"
+                  : nativeControlState.optionSelected,
               },
             };
           }
-          if (node instanceof HTMLOptionElement) {
+          if (nativeControlState.kind === "option") {
             return {
               scroll,
               form: {
                 kind: "option",
                 selected:
-                  node.closest("select") === setupElement
+                  nativeControlState.ownerSelect === setupElement ||
+                  nativeControlState.ownerSelect === focusEntryElement
                     ? "$EXPECTED_SETUP_SELECTED"
-                    : node.selected,
+                    : nativeControlState.selected,
               },
             };
           }
-          if (node instanceof HTMLInputElement) {
-            if (node.files !== null && node.files.length !== 0) {
+          if (nativeControlState.kind === "input") {
+            if (nativeControlState.filesLength !== 0) {
               throw new Error("fixture integrity does not admit selected files");
             }
             return {
               scroll,
               form: {
                 kind: "input",
-                value: addText(node.value),
-                checked: node.checked,
-                indeterminate: node.indeterminate,
-                selectionStart: node.selectionStart,
-                selectionEnd: node.selectionEnd,
-                selectionDirection: node.selectionDirection,
+                value:
+                  normalizedStateName === "value"
+                    ? "$EXPECTED_CONTROL_VALUE"
+                    : addText(nativeControlState.value),
+                checked:
+                  normalizedStateName === "checked"
+                    ? "$EXPECTED_CONTROL_CHECKED"
+                    : nativeControlState.checked,
+                indeterminate: nativeControlState.indeterminate,
+                selectionStart:
+                  normalizedStateName === "value"
+                    ? "$EXPECTED_CONTROL_SELECTION_START"
+                    : nativeControlState.selectionStart,
+                selectionEnd:
+                  normalizedStateName === "value"
+                    ? "$EXPECTED_CONTROL_SELECTION_END"
+                    : nativeControlState.selectionEnd,
+                selectionDirection:
+                  normalizedStateName === "value"
+                    ? "$EXPECTED_CONTROL_SELECTION_DIRECTION"
+                    : nativeControlState.selectionDirection,
               },
             };
           }
-          if (node instanceof HTMLTextAreaElement) {
+          if (nativeControlState.kind === "textarea") {
             return {
               scroll,
               form: {
                 kind: "textarea",
-                value: addText(node.value),
-                selectionStart: node.selectionStart,
-                selectionEnd: node.selectionEnd,
-                selectionDirection: node.selectionDirection,
+                value:
+                  normalizedStateName === "value"
+                    ? "$EXPECTED_CONTROL_VALUE"
+                    : addText(nativeControlState.value),
+                selectionStart:
+                  normalizedStateName === "value"
+                    ? "$EXPECTED_CONTROL_SELECTION_START"
+                    : nativeControlState.selectionStart,
+                selectionEnd:
+                  normalizedStateName === "value"
+                    ? "$EXPECTED_CONTROL_SELECTION_END"
+                    : nativeControlState.selectionEnd,
+                selectionDirection:
+                  normalizedStateName === "value"
+                    ? "$EXPECTED_CONTROL_SELECTION_DIRECTION"
+                    : nativeControlState.selectionDirection,
               },
             };
           }
@@ -1352,46 +2205,60 @@ async function documentFingerprint(
 
         const visualViewport = window.visualViewport;
         return {
-          url: document.URL,
-          contentType: document.contentType,
-          characterSet: document.characterSet,
-          compatMode: document.compatMode,
-          doctype:
-            document.doctype === null
-              ? null
-              : {
-                  name: addText(document.doctype.name),
-                  publicId: addText(document.doctype.publicId),
-                  systemId: addText(document.doctype.systemId),
-                },
-          tree,
-          styleSheets,
-          adoptedStyleSheets,
-          liveDocument: {
-            scrollX: finiteNumber(window.scrollX, "window scrollX"),
-            scrollY: finiteNumber(window.scrollY, "window scrollY"),
-            visualViewport:
-              visualViewport === null
+          exactControlStates:
+            controlStateMatches(setupElement, setupStateName, expectedSetupState) &&
+            (focusEntryElement === setupElement ||
+              (focusEntryStateName !== null &&
+                controlStateMatches(
+                  focusEntryElement,
+                  focusEntryStateName,
+                  expectedFocusEntryState,
+                ))),
+          snapshot: {
+            url: document.URL,
+            contentType: document.contentType,
+            characterSet: document.characterSet,
+            compatMode: document.compatMode,
+            doctype:
+              document.doctype === null
                 ? null
                 : {
-                    offsetLeft: finiteNumber(
-                      visualViewport.offsetLeft,
-                      "visual viewport offsetLeft",
-                    ),
-                    offsetTop: finiteNumber(
-                      visualViewport.offsetTop,
-                      "visual viewport offsetTop",
-                    ),
-                    pageLeft: finiteNumber(
-                      visualViewport.pageLeft,
-                      "visual viewport pageLeft",
-                    ),
-                    pageTop: finiteNumber(
-                      visualViewport.pageTop,
-                      "visual viewport pageTop",
-                    ),
-                    scale: finiteNumber(visualViewport.scale, "visual viewport scale"),
+                    name: addText(document.doctype.name),
+                    publicId: addText(document.doctype.publicId),
+                    systemId: addText(document.doctype.systemId),
                   },
+            tree,
+            styleSheets,
+            adoptedStyleSheets,
+            liveDocument: {
+              scrollX: finiteNumber(window.scrollX, "window scrollX"),
+              scrollY: finiteNumber(window.scrollY, "window scrollY"),
+              visualViewport:
+                visualViewport === null
+                  ? null
+                  : {
+                      offsetLeft: finiteNumber(
+                        visualViewport.offsetLeft,
+                        "visual viewport offsetLeft",
+                      ),
+                      offsetTop: finiteNumber(
+                        visualViewport.offsetTop,
+                        "visual viewport offsetTop",
+                      ),
+                      pageLeft: finiteNumber(
+                        visualViewport.pageLeft,
+                        "visual viewport pageLeft",
+                      ),
+                      pageTop: finiteNumber(
+                        visualViewport.pageTop,
+                        "visual viewport pageTop",
+                      ),
+                      scale: finiteNumber(
+                        visualViewport.scale,
+                        "visual viewport scale",
+                      ),
+                    },
+            },
           },
         };
       },
@@ -1399,16 +2266,33 @@ async function documentFingerprint(
         documentElement: retained.documentElement,
         rootElement: root,
         setupElement: setup,
+        focusEntryElement: focusEntry,
         successElement: success,
         rootAttribute: workflow.expectations.final.root_attribute.name,
+        setupStateName: workflow.expectations.setup_attribute.name,
+        focusEntryStateName: workflow.expectations.focus_entry_attribute?.name ?? null,
+        expectedSetupState: workflow.expectations.setup_attribute[phase],
+        expectedFocusEntryState:
+          workflow.expectations.focus_entry_attribute?.[phase] ?? null,
+        pageGuard: retained.pageGuard,
         limits: bounds,
       },
     );
+    snapshot = projection.snapshot;
+    exactControlStates = projection.exactControlStates;
   } catch (error) {
     fail(
       "pilot_runtime.document_integrity",
       "fixture document fingerprint could not be collected",
       { cause: error },
+    );
+  }
+  if (!exactControlStates) {
+    fail(
+      phase === "initial"
+        ? "pilot_runtime.workflow_state"
+        : "pilot_runtime.final_expectation",
+      `fixture ${phase} control states differ from their exact manifest expectations`,
     );
   }
   return sha256Hex(Buffer.from(canonicalJson(snapshot), "utf8"));
@@ -1446,105 +2330,59 @@ async function retainAbi(
   if (root === undefined || success === undefined) {
     fail("pilot_runtime.abi", "root and success ABI slots were not retained");
   }
+  let pageGuard: JSHandle<PilotPageGuardApi>;
+  try {
+    pageGuard = (await page.evaluateHandle((apiName) => {
+      const api = (globalThis as Record<string, unknown>)[apiName] as
+        PilotPageGuardApi | undefined;
+      if (
+        api === undefined ||
+        typeof api.controlState !== "function" ||
+        typeof api.controlMatches !== "function" ||
+        typeof api.activeElement !== "function" ||
+        typeof api.isConnected !== "function" ||
+        typeof api.getAttribute !== "function" ||
+        typeof api.textContent !== "function" ||
+        typeof api.createMutationAudit !== "function" ||
+        typeof api.sealTerminalBoundary !== "function"
+      ) {
+        throw new Error("Pilot native page guard is unavailable");
+      }
+      return api;
+    }, pageGuardApiName)) as JSHandle<PilotPageGuardApi>;
+  } catch (error) {
+    fail(
+      "pilot_runtime.page_guard",
+      "Pilot native page guards did not initialize before fixture execution",
+      { cause: error },
+    );
+  }
   const mutationAudit = (await page.evaluateHandle(
-    ({ rootElement, successElement, rootAttribute }) => {
-      let overflow = false;
-      let rootMutationObserved = false;
-      let successMutationObserved = false;
-      const unexpected: string[] = [];
-      const maximumRecords = 64;
-      let recordCount = 0;
-      const process = (records: MutationRecord[]): void => {
-        for (const record of records) {
-          recordCount += 1;
-          if (recordCount > maximumRecords) {
-            overflow = true;
-            continue;
-          }
-          if (
-            record.type === "attributes" &&
-            record.target === rootElement &&
-            record.attributeName === rootAttribute
-          ) {
-            rootMutationObserved = true;
-            continue;
-          }
-          if (
-            record.type === "childList" &&
-            record.target === successElement &&
-            record.addedNodes.length + record.removedNodes.length > 0 &&
-            [...record.addedNodes, ...record.removedNodes].every(
-              (node) => node instanceof Text,
-            )
-          ) {
-            successMutationObserved = true;
-            continue;
-          }
-          if (
-            record.type === "characterData" &&
-            record.target instanceof Text &&
-            record.target.parentNode === successElement
-          ) {
-            successMutationObserved = true;
-            continue;
-          }
-          const target =
-            record.target instanceof Element
-              ? (record.target.getAttribute("data-testid") ?? record.target.localName)
-              : `node-${record.target.nodeType}`;
-          unexpected.push(
-            `${record.type}:${target}:${record.attributeName ?? "$NULL"}`,
-          );
-        }
+    ({ apiName, rootElement, successElement, rootAttribute }) => {
+      const guard = (globalThis as Record<string, unknown>)[apiName] as {
+        readonly createMutationAudit: (
+          root: Element,
+          success: Element,
+          attribute: string,
+        ) => unknown;
       };
-      const observer = new MutationObserver(process);
-      observer.observe(document, {
-        subtree: true,
-        attributes: true,
-        attributeOldValue: true,
-        childList: true,
-        characterData: true,
-        characterDataOldValue: true,
-      });
-      const snapshotAndReset = () => {
-        const snapshot = Object.freeze({
-          overflow,
-          unexpected: Object.freeze([...unexpected]),
-          rootMutationObserved,
-          successMutationObserved,
-        });
-        overflow = false;
-        rootMutationObserved = false;
-        successMutationObserved = false;
-        unexpected.length = 0;
-        recordCount = 0;
-        return snapshot;
-      };
-      return Object.freeze({
-        drain() {
-          process(observer.takeRecords());
-          return snapshotAndReset();
-        },
-        drainAndDisconnect() {
-          process(observer.takeRecords());
-          observer.disconnect();
-          return snapshotAndReset();
-        },
-      });
+      return guard.createMutationAudit(rootElement, successElement, rootAttribute);
     },
     {
+      apiName: pageGuardApiName,
       rootElement: root,
       successElement: success,
       rootAttribute: workflow.expectations.final.root_attribute.name,
     },
-  )) as RetainedAbi["mutationAudit"];
-  const partial = { documentElement, slots, mutationAudit };
+  )) as JSHandle<PilotMutationAudit>;
+  const partial = { documentElement, slots, pageGuard, mutationAudit };
   return Object.freeze({
     ...partial,
     pristineDocumentSha256: await documentFingerprint(
       page,
       partial,
       workflow,
+      "initial",
       integrityBounds,
     ),
   });
@@ -1577,7 +2415,9 @@ async function assertRetainedDocument(
   let sameDocument = false;
   try {
     sameDocument = await retained.documentElement.evaluate(
-      (element) => element === document.documentElement && element.isConnected,
+      (element, pageGuard: PilotPageGuardApi) =>
+        element === document.documentElement && pageGuard.isConnected(element),
+      retained.pageGuard,
     );
   } catch (error) {
     fail(
@@ -1646,11 +2486,11 @@ async function assertInitialWorkflowState(
       peerElement,
       successElement,
       rootAttribute,
+      pageGuard,
     }) => ({
-      setupIsSelect: setupElement instanceof HTMLSelectElement,
-      setupValue: setupElement instanceof HTMLSelectElement ? setupElement.value : null,
-      setupFocusAlias: setupElement === focusElement,
-      rootInitial: rootElement.getAttribute(rootAttribute),
+      setupConnected: pageGuard.isConnected(setupElement),
+      focusConnected: pageGuard.isConnected(focusElement),
+      rootInitial: pageGuard.getAttribute(rootElement, rootAttribute),
       primaryIsButton:
         primaryElement instanceof HTMLButtonElement && !primaryElement.disabled,
       peerIsButton: peerElement instanceof HTMLButtonElement,
@@ -1665,12 +2505,12 @@ async function assertInitialWorkflowState(
       peerElement: peer,
       successElement: success,
       rootAttribute: workflow.expectations.final.root_attribute.name,
+      pageGuard: retained.pageGuard,
     },
   );
   if (
-    !evidence.setupIsSelect ||
-    evidence.setupValue !== workflow.expectations.setup_attribute.initial ||
-    !evidence.setupFocusAlias ||
+    !evidence.setupConnected ||
+    !evidence.focusConnected ||
     evidence.rootInitial === null ||
     evidence.rootInitial === workflow.expectations.final.root_attribute.value ||
     !evidence.primaryIsButton ||
@@ -1682,58 +2522,165 @@ async function assertInitialWorkflowState(
       "fixture initial workflow state differs from its manifest expectations",
     );
   }
-  await assertExactSetupSelection(
+  await assertExactControlState(
     setup,
-    workflow.expectations.setup_attribute.initial,
+    retained.pageGuard,
+    workflow.expectations.setup_attribute,
+    "initial",
     "pilot_runtime.workflow_state",
-    "fixture initial setup selection is not unique and one-hot",
+    "fixture initial setup state differs from its exact expectation",
   );
+  const focusEntryExpectation = workflow.expectations.focus_entry_attribute;
+  if (focusEntryExpectation !== undefined) {
+    await assertExactControlState(
+      focusEntry,
+      retained.pageGuard,
+      focusEntryExpectation,
+      "initial",
+      "pilot_runtime.workflow_state",
+      "fixture initial focus-entry state differs from its exact expectation",
+    );
+  }
 }
 
-async function assertExactSetupSelection(
-  setup: ElementHandle<Element>,
-  expectedValue: string,
+type PilotControlStateExpectation =
+  PilotFixtureWorkflow["expectations"]["setup_attribute"];
+
+async function assertExactControlState(
+  control: ElementHandle<Element>,
+  pageGuard: JSHandle<PilotPageGuardApi>,
+  expectation: PilotControlStateExpectation,
+  phase: "initial" | "selected",
   code: string,
   message: string,
 ): Promise<void> {
-  let evidence:
-    | {
-        readonly multiple: boolean;
-        readonly value: string;
-        readonly selectedIndex: number;
-        readonly optionValues: readonly string[];
-        readonly selectedIndexes: readonly number[];
-      }
-    | undefined;
+  let exact = false;
   try {
-    evidence = await setup.evaluate((element) => {
-      if (!(element instanceof HTMLSelectElement)) return undefined;
-      const options = Array.from(element.options);
-      return {
-        multiple: element.multiple,
-        value: element.value,
-        selectedIndex: element.selectedIndex,
-        optionValues: options.map((option) => option.value),
-        selectedIndexes: options.flatMap((option, index) =>
-          option.selected ? [index] : [],
-        ),
-      };
-    });
+    exact = await control.evaluate(
+      (
+        element,
+        {
+          guard,
+          stateName,
+          expectedState,
+        }: {
+          readonly guard: PilotPageGuardApi;
+          readonly stateName: "value" | "checked";
+          readonly expectedState: string | boolean;
+        },
+      ) => guard.controlMatches(element, stateName, expectedState),
+      {
+        guard: pageGuard,
+        stateName: expectation.name,
+        expectedState: expectation[phase],
+      },
+    );
   } catch (error) {
     fail(code, message, { cause: error });
   }
-  if (
-    evidence === undefined ||
-    evidence.multiple ||
-    evidence.optionValues.length < 2 ||
-    new Set(evidence.optionValues).size !== evidence.optionValues.length ||
-    evidence.selectedIndexes.length !== 1 ||
-    evidence.selectedIndexes[0] !== evidence.selectedIndex ||
-    evidence.optionValues[evidence.selectedIndex] !== expectedValue ||
-    evidence.value !== expectedValue
-  ) {
-    fail(code, message);
+  if (!exact) fail(code, message);
+}
+
+async function assertExactFinalWorkflowState(
+  page: Page,
+  retained: RetainedAbi,
+  workflow: PilotFixtureWorkflow,
+  boundary: string,
+  sealTerminalBoundary = false,
+): Promise<
+  | {
+      readonly overflow: boolean;
+      readonly unexpected: readonly string[];
+      readonly rootMutationObserved: boolean;
+      readonly successMutationObserved: boolean;
+    }
+  | undefined
+> {
+  let exact = false;
+  let lateMutations: {
+    readonly overflow: boolean;
+    readonly unexpected: readonly string[];
+    readonly rootMutationObserved: boolean;
+    readonly successMutationObserved: boolean;
+  } | null = null;
+  try {
+    const projection = await page.evaluate(
+      ({
+        rootElement,
+        setupElement,
+        focusEntryElement,
+        successElement,
+        expectedFocusElement,
+        rootAttribute,
+        expectedRootValue,
+        expectedSuccessText,
+        setupExpectation,
+        focusEntryExpectation,
+        pageGuard,
+        mutationAudit,
+      }) => {
+        const controlMatches = (
+          element: Element,
+          expectation:
+            | { readonly name: "value"; readonly selected: string }
+            | { readonly name: "checked"; readonly selected: true },
+        ): boolean =>
+          pageGuard.controlMatches(element, expectation.name, expectation.selected);
+        const exactState =
+          pageGuard.isConnected(rootElement) &&
+          pageGuard.isConnected(setupElement) &&
+          pageGuard.isConnected(focusEntryElement) &&
+          pageGuard.isConnected(successElement) &&
+          pageGuard.getAttribute(rootElement, rootAttribute) === expectedRootValue &&
+          pageGuard.textContent(successElement) === expectedSuccessText &&
+          pageGuard.activeElement() === expectedFocusElement &&
+          controlMatches(setupElement, setupExpectation) &&
+          (focusEntryExpectation === null
+            ? focusEntryElement === setupElement
+            : controlMatches(focusEntryElement, focusEntryExpectation));
+        const terminalMutations = mutationAudit?.seal() ?? null;
+        if (mutationAudit !== null && exactState) {
+          pageGuard.sealTerminalBoundary([
+            rootElement,
+            setupElement,
+            focusEntryElement,
+            successElement,
+            expectedFocusElement,
+          ]);
+        }
+        return { exactState, terminalMutations };
+      },
+      {
+        rootElement: abiHandle(retained, "root"),
+        setupElement: abiHandle(retained, "setup"),
+        focusEntryElement: abiHandle(retained, "focus_entry"),
+        successElement: abiHandle(retained, "success"),
+        expectedFocusElement: abiHandle(retained, workflow.expectations.final.focus),
+        rootAttribute: workflow.expectations.final.root_attribute.name,
+        expectedRootValue: workflow.expectations.final.root_attribute.value,
+        expectedSuccessText: workflow.expectations.final.success_text,
+        setupExpectation: workflow.expectations.setup_attribute,
+        focusEntryExpectation: workflow.expectations.focus_entry_attribute ?? null,
+        pageGuard: retained.pageGuard,
+        mutationAudit: sealTerminalBoundary ? retained.mutationAudit : null,
+      },
+    );
+    exact = projection.exactState;
+    lateMutations = projection.terminalMutations;
+  } catch (error) {
+    fail(
+      "pilot_runtime.final_expectation",
+      `${boundary} final state could not be verified`,
+      { cause: error },
+    );
   }
+  if (!exact) {
+    fail(
+      "pilot_runtime.final_expectation",
+      `${boundary} final state differs from its exact manifest expectations`,
+    );
+  }
+  return lateMutations ?? undefined;
 }
 
 interface SourcePointerGeometry {
@@ -1810,8 +2757,22 @@ function sameGeometry(
   );
 }
 
-async function activeElementIs(handle: ElementHandle<Element>): Promise<boolean> {
-  return handle.evaluate((element) => document.activeElement === element);
+async function assertActiveElement(
+  handle: ElementHandle<Element>,
+  pageGuard: JSHandle<PilotPageGuardApi>,
+  code: string,
+  message: string,
+): Promise<void> {
+  let active = false;
+  try {
+    active = await handle.evaluate(
+      (element, guard: PilotPageGuardApi) => guard.activeElement() === element,
+      pageGuard,
+    );
+  } catch (error) {
+    fail(code, message, { cause: error });
+  }
+  if (!active) fail(code, message);
 }
 
 async function executeWorkflow(
@@ -1842,36 +2803,143 @@ async function executeWorkflow(
   const focusEntry = abiHandle(retained, "focus_entry");
   const setup = abiHandle(retained, "setup");
   const primary = abiHandle(retained, "primary");
-  const root = abiHandle(retained, "root");
-  const success = abiHandle(retained, "success");
-
-  await focusEntry.focus();
-  if (!(await activeElementIs(focusEntry))) {
-    fail(
-      "pilot_runtime.action_focus",
-      "focus action did not retain the manifest focus-entry element",
-    );
+  const primaryOrdinal = bound.workflow.actions.length - 1;
+  let activeSetupSlot: "focus_entry" | "setup" = "focus_entry";
+  for (const [ordinal, action] of bound.workflow.actions.entries()) {
+    if (ordinal === primaryOrdinal) break;
+    switch (action.intent) {
+      case "focus": {
+        const target = abiHandle(retained, action.target);
+        try {
+          await target.focus();
+        } catch (error) {
+          fail("pilot_runtime.action_focus", "focus action failed", { cause: error });
+        }
+        await assertActiveElement(
+          target,
+          retained.pageGuard,
+          "pilot_runtime.action_focus",
+          "focus action did not retain its manifest-bound target",
+        );
+        await assertExactControlState(
+          target,
+          retained.pageGuard,
+          bound.workflow.expectations.focus_entry_attribute ??
+            bound.workflow.expectations.setup_attribute,
+          "initial",
+          "pilot_runtime.action_focus",
+          "focus action changed the focus-entry control before its setup segment",
+        );
+        activeSetupSlot = "focus_entry";
+        break;
+      }
+      case "fill_text": {
+        const target = abiHandle(retained, action.target);
+        try {
+          await target.fill(action.value.text);
+        } catch (error) {
+          fail("pilot_runtime.action_fill", "fill-text action failed", {
+            cause: error,
+          });
+        }
+        const expectation =
+          bound.workflow.expectations.focus_entry_attribute ??
+          bound.workflow.expectations.setup_attribute;
+        await assertExactControlState(
+          target,
+          retained.pageGuard,
+          expectation,
+          "selected",
+          "pilot_runtime.action_fill",
+          "fill-text action did not produce its exact declared value",
+        );
+        await assertActiveElement(
+          target,
+          retained.pageGuard,
+          "pilot_runtime.action_fill",
+          "fill-text action did not retain its manifest-bound target",
+        );
+        activeSetupSlot = "focus_entry";
+        break;
+      }
+      case "press_key": {
+        if (action.value.key === "Tab") {
+          const segmentExpectation =
+            activeSetupSlot === "focus_entry"
+              ? (bound.workflow.expectations.focus_entry_attribute ??
+                bound.workflow.expectations.setup_attribute)
+              : bound.workflow.expectations.setup_attribute;
+          await assertExactControlState(
+            abiHandle(retained, activeSetupSlot),
+            retained.pageGuard,
+            segmentExpectation,
+            "selected",
+            "pilot_runtime.action_key",
+            "setup segment did not reach its exact declared state before Tab",
+          );
+        }
+        try {
+          await page.keyboard.press(action.value.key);
+        } catch (error) {
+          fail("pilot_runtime.action_key", "key action failed", { cause: error });
+        }
+        if (action.value.key === "Tab") {
+          const expectedSlot =
+            ordinal === primaryOrdinal - 1
+              ? bound.workflow.expectations.pre_primary_focus
+              : "setup";
+          await assertActiveElement(
+            abiHandle(retained, expectedSlot),
+            retained.pageGuard,
+            "pilot_runtime.action_key",
+            "Tab did not reach its manifest-bound workflow target",
+          );
+          if (ordinal !== primaryOrdinal - 1) {
+            await assertExactControlState(
+              abiHandle(retained, "setup"),
+              retained.pageGuard,
+              bound.workflow.expectations.setup_attribute,
+              "initial",
+              "pilot_runtime.action_key",
+              "Tab changed the setup control before its key segment",
+            );
+          }
+          activeSetupSlot = "setup";
+        } else {
+          await assertActiveElement(
+            abiHandle(retained, activeSetupSlot),
+            retained.pageGuard,
+            "pilot_runtime.action_key",
+            "setup key did not retain the active manifest control",
+          );
+        }
+        break;
+      }
+      case "pointer_click":
+        fail(
+          "pilot_runtime.action_plan_binding",
+          "pointer action appeared before the final recipe step",
+        );
+    }
   }
 
-  await page.keyboard.press("ArrowDown");
-  await assertExactSetupSelection(
+  await assertExactControlState(
     setup,
-    bound.workflow.expectations.setup_attribute.selected,
+    retained.pageGuard,
+    bound.workflow.expectations.setup_attribute,
+    "selected",
     "pilot_runtime.action_key",
-    "ArrowDown did not produce the exact unique one-hot native setup selection",
+    "setup actions did not produce the exact declared setup state",
   );
-  if (!(await activeElementIs(setup))) {
-    fail(
+  const focusEntryExpectation = bound.workflow.expectations.focus_entry_attribute;
+  if (focusEntryExpectation !== undefined) {
+    await assertExactControlState(
+      focusEntry,
+      retained.pageGuard,
+      focusEntryExpectation,
+      "selected",
       "pilot_runtime.action_key",
-      "ArrowDown did not retain focus on the native setup control",
-    );
-  }
-
-  await page.keyboard.press("Tab");
-  if (!(await activeElementIs(primary))) {
-    fail(
-      "pilot_runtime.action_key",
-      "Tab did not reach the manifest-bound primary ABI element",
+      "setup actions did not produce the exact declared focus-entry state",
     );
   }
 
@@ -1898,41 +2966,24 @@ async function executeWorkflow(
       "primary geometry drifted after the source center was frozen",
     );
   }
-  await page.mouse.click(frozenSourceGeometry.centerX, frozenSourceGeometry.centerY, {
-    button: "left",
-  });
-
-  const final = await page.evaluate(
-    ({ rootElement, successElement, setupElement, rootAttribute }) => ({
-      rootValue: rootElement.getAttribute(rootAttribute),
-      successText: successElement.textContent,
-      setupValue: setupElement instanceof HTMLSelectElement ? setupElement.value : null,
-      successFocused: document.activeElement === successElement,
-    }),
-    {
-      rootElement: root,
-      successElement: success,
-      setupElement: setup,
-      rootAttribute: bound.workflow.expectations.final.root_attribute.name,
-    },
-  );
-  if (
-    final.rootValue !== bound.workflow.expectations.final.root_attribute.value ||
-    final.successText !== bound.workflow.expectations.final.success_text ||
-    final.setupValue !== bound.workflow.expectations.setup_attribute.selected ||
-    !final.successFocused
-  ) {
+  const primaryAction = bound.workflow.actions[primaryOrdinal];
+  if (primaryAction?.intent !== "pointer_click") {
     fail(
-      "pilot_runtime.final_expectation",
-      "workflow final state differs from its exact manifest expectations",
+      "pilot_runtime.action_plan_binding",
+      "workflow does not end with its source-bound primary pointer action",
     );
   }
-  await assertExactSetupSelection(
-    setup,
-    bound.workflow.expectations.setup_attribute.selected,
-    "pilot_runtime.final_expectation",
-    "workflow final setup selection is not unique and one-hot",
-  );
+  try {
+    await page.mouse.click(frozenSourceGeometry.centerX, frozenSourceGeometry.centerY, {
+      button: "left",
+    });
+  } catch (error) {
+    fail("pilot_runtime.action_pointer", "primary pointer action failed", {
+      cause: error,
+    });
+  }
+
+  await assertExactFinalWorkflowState(page, retained, bound.workflow, "workflow");
 
   const mutations = await retained.mutationAudit.evaluate((guard) => guard.drain());
   if (
@@ -1952,6 +3003,7 @@ async function executeWorkflow(
     page,
     retained,
     bound.workflow,
+    "selected",
     integrityBounds,
   );
   if (finalDocumentSha256 !== retained.pristineDocumentSha256) {
@@ -1969,6 +3021,12 @@ async function executeWorkflow(
         options,
       ),
   });
+  await assertExactFinalWorkflowState(
+    page,
+    retained,
+    bound.workflow,
+    "post-fingerprint workflow",
+  );
   return retained;
 }
 
@@ -2088,7 +3146,24 @@ function successAudit(
         Object.freeze({ path, request_count: requestCount }),
       ),
   );
-  const checkpointOrdinals = Object.freeze([-1, 2, 3] as const);
+  const [initial, prePrimary, postPrimary, ...extraCheckpoints] =
+    bound.actionPlan.checkpoints;
+  if (
+    initial === undefined ||
+    prePrimary === undefined ||
+    postPrimary === undefined ||
+    extraCheckpoints.length !== 0
+  ) {
+    fail(
+      "pilot_runtime.action_plan_binding",
+      "Pilot workflow must bind exactly three semantic checkpoints",
+    );
+  }
+  const checkpointOrdinals = Object.freeze([
+    initial.after_action_ordinal,
+    prePrimary.after_action_ordinal,
+    postPrimary.after_action_ordinal,
+  ] as const);
   const emptyExternal = Object.freeze([]) as readonly [];
   const emptyUnexpected = Object.freeze([]) as readonly [];
   return Object.freeze({
@@ -2100,7 +3175,7 @@ function successAudit(
     workflow_key: bound.workflow.workflow_key,
     task_id: bound.taskId,
     environment_id: lease.environment_id,
-    actions_executed: 4,
+    actions_executed: bound.actionPlan.actions.length,
     checkpoint_after_action_ordinals: checkpointOrdinals,
     resource_requests: resourceRequests,
     blocked_external_requests: emptyExternal,
@@ -2136,6 +3211,11 @@ async function disposeRetained(
   }
   try {
     await retained.mutationAudit.dispose();
+  } catch (error) {
+    errors.push(error);
+  }
+  try {
+    await retained.pageGuard.dispose();
   } catch (error) {
     errors.push(error);
   }
@@ -2198,6 +3278,7 @@ export async function runPilotFixtureWorkflowAuthoringSession(
   const cleanupFailures: unknown[] = [];
   let contextCreationAttempted = false;
   let reusable = true;
+  let terminalBoundarySealed = false;
 
   try {
     bound = bindWorkflow(lease, workflowKey);
@@ -2255,11 +3336,43 @@ export async function runPilotFixtureWorkflowAuthoringSession(
     }
   }
   if (retained !== undefined) {
-    try {
-      await disposeRetained(retained, executionComplete);
-    } catch (error) {
-      reusable = false;
-      cleanupFailures.push(error);
+    if (executionComplete) {
+      try {
+        if (bound === undefined || page === undefined) {
+          throw new Error("retained Pilot ABI has no bound workflow and owned page");
+        }
+        const lateMutations = await assertExactFinalWorkflowState(
+          page,
+          retained,
+          bound.workflow,
+          "terminal workflow",
+          true,
+        );
+        if (
+          lateMutations === undefined ||
+          lateMutations.overflow ||
+          lateMutations.unexpected.length !== 0 ||
+          lateMutations.rootMutationObserved ||
+          lateMutations.successMutationObserved
+        ) {
+          throw new PilotFixtureAuthoringRuntimeError(
+            "pilot_runtime.document_integrity",
+            "fixture changed after the final workflow boundary",
+          );
+        }
+        terminalBoundarySealed = true;
+      } catch (error) {
+        reusable = false;
+        cleanupFailures.push(error);
+      }
+    }
+    if (!terminalBoundarySealed) {
+      try {
+        await disposeRetained(retained, false);
+      } catch (error) {
+        reusable = false;
+        cleanupFailures.push(error);
+      }
     }
   }
   if (context !== undefined) {

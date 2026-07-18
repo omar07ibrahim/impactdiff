@@ -28,6 +28,12 @@ const fixtureManifestPath = "fixtures/pilot-market-basket-v1/fixture.json";
 const goldenManifestSha256 =
   "8747c81b2aa1f6771ac0b0cc7ef25f4d3a103a0e14e0fedb4904003442f9df94";
 
+type DeepMutable<Value> = Value extends readonly (infer Item)[]
+  ? DeepMutable<Item>[]
+  : Value extends object
+    ? { -readonly [Key in keyof Value]: DeepMutable<Value[Key]> }
+    : Value;
+
 const goldenPlans = Object.freeze({
   add_bundle: Object.freeze({
     referenceSha256: "bb03cf5b90f3fa7a09526e0f5dbe7eac5ffe026d36f0202a93bdff27229d5bed",
@@ -242,6 +248,151 @@ test("action-plan artifacts expose immutable metadata and defensive byte copies"
     assert.ok(Object.isFrozen(artifact));
     assert.ok(Object.isFrozen(artifact.reference));
   }
+});
+
+test("variable recipes map exactly into canonical action plans", async () => {
+  const { manifest } = await loadActualPlans();
+  const mutable = structuredClone(manifest) as DeepMutable<PilotFixtureManifest>;
+  const workflow = mutable.workflows[0]!;
+  const [focus, setupKey, finalTab, pointer] = workflow.actions;
+  assert.ok(
+    focus?.intent === "focus" &&
+      setupKey?.intent === "press_key" &&
+      finalTab?.intent === "press_key" &&
+      pointer?.intent === "pointer_click",
+  );
+  workflow.abi.focus_entry.value = "bundle-email";
+  workflow.expectations.focus_entry_attribute = {
+    name: "value",
+    initial: "",
+    selected: "author@example.invalid",
+  };
+  workflow.actions = [
+    focus,
+    {
+      intent: "fill_text",
+      pointer_source_point: null,
+      target: "focus_entry",
+      value: { kind: "text", text: "author@example.invalid" },
+    },
+    {
+      intent: "press_key",
+      pointer_source_point: null,
+      target: null,
+      value: { kind: "key", key: "Tab" },
+    },
+    setupKey,
+    finalTab,
+    pointer,
+  ];
+  workflow.checkpoints[1]!.after_action_ordinal = 4;
+  workflow.checkpoints[2]!.after_action_ordinal = 5;
+
+  const canonicalManifest = canonicalJson(mutable);
+  const parsedManifest = parsePilotFixtureManifest(canonicalManifest);
+  const manifestSha256 = sha256Hex(Buffer.from(`${canonicalManifest}\n`, "utf8"));
+  const artifacts = buildPilotFixtureActionPlanArtifacts(
+    parsedManifest,
+    manifestSha256,
+  );
+  const artifact = artifacts.find(({ workflow_key }) => workflow_key === "add_bundle");
+  const parsedWorkflow = parsedManifest.workflows[0];
+  assert.ok(artifact !== undefined && parsedWorkflow !== undefined);
+  const plan = parseActionPlan(artifact.bytes);
+
+  assert.deepEqual(
+    plan.actions.map(({ ordinal }) => ordinal),
+    [0, 1, 2, 3, 4, 5],
+  );
+  assert.deepEqual(
+    plan.actions.map(({ intent }) => intent),
+    ["focus", "fill_text", "press_key", "press_key", "press_key", "pointer_click"],
+  );
+  assert.deepEqual(
+    plan.actions.map(({ target_id }) => target_id === null),
+    [false, false, true, true, true, false],
+  );
+  assert.deepEqual(
+    plan.checkpoints.map(({ after_action_ordinal }) => after_action_ordinal),
+    [-1, 4, 5],
+  );
+  for (const [ordinal, recipe] of parsedWorkflow.actions.entries()) {
+    const action = plan.actions[ordinal];
+    assert.ok(action !== undefined);
+    assert.equal(action.intent, recipe.intent);
+    assert.deepEqual(action.value, recipe.value);
+    assert.equal(
+      action.target_id,
+      expectedTargetId(parsedManifest, manifestSha256, parsedWorkflow, recipe),
+    );
+    assert.equal(
+      action.action_id,
+      expectedStepId(parsedManifest, manifestSha256, parsedWorkflow, recipe, ordinal),
+    );
+  }
+  assert.equal(
+    new Set(plan.actions.map(({ action_id }) => action_id)).size,
+    plan.actions.length,
+  );
+  assert.equal(Buffer.from(artifact.bytes).toString("utf8"), canonicalJson(plan));
+  assert.equal(artifact.reference.sha256, sha256Hex(artifact.bytes));
+  assert.equal(artifact.reference.byte_length, artifact.bytes.byteLength);
+  assert.equal(artifact.task_id, computeTaskId(artifact.reference));
+  assert.ok(artifact.bytes.byteLength < 131_072);
+});
+
+test("the maximum Pilot recipe remains below the ActionPlan byte budget", async () => {
+  const { manifest } = await loadActualPlans();
+  const mutable = structuredClone(manifest) as DeepMutable<PilotFixtureManifest>;
+  const workflow = mutable.workflows[0]!;
+  const [focus, setupKey, finalTab, pointer] = workflow.actions;
+  assert.ok(
+    focus?.intent === "focus" &&
+      setupKey?.intent === "press_key" &&
+      finalTab?.intent === "press_key" &&
+      pointer?.intent === "pointer_click",
+  );
+  const maximumText = "\u0000".repeat(512);
+  assert.equal(maximumText.length, 512);
+  assert.equal(Buffer.byteLength(JSON.stringify(maximumText), "utf8"), 3_074);
+  workflow.abi.focus_entry.value = "bundle-max-text";
+  workflow.expectations.focus_entry_attribute = {
+    name: "value",
+    initial: "",
+    selected: maximumText,
+  };
+  workflow.actions = [
+    focus,
+    {
+      intent: "fill_text",
+      pointer_source_point: null,
+      target: "focus_entry",
+      value: { kind: "text", text: maximumText },
+    },
+    structuredClone(finalTab),
+    ...Array.from({ length: 27 }, () => structuredClone(setupKey)),
+    finalTab,
+    pointer,
+  ];
+  workflow.checkpoints[1]!.after_action_ordinal = 30;
+  workflow.checkpoints[2]!.after_action_ordinal = 31;
+
+  const canonicalManifest = canonicalJson(mutable);
+  const parsedManifest = parsePilotFixtureManifest(canonicalManifest);
+  const manifestSha256 = sha256Hex(Buffer.from(`${canonicalManifest}\n`, "utf8"));
+  const artifact = buildPilotFixtureActionPlanArtifacts(
+    parsedManifest,
+    manifestSha256,
+  ).find(({ workflow_key }) => workflow_key === "add_bundle");
+  assert.ok(artifact !== undefined);
+  const plan = parseActionPlan(artifact.bytes);
+  assert.equal(plan.actions.length, 32);
+  assert.deepEqual(
+    plan.checkpoints.map(({ after_action_ordinal }) => after_action_ordinal),
+    [-1, 30, 31],
+  );
+  assert.ok(artifact.bytes.byteLength < 131_072);
+  assert.equal(Buffer.from(artifact.bytes).toString("utf8"), canonicalJson(plan));
 });
 
 test("step identity commits independently to every authoring input", async () => {

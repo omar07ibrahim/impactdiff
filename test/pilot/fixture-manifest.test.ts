@@ -278,10 +278,34 @@ test("CSP, environment, and readiness are exact", () => {
   expectIssue(readiness, "pilot_fixture.readiness");
 });
 
-test("workflow ABI permits only its declared setup alias and shared root", () => {
-  const alias = mutableManifest();
-  alias.workflows[0]!.abi.focus_entry.value = "bundle-weave-focus";
-  expectIssue(alias, "pilot_fixture.focus_entry_alias");
+test("workflow ABI permits an independent focus entry but only the root may cross workflows", () => {
+  const independentFocus = mutableManifest();
+  const independentWorkflow = independentFocus.workflows[0]!;
+  independentWorkflow.abi.focus_entry.value = "bundle-email";
+  independentWorkflow.expectations.focus_entry_attribute = {
+    name: "value",
+    initial: "",
+    selected: "author@example.invalid",
+  };
+  independentWorkflow.actions.splice(
+    1,
+    0,
+    {
+      intent: "fill_text",
+      pointer_source_point: null,
+      target: "focus_entry",
+      value: { kind: "text", text: "author@example.invalid" },
+    },
+    {
+      intent: "press_key",
+      pointer_source_point: null,
+      target: null,
+      value: { kind: "key", key: "Tab" },
+    },
+  );
+  independentWorkflow.checkpoints[1]!.after_action_ordinal = 4;
+  independentWorkflow.checkpoints[2]!.after_action_ordinal = 5;
+  assert.doesNotThrow(() => validatePilotFixtureManifest(independentFocus));
 
   const withinWorkflowCollision = mutableManifest();
   withinWorkflowCollision.workflows[0]!.abi.primary.value =
@@ -298,6 +322,121 @@ test("workflow ABI permits only its declared setup alias and shared root", () =>
   expectIssue(separateRoots, "pilot_fixture.shared_root");
 });
 
+test("workflow recipes admit 32 actions and reject a 33rd", () => {
+  const maximum = mutableManifest();
+  const maximumWorkflow = maximum.workflows[0]!;
+  const [focus, setupKey, finalTab, pointer] = maximumWorkflow.actions;
+  assert.ok(
+    focus?.intent === "focus" &&
+      setupKey?.intent === "press_key" &&
+      finalTab?.intent === "press_key" &&
+      pointer?.intent === "pointer_click",
+  );
+  maximumWorkflow.actions = [
+    focus,
+    ...Array.from({ length: 29 }, () => structuredClone(setupKey)),
+    finalTab,
+    pointer,
+  ];
+  maximumWorkflow.checkpoints[1]!.after_action_ordinal = 30;
+  maximumWorkflow.checkpoints[2]!.after_action_ordinal = 31;
+  assert.equal(maximumWorkflow.actions.length, 32);
+  assert.doesNotThrow(() => validatePilotFixtureManifest(maximum));
+
+  const overMaximum = structuredClone(maximum);
+  overMaximum.workflows[0]!.actions.splice(30, 0, structuredClone(setupKey));
+  assert.equal(overMaximum.workflows[0]!.actions.length, 33);
+  expectIssue(overMaximum, "schema.maxItems");
+});
+
+test("workflow control-state expectations are conditional and exact", () => {
+  const missingDistinctExpectation = mutableManifest();
+  missingDistinctExpectation.workflows[0]!.abi.focus_entry.value = "bundle-email";
+  expectIssue(missingDistinctExpectation, "pilot_fixture.focus_entry_expectation");
+
+  const duplicatedAliasExpectation = mutableManifest();
+  duplicatedAliasExpectation.workflows[0]!.expectations.focus_entry_attribute = {
+    name: "value",
+    initial: "",
+    selected: "author@example.invalid",
+  };
+  expectIssue(duplicatedAliasExpectation, "pilot_fixture.focus_entry_expectation");
+
+  const mismatchedFill = mutableManifest();
+  mismatchedFill.workflows[0]!.actions[1] = {
+    intent: "fill_text",
+    pointer_source_point: null,
+    target: "focus_entry",
+    value: { kind: "text", text: "not-the-declared-value" },
+  };
+  expectIssue(mismatchedFill, "pilot_fixture.action_recipe");
+
+  const checkedFill = mutableManifest();
+  checkedFill.workflows[0]!.expectations.setup_attribute = {
+    name: "checked",
+    initial: false,
+    selected: true,
+  };
+  checkedFill.workflows[0]!.actions[1] = {
+    intent: "fill_text",
+    pointer_source_point: null,
+    target: "focus_entry",
+    value: { kind: "text", text: "checked-cannot-be-filled" },
+  };
+  expectIssue(checkedFill, "pilot_fixture.action_recipe");
+
+  const checkedArrow = mutableManifest();
+  checkedArrow.workflows[0]!.expectations.setup_attribute = {
+    name: "checked",
+    initial: false,
+    selected: true,
+  };
+  expectIssue(checkedArrow, "pilot_fixture.action_recipe");
+
+  const checkedSpace = mutableManifest();
+  checkedSpace.workflows[0]!.expectations.setup_attribute = {
+    name: "checked",
+    initial: false,
+    selected: true,
+  };
+  const checkedKey = checkedSpace.workflows[0]!.actions[1];
+  assert.equal(checkedKey?.intent, "press_key");
+  if (checkedKey?.intent === "press_key") checkedKey.value.key = "Space";
+  assert.doesNotThrow(() => validatePilotFixtureManifest(checkedSpace));
+
+  const fillAfterSetupTransition = mutableManifest();
+  const fillWorkflow = fillAfterSetupTransition.workflows[0]!;
+  const [focus, setupKey, finalTab, pointer] = fillWorkflow.actions;
+  assert.ok(
+    focus?.intent === "focus" &&
+      setupKey?.intent === "press_key" &&
+      finalTab?.intent === "press_key" &&
+      pointer?.intent === "pointer_click",
+  );
+  fillWorkflow.abi.focus_entry.value = "bundle-secondary-control";
+  fillWorkflow.expectations.focus_entry_attribute = {
+    name: "value",
+    initial: "first",
+    selected: "second",
+  };
+  fillWorkflow.actions = [
+    focus,
+    setupKey,
+    structuredClone(finalTab),
+    {
+      intent: "fill_text",
+      pointer_source_point: null,
+      target: "focus_entry",
+      value: { kind: "text", text: "harbor-picnic" },
+    },
+    finalTab,
+    pointer,
+  ];
+  fillWorkflow.checkpoints[1]!.after_action_ordinal = 4;
+  fillWorkflow.checkpoints[2]!.after_action_ordinal = 5;
+  expectIssue(fillAfterSetupTransition, "pilot_fixture.action_recipe");
+});
+
 test("workflow actions, checkpoints, predicates, and expectations are closed", () => {
   const actions = mutableManifest();
   const firstKey = actions.workflows[0]!.actions[1];
@@ -306,6 +445,13 @@ test("workflow actions, checkpoints, predicates, and expectations are closed", (
     firstKey.value.key = "Tab";
   }
   expectIssue(actions, "pilot_fixture.action_recipe");
+
+  const finalKey = mutableManifest();
+  [finalKey.workflows[0]!.actions[2], finalKey.workflows[0]!.actions[3]] = [
+    finalKey.workflows[0]!.actions[3]!,
+    finalKey.workflows[0]!.actions[2]!,
+  ];
+  expectIssue(finalKey, "pilot_fixture.action_recipe");
 
   const checkpoints = mutableManifest();
   checkpoints.workflows[0]!.checkpoints[1]!.after_action_ordinal = 1;
@@ -316,8 +462,11 @@ test("workflow actions, checkpoints, predicates, and expectations are closed", (
   expectIssue(predicates, "schema.const");
 
   const setup = mutableManifest();
-  setup.workflows[0]!.expectations.setup_attribute.selected =
-    setup.workflows[0]!.expectations.setup_attribute.initial;
+  const setupExpectation = setup.workflows[0]!.expectations.setup_attribute;
+  assert.equal(setupExpectation.name, "value");
+  if (setupExpectation.name === "value") {
+    setupExpectation.selected = setupExpectation.initial;
+  }
   expectIssue(setup, "pilot_fixture.setup_expectation");
 
   const prePrimary = mutableManifest();

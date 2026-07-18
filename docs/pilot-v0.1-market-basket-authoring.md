@@ -28,6 +28,10 @@ not collect checkpoint modalities. Both workflows are present before the raw man
 digest is computed; neither can be added later without rotating the source and task
 identities.
 
+The broader authoring grammar does not revise this package: its manifest, SourceState,
+ActionPlans, task identities, four-action audits, and `[-1, 2, 3]` schedule remain
+byte-for-byte fixed.
+
 The page is synthetic and repository-authored. It has no checkout, payment, address,
 delivery, order-confirmation, remote-service, clock, randomness, or storage dependency.
 Only the exact vendored Noto Sans and OFL license bytes are shared with the development
@@ -92,12 +96,23 @@ This boundary attests cooperative, repository-authored fixture bytes after packa
 review and provenance checks. It is not a sandbox for hostile page code; source review
 remains part of the authoring threat boundary.
 
+Cooperative fixture code must not replace ECMAScript or DOM intrinsics, guard globals,
+prototypes, or observer APIs, or schedule work beyond declared readiness and action
+handlers. The attestation instant is the atomic final oracle and terminal seal. Teardown
+then destroys the context and audits observable late activity; it does not claim to
+enumerate every Web API side effect. The guards below fail closed for the supported
+state paths and accidental drift, not as complete hostile-code mediation.
+
 The exact response/meta policy includes `webrtc 'block'`. Pre-navigation guards also
 disable peer-connection constructors and author `attachShadow`; readiness re-proves
 those sealed descriptors. A bounded CDP DOM audit detects closed-root metadata without
 materializing shadow descendants and admits only Chromium's `user-agent` shadow trees
-for native controls. These are fail-closed authoring constraints, not a claim that
-arbitrary hostile JavaScript has been safely sandboxed.
+for native controls. The same init boundary captures the native WebIDL state readers and
+mutation observer before fixture JavaScript runs. Runtime state oracles reject critical
+own accessors and prototype drift. The atomic terminal check uses only those captured
+readers, then seals admitted focus/state mutation paths and the observer before context
+destruction. These are fail-closed authoring constraints, not a claim that arbitrary
+hostile JavaScript has been safely sandboxed.
 
 For either declared workflow, the runtime audits the fixed display and paused clock,
 sealed readiness state, exact CSP, custom Noto Sans glyph use, absent service workers,
@@ -108,11 +123,12 @@ checks the exact selected value, final root state, success text, and success foc
 
 The bounded document fingerprint covers light-DOM/CSS structure, all form-control live
 state, and window, visual-viewport, and element scroll offsets while normalizing only
-the declared setup/root/success transition. This baseline rejects author canvas/media,
-active animations, open popovers/dialogs, fullscreen, pointer lock, picture-in-picture,
-and author shadow roots. Request failures, renderer crashes, file choosers, extra pages,
-workers, dialogs, downloads, and post-completion activity revoke success. Cleanup must
-leave the owned browser connected with exactly zero contexts before it can be reused.
+the declared setup, focus-entry, root, and success transitions. This baseline rejects
+author canvas/media, active animations, open popovers/dialogs, fullscreen, pointer lock,
+picture-in-picture, and author shadow roots. Request failures, renderer crashes, file
+choosers, extra pages, workers, dialogs, downloads, and post-completion activity revoke
+success. Cleanup must leave the owned browser connected with exactly zero contexts
+before it can be reused.
 
 A successful attempt returns a frozen, success-only audit marked `official: false`,
 binding the fixture, source state, workflow, task, environment, four executed actions,
