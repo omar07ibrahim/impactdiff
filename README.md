@@ -85,7 +85,17 @@ Implemented today:
   attests reviewed, repository-authored fixture code rather than hostile page code. It
   creates no `capture_id`, corpus row, operator, outcome, label, generation-plan
   execution, or benchmark result, and no failure or cleanup error exposes a partial
-  capture result.
+  capture result; and
+- the first executable Pilot operator slice for that authoring package.
+  `authorPilotFixturePointerHitTestingPair` accepts only either exact catalogued pointer
+  definition, runs a successful baseline and candidate in separate fresh contexts,
+  installs the same CSP-authorized transparent owned layer twice, measures the complete
+  installed `P, O, D, N, F, A, C, V` policy, proves exact inverse and final cleanup over
+  DOM, computed style, pixels, accessibility, layout, hit testing, focus, scroll,
+  listener registrations, and owned handles, and independently classifies the candidate
+  as `exact_success` or `exact_unchanged`. Its small frozen result remains
+  `official: false`; checkpoints, probes, declared relations, labels, and private
+  browser capabilities never cross the API boundary.
 
 The capture contract names the exact installed file trees for `@playwright/test`,
 `playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
@@ -181,8 +191,8 @@ split, metric hierarchy, claim gate, release artifacts, and explicit non-claims 
 the corpus exists. The
 [market-basket authoring note](docs/pilot-v0.1-market-basket-authoring.md) documents the
 first fixture's two tasks, closed ABI, acyclic source/task identity graph, verified
-baseline browser replay, capture-first checkpoint boundary, and remaining boundary
-before mutation execution.
+baseline browser replay, capture-first checkpoint boundary, source predicates, and the
+first executable pointer-definition pair.
 
 ## Repository map
 
@@ -201,8 +211,8 @@ before mutation execution.
 - `src/benchmark/` — the machine-validated frozen Pilot v0.1 research protocol;
 - `src/pilot/fixture/` — authoring-only Pilot fixture manifests, package verification,
   source-state derivation, and in-memory ActionPlan construction;
-- `src/pilot/runtime/` — the isolated, success-only Pilot browser-authoring environment,
-  audit replay, and separate checkpoint-capture API;
+- `src/pilot/runtime/` — the isolated Pilot browser-authoring environment, audit replay,
+  checkpoint and predicate capture, plus the reversible pointer-pair authoring API;
 - `src/cli/` — the bounded development-release command; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
   capture tests; and

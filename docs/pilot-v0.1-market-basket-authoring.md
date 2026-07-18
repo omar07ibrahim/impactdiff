@@ -188,12 +188,48 @@ Malformed, ambiguous, or unbound browser evidence is a technical failure rather 
 predicate `fail`. As with capture, the vector stays private until the final task oracle,
 context destruction, teardown audit, and lease finalization all succeed.
 
+## Pointer-pair authoring API
+
+`authorPilotFixturePointerHitTestingPair` is the first executable slice of the Pilot
+operator catalog. It accepts one workflow and exactly one of the two full pointer
+definition keys. Aliases, caller-authored definitions, pointer modes, relations, action
+plans, checkpoints, labels, and browser/session capabilities are not accepted.
+
+The runtime first completes the source workflow in a fresh baseline context and retains
+private clean pre-primary and post-primary references. It then opens a different
+candidate context under the same verified environment. The selected code-owned layer is
+installed before checkpoint zero, remains present through setup and checkpoint one, and
+is measured against the exact installed `P, O, D, N, F, A, C, V` policy. The runner
+removes it and proves the full inverse, installs the same definition again, executes the
+unchanged source-center click, captures checkpoint two, removes the layer, and proves
+final cleanup before either role becomes observable.
+
+The owned layer is an exact native subtree with a CSP-authorized stylesheet. It is
+transparent, accessibility-hidden, nonfocusable, paint- and pseudo-element-audited,
+retains the source pointer cursor, and is geometrically identical for both definitions.
+The intercept member receives hit testing while the pass-through member does not. Exact
+mutation-record admission includes Chromium's nonce-hiding record; a pre-navigation
+listener ledger detects listener registration changes and `on*` handler assignments.
+Both inverse and cleanup require the fixed 11-row sequence covering owned handles,
+mutation preimages, listeners, exact DOM, relevant computed styles, canonical pixels,
+accessibility, layout, hit testing, focus/scroll, and runtime cleanliness.
+
+Task outcome is not copied from the definition. After cleanup the candidate must match
+exactly either the baseline pre-primary state (`exact_unchanged`) or baseline
+post-primary state (`exact_success`); partial or ambiguous states are technical
+failures. The current fixture measures intercept as unchanged and pass-through as
+success, but those relations are not encoded into the classifier.
+
+The returned frozen `pilot_fixture_pointer_hit_testing_pair_authoring_result` contains
+only `official: false`, the exact definition key, and baseline/candidate audit plus task
+outcome receipts. Checkpoints, predicate/probe rows, operator/catalog IDs, declared
+relations, private reference hashes, labels, corpus fields, and generation fields remain
+private.
+
 ## Deliberate remaining boundary
 
-The capture-first result creates no `capture_id`, corpus row, mutation attempt,
-operator, task outcome, label, generation-plan execution, or benchmark result. It does
-not compile, apply, invert, or clean up a mutation operator. Source rows alone do not
-satisfy an operator's installed predicate policy. A later Pilot milestone must execute
-and restore all 16 family/relation operators, compare every installed vector with its
-exact definition, and independently classify task outcomes while authoring results
-remain `official: false`.
+The capture-first result still creates no mutation or outcome, and the pointer-pair
+result creates no `capture_id`, corpus row, label, generation-plan execution, or
+benchmark result. Only the two pointer definitions are executable here. A later Pilot
+milestone must execute and restore the remaining 14 family/relation definitions and
+resolve every official generation-plan binding before any corpus or benchmark claim.
