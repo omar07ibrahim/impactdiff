@@ -5,9 +5,10 @@
 This document defines the planned human-readable catalog for Pilot v0.1: 20 local
 mini-applications, two workflows per application, and one outer block per application.
 It is a construction specification, not evidence that the complete fixture corpus,
-captures, labels, features, models, or results exist. Only the mutable
-`pilot-market-basket-v1` pre-release and its baseline browser-authoring replay are
-implemented so far; the other 19 applications remain planned.
+official captures, labels, features, models, or results exist. Only the mutable
+`pilot-market-basket-v1` pre-release, its baseline browser-authoring replay, and its
+capture-first authoring path are implemented so far; the other 19 applications remain
+planned.
 
 The keys below are stable review and authoring keys. They are deliberately not
 `application_group_id`, `workflow_id`, `source_state_id`, or `task_id` values. Those
@@ -122,10 +123,13 @@ The code-owned catalog binds planned keys and blocks but does not resolve fixtur
 action-plan, operator, or audit bytes. The baseline Pilot runtime now reopens the exact
 market-basket package from an in-memory snapshot, enforces its retained ABI and
 three-boundary workflow schedule in fresh browser contexts, performs the source-center
-pointer action, and returns a success-only `official: false` audit. It neither executes
-the eight predicate families nor produces checkpoint modalities. A resolved operator
-verifier must still open the exact references, validate every mutation audit, and bind
-them before the generation plan may execute.
+pointer action, and returns a success-only `official: false` audit. Its separate
+capture-first API returns exactly three canonical PNG, accessibility-tree, and
+layout-graph payloads only after the success oracle and attempt/context lifecycle
+cleanup complete. Checkpoint bytes are exposed through defensive copies; a failed
+execution or cleanup returns no partial tuple. Neither path executes the eight predicate
+families. A resolved operator verifier must still open the exact references, validate
+every mutation audit, and bind them before the generation plan may execute.
 
 ## Data and shared-infrastructure policy
 
@@ -172,7 +176,8 @@ duplicates by themselves. Block construction must not use measured task labels.
 
 ## Acceptance gates
 
-Before final source revisions and the generation plan are closed, authoring checks must
+These are full-catalog authoring gates, not claims about the current fixture. Before
+final source revisions and the generation plan are closed, authoring checks must
 establish:
 
 - 20 unique application keys, five applications per block, 40 unique workflow keys, and
@@ -194,12 +199,16 @@ establish:
 - exact restoration of DOM, styles, listeners, accessibility, and layout after each
   operator inverse and cleanup.
 
-The current market-basket baseline covers only package/resource binding and the closed
-no-mutation browser replay: pinned environment, fresh context, readiness, CSP, font,
-request, retained-ABI, action, final-state, and lifecycle checks. Its checkpoint
-ordinals are schedule evidence, not PNG, accessibility, or layout artifacts. It does not
-satisfy the three-run modality determinism, 16-operator compatibility, or exact
-apply/inverse restoration gates above.
+The current market-basket implementation covers package/resource binding, the closed
+no-mutation browser replay, and the current-fixture portion of the modality gate. For
+each of its two workflows, three fresh-context capture-first runs must produce
+byte-identical canonical PNG, accessibility-tree, and layout-graph bytes at all three
+manifest boundaries. The success-only `official: false` result is withheld until cleanup
+completes, and its checkpoint getters return defensive byte copies.
+
+That narrow gate does not establish official 20-application acceptance, 16-operator
+compatibility, or exact apply/inverse restoration. It creates no `capture_id`, official
+corpus row, operator, outcome, label, generation-plan execution, or benchmark result.
 
 Authoring checks may execute only explicitly versioned, mutable pre-release source and
 action bytes. They produce no official corpus row, sealed label, or operator outcome and

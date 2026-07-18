@@ -303,6 +303,48 @@ test("accessibility normalization is stable under raw CDP array shuffling", () =
   assert.deepEqual(parseAccessibilitySnapshot(canonicalJson(first)), first);
 });
 
+test("accessibility normalization preserves Pilot landmarks and native select semantics", () => {
+  const normalized = normalizeAccessibilitySnapshot(
+    {
+      nodes: [
+        {
+          nodeId: "root",
+          role: { value: "RootWebArea" },
+          childIds: ["article"],
+        },
+        {
+          nodeId: "article",
+          parentId: "root",
+          role: { value: "article" },
+          childIds: ["label", "popup", "footer"],
+        },
+        {
+          nodeId: "label",
+          parentId: "article",
+          role: { value: "LabelText" },
+        },
+        {
+          nodeId: "popup",
+          parentId: "article",
+          role: { value: "MenuListPopup" },
+        },
+        {
+          nodeId: "footer",
+          parentId: "article",
+          role: { value: "sectionfooter" },
+        },
+      ],
+    },
+    new Map(),
+  );
+
+  assert.deepEqual(
+    normalized.nodes.map(({ role }) => role),
+    ["document", "article", "generic", "listbox", "generic"],
+  );
+  assert.deepEqual(parseAccessibilitySnapshot(canonicalJson(normalized)), normalized);
+});
+
 test("accessibility output contains only normalized allowlisted fields", () => {
   const layout = normalizeLayoutProbe(layoutProbe());
   const serialized = JSON.stringify(
@@ -357,11 +399,20 @@ test("accessibility normalization rejects cycles, dangling and duplicate IDs", (
   assertContractFailure(() => normalizeAccessibilitySnapshot(duplicate, new Map()));
 });
 
-test("accessibility backend links can resolve only through the layout map", () => {
+test("accessibility backend links remain partial for non-rendered DOM nodes", () => {
   const layout = normalizeLayoutProbe(layoutProbe());
   const incompleteMap = new Map(layout.backendDomNodeToLayoutIndex);
   incompleteMap.delete(400);
-  assertContractFailure(() => normalizeAccessibilitySnapshot(axProbe(), incompleteMap));
+  const normalized = normalizeAccessibilitySnapshot(axProbe(), incompleteMap);
+
+  const textbox = normalized.nodes.find((node) => node.role === "textbox");
+  assert.ok(textbox !== undefined);
+  assert.equal(textbox.layout_node_index, null);
+  assert.equal(
+    JSON.stringify(normalized).includes("backendDOMNodeId"),
+    false,
+    "unmapped browser identities must not enter the normalized payload",
+  );
 });
 
 test("normalizers enforce the 4096-node and 64-edge budgets", () => {

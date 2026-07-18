@@ -7,6 +7,7 @@ import test from "node:test";
 import type { BrowserContext, Request } from "@playwright/test";
 
 import { canonicalJson, sha256Hex } from "../../src/contracts/canonical.js";
+import { capturePilotFixtureAuthoringWorkflow } from "../../src/pilot/runtime/capture.js";
 import {
   acquirePilotFixtureAuthoringEnvironment,
   launchPilotFixtureAuthoringEnvironment,
@@ -426,14 +427,16 @@ async function addFileChooserAction(fixtureRoot: string): Promise<void> {
 async function expectFixtureFailureAndPoisoned(
   fixtureRoot: string,
   expectedCode: string,
+  attempt: (environment: PilotFixtureAuthoringEnvironment) => Promise<unknown> = (
+    environment,
+  ) => replayPilotFixtureAuthoringWorkflow(environment, "add_bundle"),
 ): Promise<void> {
   const environment = await launchPilotFixtureAuthoringEnvironment(fixtureRoot);
+  const { browser } = inspectOwnedBrowser(environment);
   let closed = false;
   try {
-    await expectRuntimeError(
-      replayPilotFixtureAuthoringWorkflow(environment, "add_bundle"),
-      expectedCode,
-    );
+    await expectRuntimeError(attempt(environment), expectedCode);
+    assert.equal(browser.contexts().length, 0);
     await expectRuntimeError(
       replayPilotFixtureAuthoringWorkflow(environment, "add_bundle"),
       "pilot_runtime.environment_poisoned",
@@ -450,6 +453,121 @@ async function expectFixtureFailureAndPoisoned(
     }
   }
 }
+
+test(
+  "Pilot capture withholds checkpoints when the final oracle fails",
+  { concurrency: false },
+  async () => {
+    await withFixtureCopy("capture-final-oracle", async (fixtureRoot) => {
+      await rewriteFixtureTextResource(fixtureRoot, "app.js", (application) => {
+        const marker =
+          "  bundleStatus.textContent = `${choice.label} bundle added, ${choice.pieces} pieces.`;";
+        assert.equal(application.split(marker).length, 2);
+        return application.replace(
+          marker,
+          '  bundleStatus.textContent = "Undeclared capture result.";',
+        );
+      });
+      await expectFixtureFailureAndPoisoned(
+        fixtureRoot,
+        "pilot_runtime.final_expectation",
+        (environment) =>
+          capturePilotFixtureAuthoringWorkflow(environment, "add_bundle"),
+      );
+    });
+  },
+);
+
+test(
+  "Pilot capture withholds checkpoints when its capture CDP session cannot detach",
+  { concurrency: false },
+  async () => {
+    const environment = await launchPilotFixtureAuthoringEnvironment(fixtureDirectory);
+    const { browser } = inspectOwnedBrowser(environment);
+    const originalDescriptor = Object.getOwnPropertyDescriptor(browser, "newContext");
+    const originalNewContext = browser.newContext.bind(browser);
+    let captureDetachAttempts = 0;
+    let returnedResult: unknown;
+    let assertionsComplete = false;
+    Object.defineProperty(browser, "newContext", {
+      configurable: true,
+      value: async (...args: Parameters<typeof browser.newContext>) => {
+        const context = await originalNewContext(...args);
+        const originalNewCdpSession = context.newCDPSession.bind(context);
+        Object.defineProperty(context, "newCDPSession", {
+          configurable: true,
+          value: async (...sessionArgs: Parameters<typeof context.newCDPSession>) => {
+            const client = await originalNewCdpSession(...sessionArgs);
+            const originalSend = client.send.bind(client);
+            const originalDetach = client.detach.bind(client);
+            let captureOwned = false;
+            Object.defineProperty(client, "send", {
+              configurable: true,
+              value: async (...sendArgs: Parameters<typeof client.send>) => {
+                if (sendArgs[0] === "DOMSnapshot.captureSnapshot") {
+                  captureOwned = true;
+                }
+                return originalSend(...sendArgs);
+              },
+            });
+            Object.defineProperty(client, "detach", {
+              configurable: true,
+              value: async (...detachArgs: Parameters<typeof client.detach>) => {
+                await originalDetach(...detachArgs);
+                if (captureOwned) {
+                  captureDetachAttempts += 1;
+                  throw new Error("injected Pilot capture CDP detach failure");
+                }
+              },
+            });
+            return client;
+          },
+        });
+        return context;
+      },
+    });
+
+    try {
+      await assert.rejects(
+        (async () => {
+          returnedResult = await capturePilotFixtureAuthoringWorkflow(
+            environment,
+            "add_bundle",
+          );
+        })(),
+        (error: unknown) => {
+          assert.ok(error instanceof PilotFixtureAuthoringRuntimeError);
+          assert.equal(error.code, "pilot_runtime.execution");
+          return true;
+        },
+      );
+      assert.equal(returnedResult, undefined);
+      assert.equal(captureDetachAttempts, 1);
+      assert.equal(browser.contexts().length, 0);
+      await expectRuntimeError(
+        capturePilotFixtureAuthoringWorkflow(environment, "add_bundle"),
+        "pilot_runtime.environment_poisoned",
+      );
+      assertionsComplete = true;
+    } finally {
+      if (originalDescriptor === undefined) {
+        Reflect.deleteProperty(browser, "newContext");
+      } else {
+        Object.defineProperty(browser, "newContext", originalDescriptor);
+      }
+      if (assertionsComplete) {
+        await environment.close();
+        assert.equal(browser.contexts().length, 0);
+      } else {
+        try {
+          await environment.close();
+        } catch {
+          // Preserve the first capture or assertion failure after cleanup.
+        }
+      }
+    }
+  },
+);
 
 async function expectInjectedTeardownEvent(
   prepare: (context: BrowserContext) => () => boolean,

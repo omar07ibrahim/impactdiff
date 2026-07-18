@@ -69,16 +69,23 @@ Implemented today:
   manifest binds an independently designed 800 by 600 Thread & Tally UI, two four-action
   workflows, the shared mutation ABI, exact resource provenance, a canonical
   SourceState, and two derived ActionPlans without creating identity cycles. The loader
-  is deliberately `official: false` and has no outcome, capture, or label surface; and
+  itself is deliberately `official: false` and has no outcome, capture, or label
+  surface; and
 - a separate Pilot browser-authoring runtime for that package. It snapshots the audited
   fixture bytes before launch, binds them to the pinned Chromium and CaptureSpec, and
   replays either workflow in a fresh isolated context. The replay closes request, CSP,
   WebRTC, shadow-root, custom-font, readiness, ABI, action, bounded live-document, and
-  lifecycle audits around a raw source-center click, then returns only a success audit
-  marked `official: false`. It attests reviewed, repository-authored fixture code rather
-  than hostile page code. It does not run mutation operators, collect
-  PNG/accessibility/layout modalities, derive outcomes or labels, create a generation
-  plan, or publish a benchmark row.
+  lifecycle audits around a raw source-center click. The ordinary replay API returns
+  only a success audit marked `official: false`; a separate capture-first API returns,
+  only after the success oracle and cleanup complete, an `official: false` result with
+  exactly three manifest-bound checkpoints. Their payloads are canonical PNG and
+  canonical accessibility-tree and layout-graph JSON bytes, exposed through defensive
+  copies. The current-fixture gate requires three fresh-context runs of each
+  market-basket workflow to produce byte-identical payloads at every checkpoint. This
+  attests reviewed, repository-authored fixture code rather than hostile page code. It
+  creates no `capture_id`, corpus row, operator, outcome, label, generation-plan
+  execution, or benchmark result, and no failure or cleanup error exposes a partial
+  capture result.
 
 The capture contract names the exact installed file trees for `@playwright/test`,
 `playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
@@ -150,7 +157,7 @@ labels must still come from execution outcomes.
 
 ## Evaluation plan
 
-Pilot v0.1 freezes 20 separately designed and implemented local mini-applications, two
+Pilot v0.1 freezes a plan for 20 separately designed local mini-applications, two
 declared workflows per application, eight causal mutation families, and matched
 task-breaking and task-preserving variants. Replicate zero produces exactly 640 planned
 pairs. Four predeclared five-application blocks rotate through grouped outer folds; each
@@ -174,8 +181,8 @@ split, metric hierarchy, claim gate, release artifacts, and explicit non-claims 
 the corpus exists. The
 [market-basket authoring note](docs/pilot-v0.1-market-basket-authoring.md) documents the
 first fixture's two tasks, closed ABI, acyclic source/task identity graph, verified
-baseline browser replay, and the remaining boundary before mutation execution and
-checkpoint capture.
+baseline browser replay, capture-first checkpoint boundary, and remaining boundary
+before mutation execution.
 
 ## Repository map
 
@@ -194,8 +201,8 @@ checkpoint capture.
 - `src/benchmark/` — the machine-validated frozen Pilot v0.1 research protocol;
 - `src/pilot/fixture/` — authoring-only Pilot fixture manifests, package verification,
   source-state derivation, and in-memory ActionPlan construction;
-- `src/pilot/runtime/` — the isolated, success-only Pilot baseline browser-authoring
-  environment and workflow replay;
+- `src/pilot/runtime/` — the isolated, success-only Pilot browser-authoring environment,
+  audit replay, and separate checkpoint-capture API;
 - `src/cli/` — the bounded development-release command; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
   capture tests; and

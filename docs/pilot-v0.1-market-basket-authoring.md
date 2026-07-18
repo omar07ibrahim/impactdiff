@@ -5,10 +5,10 @@ ImpactDiff Pilot. Its current revision, `pilot-market-basket-v1.0.0-authoring.2`
 mutable pre-release used to review source provenance, task identity, and the shared
 mutation ABI before any Pilot outcome exists.
 
-This package is not a benchmark row. Loading it cannot produce an operator ID, capture
-ID, sealed record, task-success label, regression label, or official result. The final
-`.0.0` revision will be minted from reviewed bytes and rebound into the complete
-20-application generation plan before its first official execution.
+This package is not a benchmark row. Loading it cannot produce an operator ID,
+`capture_id`, sealed record, task-success label, regression label, or official result.
+The final `.0.0` revision will be minted from reviewed bytes and rebound into the
+complete 20-application generation plan before its first official execution.
 
 ## Application and workflows
 
@@ -23,8 +23,9 @@ Thread & Tally is a fixed 800 by 600 market board with two independent workflows
 
 Each action plan contains `focus`, `ArrowDown`, `Tab`, and a source-bound primary
 pointer click. It declares checkpoint boundaries before action zero, after action two,
-and after action three; the baseline authoring replay validates that schedule but does
-not collect checkpoint modalities. Both workflows are present before the raw manifest
+and after action three. The ordinary baseline replay validates that schedule without
+returning checkpoint bytes; the separate capture-first API collects checkpoint
+modalities at those exact boundaries. Both workflows are present before the raw manifest
 digest is computed; neither can be added later without rotating the source and task
 identities.
 
@@ -85,7 +86,7 @@ The returned value is deeply immutable in structure and exposes artifact bytes t
 defensive copies with exact standalone `ArrayBuffer` backing stores. It is marked
 `official: false` and contains no execution or label surface.
 
-## Baseline browser-authoring boundary
+## Browser-authoring boundary
 
 The Pilot launcher snapshots the complete audited resource tree in memory before it
 starts the verified pinned Chromium environment. Every attempt receives a fresh context
@@ -130,16 +131,45 @@ choosers, extra pages, workers, dialogs, downloads, and post-completion activity
 success. Cleanup must leave the owned browser connected with exactly zero contexts
 before it can be reused.
 
-A successful attempt returns a frozen, success-only audit marked `official: false`,
-binding the fixture, source state, workflow, task, environment, four executed actions,
-the `[-1, 2, 3]` checkpoint schedule, and served-resource counts. Blocked external or
-unexpected fixture requests fail the attempt instead of becoming a partial result.
+A successful ordinary replay returns a frozen, success-only audit marked
+`official: false`, binding the fixture, source state, workflow, task, environment, four
+executed actions, the `[-1, 2, 3]` checkpoint schedule, and served-resource counts.
+Blocked external or unexpected fixture requests fail the attempt instead of becoming a
+partial result.
 
-## Deliberate next boundary
+## Capture-first authoring API
 
-The baseline audit is not a modality capture, mutation attempt, task outcome, label,
-generation-plan entry, or benchmark row. It emits no PNG, accessibility, or layout
-checkpoint payloads and does not compile, apply, invert, or clean up any mutation
-operator. The next Pilot milestone must execute and restore all 16 family/relation
-operators, mechanically probe the eight predicates, and add deterministic three-modal
-checkpoint capture while its authoring results remain `official: false`.
+`capturePilotFixtureAuthoringWorkflow` is separate from the ordinary audit replay. It
+reuses the same fresh-context execution and returns a frozen, success-only
+`official: false` result containing the audit and exactly three checkpoints:
+
+- result ordinal `0` is `initial_state`, at manifest boundary `-1` before any action;
+- result ordinal `1` is `pre_primary_action`, at manifest boundary `2` immediately
+  before the primary pointer action; and
+- result ordinal `2` is `post_primary_action`, at manifest boundary `3` immediately
+  after that action.
+
+Every checkpoint contains its derived checkpoint ID and canonical payload bytes: a PNG
+`screenshot`, a canonical JSON `accessibility_tree`, and a canonical JSON
+`layout_graph`. These are authoring observations, not content-addressed capture
+artifacts. Each byte getter returns a defensive copy, so caller mutation cannot alter
+the retained checkpoint or a later read.
+
+Checkpoint values remain private while the workflow runs. The API publishes its tuple
+only after all three captures, the exact final-state oracle, CDP detach, context
+destruction, teardown audit, and environment-lease finalization succeed. Any execution,
+capture, or cleanup failure rejects the call and exposes no partial result.
+
+The deterministic gate for the current fixture runs both `add_bundle` and
+`choose_pickup` three times in independent fresh contexts and requires every
+corresponding PNG, accessibility-tree, and layout-graph payload to be byte-identical.
+This is evidence only for the current mutable market-basket authoring revision; it is
+not the full 20-application acceptance gate.
+
+## Deliberate remaining boundary
+
+The capture-first result creates no `capture_id`, corpus row, mutation attempt,
+operator, task outcome, label, generation-plan execution, or benchmark result. It does
+not compile, apply, invert, or clean up a mutation operator. A later Pilot milestone
+must execute and restore all 16 family/relation operators and mechanically probe the
+eight predicates while its authoring results remain `official: false`.

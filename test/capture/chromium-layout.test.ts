@@ -9,10 +9,16 @@ import {
 import { ContractValidationError } from "../../src/contracts/errors.js";
 
 const fixtureUrl = "https://fixture.impactdiff.invalid/";
+const pilotFixtureUrl = "https://pilot-fixture.impactdiff.invalid/";
 const actionTargetId = `idat1_${"a".repeat(64)}`;
 const options: ChromiumLayoutAdapterOptions = {
+  documentProfile: "development_fixture",
   viewport: { width: 320, height: 240 },
   target: { backendDomNodeId: 107, actionTargetId },
+};
+const pilotOptions: ChromiumLayoutAdapterOptions = {
+  ...options,
+  documentProfile: "pilot_fixture",
 };
 
 type LooseRecord = Record<string, unknown>;
@@ -22,7 +28,7 @@ interface SnapshotFixture {
   readonly documents: LooseRecord[];
 }
 
-function chromiumSnapshot(): SnapshotFixture {
+function chromiumSnapshot(documentUrl = fixtureUrl): SnapshotFixture {
   const strings: string[] = [];
   const intern = (value: string): number => {
     const existing = strings.indexOf(value);
@@ -112,7 +118,7 @@ function chromiumSnapshot(): SnapshotFixture {
     strings,
     documents: [
       {
-        documentURL: intern(fixtureUrl),
+        documentURL: intern(documentUrl),
         scrollOffsetX: 0,
         scrollOffsetY: 400,
         nodes: {
@@ -238,6 +244,22 @@ test("bounds use viewport coordinates while overflow clips translate local clien
   assert.notEqual(main.clip_bounds?.y_q64, -25_408);
 });
 
+test("text rows never establish overflow clips", () => {
+  const snapshot = chromiumSnapshot();
+  const layout = layoutOf(snapshot);
+  const styles = layout.styles as number[][];
+  const clippingElementStyle = styles[2];
+  assert.ok(clippingElementStyle !== undefined);
+  styles[7] = structuredClone(clippingElementStyle);
+
+  const result = adaptChromiumLayoutSnapshot(snapshot, options);
+  const buttonText = result.snapshot.nodes.find(
+    (node) => node.kind === "text" && node.parent_index === 3,
+  );
+  assert.ok(buttonText !== undefined);
+  assert.equal(buttonText.clip_bounds, null);
+});
+
 test("a resolved target may be absent from layout after becoming hidden", () => {
   const snapshot = chromiumSnapshot();
   const layout = layoutOf(snapshot);
@@ -290,6 +312,45 @@ test("adapter binds one exact fixture document and viewport", () => {
   expectIssue(
     () => adaptChromiumLayoutSnapshot(viewportDrift, options),
     "chromium_layout.document_viewport",
+  );
+});
+
+test("adapter binds each closed document profile to its exact fixture URL", () => {
+  const pilotResult = adaptChromiumLayoutSnapshot(
+    chromiumSnapshot(pilotFixtureUrl),
+    pilotOptions,
+  );
+  assert.equal(pilotResult.backendDomNodeToLayoutIndex.get(107), 3);
+
+  expectIssue(
+    () => adaptChromiumLayoutSnapshot(chromiumSnapshot(pilotFixtureUrl), options),
+    "chromium_layout.document_url",
+  );
+  expectIssue(
+    () => adaptChromiumLayoutSnapshot(chromiumSnapshot(), pilotOptions),
+    "chromium_layout.document_url",
+  );
+
+  expectIssue(
+    () =>
+      adaptChromiumLayoutSnapshot(chromiumSnapshot(), {
+        ...options,
+        documentProfile: "unknown_fixture",
+      } as unknown as ChromiumLayoutAdapterOptions),
+    "chromium_layout.document_profile",
+  );
+
+  const missingProfile: Omit<ChromiumLayoutAdapterOptions, "documentProfile"> = {
+    viewport: options.viewport,
+    target: options.target,
+  };
+  expectIssue(
+    () =>
+      adaptChromiumLayoutSnapshot(
+        chromiumSnapshot(),
+        missingProfile as ChromiumLayoutAdapterOptions,
+      ),
+    "chromium_layout.required",
   );
 });
 
