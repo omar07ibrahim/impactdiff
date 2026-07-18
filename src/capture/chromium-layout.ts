@@ -756,9 +756,13 @@ function viewportBounds(
 
 function overflowClip(
   row: DecodedLayoutRow,
+  nodeType: number,
   scrollX: number,
   scrollY: number,
 ): RawLayoutBox | null {
+  if (nodeType !== 1) {
+    return null;
+  }
   if (
     row.computedStyle.overflowX === "visible" &&
     row.computedStyle.overflowY === "visible"
@@ -866,7 +870,7 @@ function assembleProbe(
           : viewportBounds(row.bounds, scrollX, scrollY),
         clipBounds: documentNode
           ? viewportBox(options.viewport)
-          : overflowClip(row, scrollX, scrollY),
+          : overflowClip(row, nodeType, scrollX, scrollY),
         paintOrder: row.paintOrder,
         computedStyle: row.computedStyle,
         actionTargetId,

@@ -244,6 +244,22 @@ test("bounds use viewport coordinates while overflow clips translate local clien
   assert.notEqual(main.clip_bounds?.y_q64, -25_408);
 });
 
+test("text rows never establish overflow clips", () => {
+  const snapshot = chromiumSnapshot();
+  const layout = layoutOf(snapshot);
+  const styles = layout.styles as number[][];
+  const clippingElementStyle = styles[2];
+  assert.ok(clippingElementStyle !== undefined);
+  styles[7] = structuredClone(clippingElementStyle);
+
+  const result = adaptChromiumLayoutSnapshot(snapshot, options);
+  const buttonText = result.snapshot.nodes.find(
+    (node) => node.kind === "text" && node.parent_index === 3,
+  );
+  assert.ok(buttonText !== undefined);
+  assert.equal(buttonText.clip_bounds, null);
+});
+
 test("a resolved target may be absent from layout after becoming hidden", () => {
   const snapshot = chromiumSnapshot();
   const layout = layoutOf(snapshot);
