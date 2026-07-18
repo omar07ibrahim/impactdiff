@@ -9,7 +9,10 @@ import {
 } from "./normalize-layout.js";
 
 const chromiumLayoutContract = "impactdiff.chromium-layout-adapter/v1";
-const fixtureDocumentUrl = "https://fixture.impactdiff.invalid/";
+const chromiumLayoutDocumentUrls = Object.freeze({
+  development_fixture: "https://fixture.impactdiff.invalid/",
+  pilot_fixture: "https://pilot-fixture.impactdiff.invalid/",
+} as const);
 const maximumDomNodes = 4_096;
 const maximumLayoutRows = 4_096;
 const maximumStrings = 32_768;
@@ -62,13 +65,17 @@ export interface ChromiumLayoutTarget {
   readonly actionTargetId: string;
 }
 
+export type ChromiumLayoutDocumentProfile = keyof typeof chromiumLayoutDocumentUrls;
+
 export interface ChromiumLayoutAdapterOptions {
+  readonly documentProfile: ChromiumLayoutDocumentProfile;
   readonly viewport: ChromiumLayoutViewport;
   /** The exact DOM target; a hidden target may legitimately have no layout row. */
   readonly target: ChromiumLayoutTarget;
 }
 
 interface ParsedOptions {
+  readonly documentUrl: string;
   readonly viewport: ChromiumLayoutViewport;
   readonly target: ChromiumLayoutTarget;
 }
@@ -402,6 +409,17 @@ function optionalRectangle(value: unknown, path: string): RawLayoutBox | null {
 
 function parseOptions(value: ChromiumLayoutAdapterOptions): ParsedOptions {
   const input = record(value, "/options");
+  const documentProfile = requiredValue(input, "documentProfile", "/options");
+  if (
+    documentProfile !== "development_fixture" &&
+    documentProfile !== "pilot_fixture"
+  ) {
+    fail(
+      "chromium_layout.document_profile",
+      "/options/documentProfile",
+      "document profile must be development_fixture or pilot_fixture",
+    );
+  }
   const viewportInput = record(
     requiredValue(input, "viewport", "/options"),
     "/options/viewport",
@@ -449,6 +467,7 @@ function parseOptions(value: ChromiumLayoutAdapterOptions): ParsedOptions {
     );
   }
   return Object.freeze({
+    documentUrl: chromiumLayoutDocumentUrls[documentProfile],
     viewport: Object.freeze({ width, height }),
     target: Object.freeze({ backendDomNodeId, actionTargetId }),
   });
@@ -878,11 +897,11 @@ function adaptChromiumLayoutSnapshotUnchecked(
     "/documents/0/documentURL",
     strings,
   );
-  if (documentUrl !== fixtureDocumentUrl) {
+  if (documentUrl !== options.documentUrl) {
     fail(
       "chromium_layout.document_url",
       "/documents/0/documentURL",
-      `document URL must be exactly ${fixtureDocumentUrl}`,
+      `document URL must be exactly ${options.documentUrl}`,
     );
   }
   const scrollX = finiteNumber(
@@ -908,9 +927,9 @@ function adaptChromiumLayoutSnapshotUnchecked(
 
 /**
  * Converts one pinned Chromium DOMSnapshot response into the browser-neutral
- * layout graph. The adapter accepts one closed fixture origin, omits pseudo
- * subtrees, and never lets selectors, names, attributes, or raw CDP IDs enter
- * the serialized snapshot.
+ * layout graph. The adapter accepts the exact fixture URL selected by a closed
+ * internal document profile, omits pseudo subtrees, and never lets selectors,
+ * names, attributes, or raw CDP IDs enter the serialized snapshot.
  */
 export function adaptChromiumLayoutSnapshot(
   snapshot: unknown,

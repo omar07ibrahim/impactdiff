@@ -2455,6 +2455,7 @@ async function captureMutationCheckpoint(
     includeTextColorOpacities: false,
   });
   const layout = adaptChromiumLayoutSnapshot(domSnapshot, {
+    documentProfile: "development_fixture",
     viewport: state.captureSpec.display.viewport,
     target: {
       backendDomNodeId: targetBackendNodeId,
