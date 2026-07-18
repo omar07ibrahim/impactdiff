@@ -673,6 +673,7 @@ const nullableBoundedStringSchema = {
 
 export const accessibilityRoles = [
   "alert",
+  "article",
   "banner",
   "button",
   "cell",
@@ -691,6 +692,7 @@ export const accessibilityRoles = [
   "img",
   "link",
   "list",
+  "listbox",
   "listitem",
   "main",
   "menu",

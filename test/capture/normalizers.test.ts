@@ -303,6 +303,48 @@ test("accessibility normalization is stable under raw CDP array shuffling", () =
   assert.deepEqual(parseAccessibilitySnapshot(canonicalJson(first)), first);
 });
 
+test("accessibility normalization preserves Pilot landmarks and native select semantics", () => {
+  const normalized = normalizeAccessibilitySnapshot(
+    {
+      nodes: [
+        {
+          nodeId: "root",
+          role: { value: "RootWebArea" },
+          childIds: ["article"],
+        },
+        {
+          nodeId: "article",
+          parentId: "root",
+          role: { value: "article" },
+          childIds: ["label", "popup", "footer"],
+        },
+        {
+          nodeId: "label",
+          parentId: "article",
+          role: { value: "LabelText" },
+        },
+        {
+          nodeId: "popup",
+          parentId: "article",
+          role: { value: "MenuListPopup" },
+        },
+        {
+          nodeId: "footer",
+          parentId: "article",
+          role: { value: "sectionfooter" },
+        },
+      ],
+    },
+    new Map(),
+  );
+
+  assert.deepEqual(
+    normalized.nodes.map(({ role }) => role),
+    ["document", "article", "generic", "listbox", "generic"],
+  );
+  assert.deepEqual(parseAccessibilitySnapshot(canonicalJson(normalized)), normalized);
+});
+
 test("accessibility output contains only normalized allowlisted fields", () => {
   const layout = normalizeLayoutProbe(layoutProbe());
   const serialized = JSON.stringify(

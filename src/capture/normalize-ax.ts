@@ -17,6 +17,8 @@ const roles = new Set<string>(accessibilityRoles);
 const roleAliases = new Map<string, AccessibilityRole>([
   ["RootWebArea", "document"],
   ["WebArea", "document"],
+  ["LabelText", "generic"],
+  ["MenuListPopup", "listbox"],
   ["StaticText", "text"],
   ["InlineTextBox", "text"],
   ["LineBreak", "text"],
@@ -24,6 +26,7 @@ const roleAliases = new Map<string, AccessibilityRole>([
   ["LayoutTableRow", "row"],
   ["LayoutTableCell", "cell"],
   ["DescriptionList", "list"],
+  ["sectionfooter", "generic"],
   ["sectionheader", "heading"],
   ["strong", "generic"],
   ["none", "generic"],
