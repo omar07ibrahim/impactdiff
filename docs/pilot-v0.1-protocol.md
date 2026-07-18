@@ -100,6 +100,13 @@ capture settings are:
 - three checkpoints: initial state, immediately before the primary action, and
   immediately after the primary action.
 
+Every fixture recipe contains 4–32 deterministic, non-branching actions. It begins with
+one semantic focus action, completes one aliased control segment or two state-changing
+control segments separated by `Tab`, then uses a final `Tab` into one source-bound
+native primary pointer click. The exact checkpoint ordinals are `-1`,
+`actions.length - 2`, and `actions.length - 1`; runtime-owned code executes the declared
+recipe rather than an application-specific shortcut.
+
 Each pair receives distinct fresh baseline and candidate browser contexts under one
 verified browser environment. Runtime-owned code executes the same action plan in both
 roles. Environment, session-close, cleanup, or blocked-request failures cannot expose a

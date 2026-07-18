@@ -728,7 +728,7 @@ test(
 );
 
 test(
-  "Pilot replay detects an unsolicited page close during retained-handle disposal",
+  "Pilot replay detects an unsolicited page close after the terminal seal",
   { concurrency: false },
   async () => {
     const environment = await launchPilotFixtureAuthoringEnvironment(fixtureDirectory);
@@ -745,25 +745,28 @@ test(
           configurable: true,
           value: async (...pageArgs: Parameters<typeof context.newPage>) => {
             const page = await originalNewPage(...pageArgs);
-            const originalEvaluateHandle = page.evaluateHandle.bind(page);
-            Object.defineProperty(page, "evaluateHandle", {
+            const originalEvaluate = page.evaluate.bind(page) as unknown as (
+              pageFunction: unknown,
+              arg?: unknown,
+            ) => Promise<unknown>;
+            let injected = false;
+            Object.defineProperty(page, "evaluate", {
               configurable: true,
-              value: async (...handleArgs: Parameters<typeof page.evaluateHandle>) => {
-                const handle = await originalEvaluateHandle(...handleArgs);
-                const originalEvaluate = handle.evaluate.bind(handle);
-                let evaluationCount = 0;
-                Object.defineProperty(handle, "evaluate", {
-                  configurable: true,
-                  value: async (
-                    ...evaluationArgs: Parameters<typeof handle.evaluate>
-                  ) => {
-                    const value = await originalEvaluate(...evaluationArgs);
-                    evaluationCount += 1;
-                    if (evaluationCount === 3) await page.close();
-                    return value;
-                  },
-                });
-                return handle;
+              value: async (pageFunction: unknown, arg?: unknown) => {
+                const value = await originalEvaluate(pageFunction, arg);
+                if (!injected && arg !== null && typeof arg === "object") {
+                  const payload = arg as Record<string, unknown>;
+                  if (
+                    payload.mutationAudit !== null &&
+                    payload.mutationAudit !== undefined &&
+                    payload.pageGuard !== null &&
+                    payload.pageGuard !== undefined
+                  ) {
+                    injected = true;
+                    await page.close();
+                  }
+                }
+                return value;
               },
             });
             return page;

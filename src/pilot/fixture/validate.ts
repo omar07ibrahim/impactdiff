@@ -13,6 +13,7 @@ import { normalizedSchemaValue } from "../../contracts/input.js";
 import { pilotMutationLocalPredicateKeys } from "../../mutations/catalog/schema.js";
 import { pilotFixtureAbiSlots, pilotFixtureManifestSchema } from "./schema.js";
 import type {
+  PilotFixtureActionRecipe,
   PilotFixtureAbiSlot,
   PilotFixtureManifest,
   PilotFixtureWorkflow,
@@ -44,39 +45,6 @@ const expectedLicenseResource = Object.freeze({
   byte_length: 4_518,
   media_type: "text/plain; charset=utf-8",
 });
-
-const expectedActions = Object.freeze([
-  Object.freeze({
-    intent: "focus",
-    target: "focus_entry",
-    value: Object.freeze({ kind: "none" }),
-    pointer_source_point: null,
-  }),
-  Object.freeze({
-    intent: "press_key",
-    target: null,
-    value: Object.freeze({ kind: "key", key: "ArrowDown" }),
-    pointer_source_point: null,
-  }),
-  Object.freeze({
-    intent: "press_key",
-    target: null,
-    value: Object.freeze({ kind: "key", key: "Tab" }),
-    pointer_source_point: null,
-  }),
-  Object.freeze({
-    intent: "pointer_click",
-    target: "primary",
-    value: Object.freeze({ kind: "pointer", button: "primary" }),
-    pointer_source_point: "source_primary_border_box_center",
-  }),
-] as const);
-
-const expectedCheckpoints = Object.freeze([
-  Object.freeze({ key: "initial_state", after_action_ordinal: -1 }),
-  Object.freeze({ key: "pre_primary_action", after_action_ordinal: 2 }),
-  Object.freeze({ key: "post_primary_action", after_action_ordinal: 3 }),
-] as const);
 
 function expectedContentSecurityPolicy(styleNonce: string): string {
   const encodedNonce = Buffer.from(styleNonce, "utf8").toString("base64");
@@ -386,21 +354,104 @@ function workflowIssues(
   issues: ContractIssue[],
 ): void {
   const path = `/workflows/${workflowIndex}`;
-  if (canonicalJson(workflow.actions) !== canonicalJson(expectedActions)) {
+  const firstAction = workflow.actions[0];
+  const finalAction = workflow.actions.at(-1);
+  const prePrimaryAction = workflow.actions.at(-2);
+  const focusActions = workflow.actions.filter(({ intent }) => intent === "focus");
+  const pointerActions = workflow.actions.filter(
+    ({ intent }) => intent === "pointer_click",
+  );
+  const setupAliasesFocusEntry =
+    workflow.abi.setup.value === workflow.abi.focus_entry.value;
+  const setupPrefix = workflow.actions.slice(1, -2);
+  const separatorIndexes = setupPrefix.flatMap((action, index) =>
+    action.intent === "press_key" && action.value.key === "Tab" ? [index] : [],
+  );
+  const controlSegmentIsClosed = (
+    actions: readonly PilotFixtureActionRecipe[],
+    expectation: PilotFixtureWorkflow["expectations"]["setup_attribute"] | undefined,
+    allowFill: boolean,
+  ): boolean => {
+    if (expectation === undefined || actions.length < 1) return false;
+    const fills = actions.filter((action) => action.intent === "fill_text");
+    const keys = actions.filter(
+      (action) => action.intent === "press_key" && action.value.key !== "Tab",
+    );
+    if (expectation.name === "checked") {
+      return (
+        actions.length === 1 &&
+        keys.length === 1 &&
+        keys[0]?.intent === "press_key" &&
+        keys[0].value.key === "Space"
+      );
+    }
+    if (allowFill && fills.length === 1 && keys.length === 0 && actions.length === 1) {
+      const fill = fills[0];
+      return (
+        fill?.intent === "fill_text" &&
+        expectation.name === "value" &&
+        expectation.selected === fill.value.text
+      );
+    }
+    return fills.length === 0 && keys.length === actions.length && keys.length > 0;
+  };
+  let setupSequenceClosed = false;
+  if (setupAliasesFocusEntry && separatorIndexes.length === 0) {
+    setupSequenceClosed = controlSegmentIsClosed(
+      setupPrefix,
+      workflow.expectations.setup_attribute,
+      true,
+    );
+  } else if (!setupAliasesFocusEntry && separatorIndexes.length === 1) {
+    const separatorIndex = separatorIndexes[0];
+    if (separatorIndex !== undefined) {
+      setupSequenceClosed =
+        controlSegmentIsClosed(
+          setupPrefix.slice(0, separatorIndex),
+          workflow.expectations.focus_entry_attribute,
+          true,
+        ) &&
+        controlSegmentIsClosed(
+          setupPrefix.slice(separatorIndex + 1),
+          workflow.expectations.setup_attribute,
+          false,
+        );
+    }
+  }
+  if (
+    firstAction?.intent !== "focus" ||
+    focusActions.length !== 1 ||
+    finalAction?.intent !== "pointer_click" ||
+    pointerActions.length !== 1 ||
+    prePrimaryAction?.intent !== "press_key" ||
+    prePrimaryAction.value.key !== "Tab" ||
+    !setupSequenceClosed
+  ) {
     issues.push(
       issue(
         "pilot_fixture.action_recipe",
         `${path}/actions`,
-        "workflow actions must be focus, ArrowDown, Tab, and source-bound primary pointer click",
+        "workflow actions must use the closed focus/fill/setup sequence, end setup with Tab, and finish with one source-bound pointer click",
       ),
     );
   }
+  const expectedCheckpoints = [
+    { key: "initial_state", after_action_ordinal: -1 },
+    {
+      key: "pre_primary_action",
+      after_action_ordinal: workflow.actions.length - 2,
+    },
+    {
+      key: "post_primary_action",
+      after_action_ordinal: workflow.actions.length - 1,
+    },
+  ];
   if (canonicalJson(workflow.checkpoints) !== canonicalJson(expectedCheckpoints)) {
     issues.push(
       issue(
         "pilot_fixture.checkpoint_schedule",
         `${path}/checkpoints`,
-        "workflow checkpoints must use the exact -1, 2, 3 Pilot schedule",
+        "workflow checkpoints must surround the complete setup sequence and final pointer action",
       ),
     );
   }
@@ -436,25 +487,32 @@ function workflowIssues(
       valuesBySlot.set(locatorValue, slot);
     }
   }
-  if (workflow.abi.setup.value !== workflow.abi.focus_entry.value) {
-    issues.push(
-      issue(
-        "pilot_fixture.focus_entry_alias",
-        `${path}/abi/focus_entry/value`,
-        "focus_entry must alias the workflow setup locator",
-      ),
-    );
-  }
   if (
-    workflow.expectations.setup_attribute.name !== "value" ||
     workflow.expectations.setup_attribute.initial ===
-      workflow.expectations.setup_attribute.selected
+    workflow.expectations.setup_attribute.selected
   ) {
     issues.push(
       issue(
         "pilot_fixture.setup_expectation",
         `${path}/expectations/setup_attribute`,
         "setup expectation must declare distinct initial and selected native values",
+      ),
+    );
+  }
+  if (
+    (setupAliasesFocusEntry &&
+      workflow.expectations.focus_entry_attribute !== undefined) ||
+    (!setupAliasesFocusEntry &&
+      workflow.expectations.focus_entry_attribute === undefined) ||
+    (workflow.expectations.focus_entry_attribute !== undefined &&
+      workflow.expectations.focus_entry_attribute.initial ===
+        workflow.expectations.focus_entry_attribute.selected)
+  ) {
+    issues.push(
+      issue(
+        "pilot_fixture.focus_entry_expectation",
+        `${path}/expectations/focus_entry_attribute`,
+        "a distinct focus entry requires one exact, state-changing expectation",
       ),
     );
   }

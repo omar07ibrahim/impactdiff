@@ -38,6 +38,16 @@ accessible success or status node. Task success includes the declared setup step
 the final state oracle. Thus a failed semantic or focus step remains a task failure even
 if later execution can continue far enough to capture the final checkpoint.
 
+Each authoring recipe contains 4–32 non-branching actions. It starts with exactly one
+semantic focus action, ends with a `Tab` into the primary control and one source-bound
+primary pointer click, and contains no earlier pointer action. An aliased
+`focus_entry`/`setup` segment is either one exact non-empty fill or one or more approved
+non-`Tab` keys. Distinct controls use exactly one intermediate `Tab`: the focus-entry
+segment may be a fill or key sequence, while the setup segment is key-driven. A checked
+transition admits one isolated radio with no same-name peer in its form, and its single
+approved state action is `Space`. The three checkpoint boundaries are always `-1`,
+`actions.length - 2`, and `actions.length - 1`.
+
 Full workflow keys are `<application key>.<workflow key>.v1`.
 
 ## Exact catalog and block assignment
@@ -77,7 +87,7 @@ selection. Their exact matched construction semantics are defined by the
 [Pilot v0.1 mutation-operator catalog](pilot-v0.1-mutation-operators.md). Every workflow
 must therefore implement a small logical ABI inside its own independently authored DOM:
 
-- a `setup` native input, select, or radio group with a visible label and non-empty
+- a `setup` native input, select, or radio control with a visible label and non-empty
   accessible name;
 - a deterministic `focus_entry` and Tab path to the primary action;
 - one enabled, fully visible native `button` as `primary`;
@@ -98,6 +108,15 @@ displacement, native control state, focus navigation, accessible naming, content
 overflow, and visual presentation observable on the same task schedule. The visual
 presentation breaking operator still needs a declared usability predicate; a cosmetic
 palette change alone is only suitable as a preserving control.
+
+`setup_attribute` and the optional `focus_entry_attribute` are compatibility field names
+for exact live control-state expectations, not serialized HTML attributes. `value` binds
+an `email`, `search`, `tel`, `text`, or `url` input, a textarea, or select state;
+`checked` binds an unchecked-to-checked isolated radio transition. A declared fill must
+leave terminal element scroll offsets unchanged, so textarea content that induces
+persistent internal scrolling is not an admissible recipe. A distinct focus entry
+requires its own state-changing expectation; an aliased focus entry must not duplicate
+one.
 
 The code-owned catalog binds planned keys and blocks but does not resolve fixture,
 action-plan, operator, or audit bytes. The baseline Pilot runtime now reopens the exact
@@ -162,6 +181,8 @@ establish:
   symlink, unlisted file, external request, or service worker;
 - exactly three checkpoint boundaries: before all actions, after the last setup action,
   and after the final pointer action;
+- every workflow uses 4–32 actions and the runtime replays its exact declared recipe
+  rather than inferring actions from the application type;
 - semantic focus, at least one real keyboard event, one final pointer click, a visible
   enabled native primary button, and deterministic success focus for every workflow;
 - deterministic layout at 800 by 600 with the pinned font, no animation, blinking caret,
