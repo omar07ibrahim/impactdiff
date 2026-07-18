@@ -399,11 +399,20 @@ test("accessibility normalization rejects cycles, dangling and duplicate IDs", (
   assertContractFailure(() => normalizeAccessibilitySnapshot(duplicate, new Map()));
 });
 
-test("accessibility backend links can resolve only through the layout map", () => {
+test("accessibility backend links remain partial for non-rendered DOM nodes", () => {
   const layout = normalizeLayoutProbe(layoutProbe());
   const incompleteMap = new Map(layout.backendDomNodeToLayoutIndex);
   incompleteMap.delete(400);
-  assertContractFailure(() => normalizeAccessibilitySnapshot(axProbe(), incompleteMap));
+  const normalized = normalizeAccessibilitySnapshot(axProbe(), incompleteMap);
+
+  const textbox = normalized.nodes.find((node) => node.role === "textbox");
+  assert.ok(textbox !== undefined);
+  assert.equal(textbox.layout_node_index, null);
+  assert.equal(
+    JSON.stringify(normalized).includes("backendDOMNodeId"),
+    false,
+    "unmapped browser identities must not enter the normalized payload",
+  );
 });
 
 test("normalizers enforce the 4096-node and 64-edge budgets", () => {

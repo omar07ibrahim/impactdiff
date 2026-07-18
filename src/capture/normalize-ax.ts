@@ -681,14 +681,9 @@ function normalizeAccessibilitySnapshotUnchecked(
     const index = normalizedNodes.length;
     const backendDomNodeId = current.node.backendDomNodeId;
     const layoutNodeIndex =
-      backendDomNodeId === null ? null : layoutNodeIndices.get(backendDomNodeId);
-    if (backendDomNodeId !== null && layoutNodeIndex === undefined) {
-      fail(
-        "accessibility.dangling_layout_node",
-        current.node.sourcePath,
-        "backend DOM links must resolve only through the supplied layout map",
-      );
-    }
+      backendDomNodeId === null
+        ? null
+        : (layoutNodeIndices.get(backendDomNodeId) ?? null);
     const states = normalizeStates(current.node.source, current.node.sourcePath);
     Object.freeze(states);
     normalizedNodes.push(
@@ -720,7 +715,7 @@ function normalizeAccessibilitySnapshotUnchecked(
           true,
         ),
         states,
-        layout_node_index: layoutNodeIndex ?? null,
+        layout_node_index: layoutNodeIndex,
       }),
     );
 
