@@ -2,8 +2,9 @@
 
 ## Status
 
-This document freezes the design of ImpactDiff Pilot v0.1 before its application
-catalog, captures, labels, features, or model results exist. The matching machine
+This document freezes the design of ImpactDiff Pilot v0.1 before any official corpus
+captures, labels, features, or model results exist. Its application catalog is a
+code-owned plan, not a claim that all fixtures are implemented. The matching machine
 contract is content-addressed and rejects changes to the quantities and rules below. Its
 frozen identity is
 `idpp1_d6b3e033f59d51b17b29d6fb51c74368a8489f9f9284778cb39e856a73b29309`.
@@ -32,7 +33,7 @@ be worded as support for the fusion claim.
 
 The corpus plan is the complete Cartesian product of:
 
-- 20 separately designed and implemented applications;
+- 20 separately designed applications in the frozen catalog;
 - 2 declared workflows per application;
 - 8 mutation families;
 - 2 relation variants per family: one declared task-breaking operator and one matched
