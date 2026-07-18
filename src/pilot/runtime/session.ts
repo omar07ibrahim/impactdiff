@@ -10,8 +10,10 @@ import type {
 } from "@playwright/test";
 
 import { assertClosedChromiumFonts } from "../../capture/chromium-fonts.js";
+import { computeFixtureActionTargetId } from "../../capture/identity.js";
 import type { ActionPlan, CaptureSpec } from "../../capture/schema.js";
 import { parseActionPlan } from "../../capture/validate.js";
+import type { ArtifactRef } from "../../contracts/artifacts.js";
 import {
   canonicalJson,
   computeEnvironmentId,
@@ -35,6 +37,10 @@ import type {
   PilotFixtureWorkflow,
 } from "../fixture/schema.js";
 import type { PilotFixtureAuthoringEnvironmentLease } from "./environment.js";
+import {
+  capturePilotFixtureAuthoringCheckpoint,
+  type PilotFixtureAuthoringCheckpointBytes,
+} from "./checkpoint.js";
 import { PilotFixtureAuthoringRuntimeError } from "./errors.js";
 
 const fixtureOrigin = "https://pilot-fixture.impactdiff.invalid";
@@ -144,10 +150,25 @@ export interface PilotFixtureWorkflowAuthoringAudit {
   readonly unexpected_fixture_requests: readonly [];
 }
 
+export type PilotFixtureAuthoringCheckpointTuple = readonly [
+  PilotFixtureAuthoringCheckpointBytes,
+  PilotFixtureAuthoringCheckpointBytes,
+  PilotFixtureAuthoringCheckpointBytes,
+];
+
+/** @internal */
+export interface PilotFixtureWorkflowAuthoringCaptureSessionResult {
+  readonly audit: PilotFixtureWorkflowAuthoringAudit;
+  readonly checkpoints: PilotFixtureAuthoringCheckpointTuple;
+}
+
 interface BoundWorkflow {
   readonly manifest: PilotFixtureManifest;
   readonly workflow: PilotFixtureWorkflow;
   readonly actionPlan: ActionPlan;
+  readonly actionPlanReference: ArtifactRef;
+  readonly primaryActionTargetId: string;
+  readonly primaryActionTestId: string;
   readonly authoringPackage: PilotFixtureAuthoringPackage;
   readonly resources: ReadonlyMap<
     string,
@@ -373,6 +394,53 @@ function exactActionPlanArtifact(
   }
 }
 
+function bindPrimaryActionTarget(
+  actionPlan: ActionPlan,
+  workflow: PilotFixtureWorkflow,
+  manifest: PilotFixtureManifest,
+  manifestSha256: string,
+): {
+  readonly targetId: string;
+  readonly testId: string;
+} {
+  const finalAction = actionPlan.actions.at(-1);
+  const finalRecipe = workflow.actions.at(-1);
+  const primaryLocator = workflow.abi.primary;
+  if (
+    finalAction?.intent !== "pointer_click" ||
+    typeof finalAction.target_id !== "string" ||
+    finalAction.ordinal !== actionPlan.actions.length - 1 ||
+    actionPlan.actions.length !== workflow.actions.length ||
+    finalRecipe?.intent !== "pointer_click" ||
+    finalRecipe.target !== "primary" ||
+    primaryLocator.strategy !== "test_id"
+  ) {
+    fail(
+      "pilot_runtime.action_plan_binding",
+      "final parsed action does not bind the manifest primary locator",
+    );
+  }
+  const manifestTargetId = computeFixtureActionTargetId({
+    fixture_id: manifest.fixture_key,
+    fixture_revision: manifest.revision,
+    fixture_manifest_sha256: manifestSha256,
+    locator: {
+      strategy: primaryLocator.strategy,
+      value: primaryLocator.value,
+    },
+  });
+  if (finalAction.target_id !== manifestTargetId) {
+    fail(
+      "pilot_runtime.action_plan_binding",
+      "final parsed action target ID differs from the manifest primary locator",
+    );
+  }
+  return Object.freeze({
+    targetId: finalAction.target_id,
+    testId: primaryLocator.value,
+  });
+}
+
 function resourceSnapshot(
   snapshot: PilotFixtureAuthoringSnapshot,
   manifest: PilotFixtureManifest,
@@ -465,10 +533,22 @@ function bindWorkflow(
     );
   }
   const actionPlan = exactActionPlanArtifact(packagedWorkflow, expectedPlan);
+  const primaryAction = bindPrimaryActionTarget(
+    actionPlan,
+    workflow,
+    manifest,
+    manifestSha256,
+  );
+  const actionPlanReference: ArtifactRef = Object.freeze({
+    ...packagedWorkflow.action_plan.reference,
+  });
   return Object.freeze({
     manifest,
     workflow,
     actionPlan,
+    actionPlanReference,
+    primaryActionTargetId: primaryAction.targetId,
+    primaryActionTestId: primaryAction.testId,
     authoringPackage,
     resources: resourceSnapshot(snapshot, manifest),
     taskId: packagedWorkflow.task_id,
@@ -2775,12 +2855,39 @@ async function assertActiveElement(
   if (!active) fail(code, message);
 }
 
+async function captureWorkflowCheckpoint(
+  page: Page,
+  bound: BoundWorkflow,
+  captureSpec: CaptureSpec,
+  ordinal: 0 | 1 | 2,
+  checkpointBuffer: PilotFixtureAuthoringCheckpointBytes[] | undefined,
+): Promise<void> {
+  if (checkpointBuffer === undefined) return;
+  const checkpoint = await capturePilotFixtureAuthoringCheckpoint({
+    page,
+    capture_spec: captureSpec,
+    action_plan: bound.actionPlan,
+    action_plan_reference: bound.actionPlanReference,
+    primary_action_target_id: bound.primaryActionTargetId,
+    primary_action_test_id: bound.primaryActionTestId,
+    ordinal,
+  });
+  if (checkpoint.ordinal !== ordinal || checkpointBuffer.length !== ordinal) {
+    fail(
+      "pilot_runtime.checkpoint_capture",
+      "Pilot authoring checkpoints were not captured in exact schedule order",
+    );
+  }
+  checkpointBuffer.push(checkpoint);
+}
+
 async function executeWorkflow(
   context: BrowserContext,
   page: Page,
   bound: BoundWorkflow,
   audit: BrowserAuditState,
   captureSpec: CaptureSpec,
+  checkpointBuffer: PilotFixtureAuthoringCheckpointBytes[] | undefined,
 ): Promise<RetainedAbi> {
   const integrityBounds = documentIntegrityBounds(captureSpec, bound.manifest);
   const retained = await retainAbi(page, bound.workflow, integrityBounds);
@@ -2799,6 +2906,7 @@ async function executeWorkflow(
         options,
       ),
   });
+  await captureWorkflowCheckpoint(page, bound, captureSpec, 0, checkpointBuffer);
 
   const focusEntry = abiHandle(retained, "focus_entry");
   const setup = abiHandle(retained, "setup");
@@ -2973,6 +3081,7 @@ async function executeWorkflow(
       "workflow does not end with its source-bound primary pointer action",
     );
   }
+  await captureWorkflowCheckpoint(page, bound, captureSpec, 1, checkpointBuffer);
   try {
     await page.mouse.click(frozenSourceGeometry.centerX, frozenSourceGeometry.centerY, {
       button: "left",
@@ -2982,6 +3091,7 @@ async function executeWorkflow(
       cause: error,
     });
   }
+  await captureWorkflowCheckpoint(page, bound, captureSpec, 2, checkpointBuffer);
 
   await assertExactFinalWorkflowState(page, retained, bound.workflow, "workflow");
 
@@ -3262,11 +3372,54 @@ function normalizeSessionFailure(
   );
 }
 
+type PilotFixtureWorkflowAuthoringSessionMode = "audit" | "capture";
+
+function exactCheckpointTuple(
+  checkpointBuffer: readonly PilotFixtureAuthoringCheckpointBytes[],
+): PilotFixtureAuthoringCheckpointTuple {
+  const [initial, prePrimary, postPrimary, ...extra] = checkpointBuffer;
+  if (
+    initial === undefined ||
+    prePrimary === undefined ||
+    postPrimary === undefined ||
+    extra.length !== 0 ||
+    initial.ordinal !== 0 ||
+    prePrimary.ordinal !== 1 ||
+    postPrimary.ordinal !== 2
+  ) {
+    fail(
+      "pilot_runtime.checkpoint_capture",
+      "Pilot authoring capture did not produce its exact three-checkpoint tuple",
+    );
+  }
+  return Object.freeze([initial, prePrimary, postPrimary] as const);
+}
+
+/** @internal Acquires no disk authority and always finalizes the supplied lease. */
+export function runPilotFixtureWorkflowAuthoringSession(
+  lease: PilotFixtureAuthoringEnvironmentLease,
+  workflowKey: string,
+): Promise<PilotFixtureWorkflowAuthoringAudit>;
+/** @internal Acquires no disk authority and always finalizes the supplied lease. */
+export function runPilotFixtureWorkflowAuthoringSession(
+  lease: PilotFixtureAuthoringEnvironmentLease,
+  workflowKey: string,
+  mode: "audit",
+): Promise<PilotFixtureWorkflowAuthoringAudit>;
+/** @internal Acquires no disk authority and always finalizes the supplied lease. */
+export function runPilotFixtureWorkflowAuthoringSession(
+  lease: PilotFixtureAuthoringEnvironmentLease,
+  workflowKey: string,
+  mode: "capture",
+): Promise<PilotFixtureWorkflowAuthoringCaptureSessionResult>;
 /** @internal Acquires no disk authority and always finalizes the supplied lease. */
 export async function runPilotFixtureWorkflowAuthoringSession(
   lease: PilotFixtureAuthoringEnvironmentLease,
   workflowKey: string,
-): Promise<PilotFixtureWorkflowAuthoringAudit> {
+  mode: PilotFixtureWorkflowAuthoringSessionMode = "audit",
+): Promise<
+  PilotFixtureWorkflowAuthoringAudit | PilotFixtureWorkflowAuthoringCaptureSessionResult
+> {
   let bound: BoundWorkflow | undefined;
   let context: BrowserContext | undefined;
   let page: Page | undefined;
@@ -3279,6 +3432,8 @@ export async function runPilotFixtureWorkflowAuthoringSession(
   let contextCreationAttempted = false;
   let reusable = true;
   let terminalBoundarySealed = false;
+  const checkpointBuffer: PilotFixtureAuthoringCheckpointBytes[] | undefined =
+    mode === "capture" ? [] : undefined;
 
   try {
     bound = bindWorkflow(lease, workflowKey);
@@ -3318,7 +3473,14 @@ export async function runPilotFixtureWorkflowAuthoringSession(
         "fixture virtual clock did not pause at the CaptureSpec epoch",
       );
     }
-    retained = await executeWorkflow(context, page, bound, audit, lease.capture_spec);
+    retained = await executeWorkflow(
+      context,
+      page,
+      bound,
+      audit,
+      lease.capture_spec,
+      checkpointBuffer,
+    );
     assertBrowserAuditClean(context, page, bound, audit);
     completionSnapshot = snapshotBrowserAudit(audit);
     executionComplete = true;
@@ -3461,5 +3623,16 @@ export async function runPilotFixtureWorkflowAuthoringSession(
       "Pilot fixture workflow replay produced no complete audit",
     );
   }
-  return successAudit(lease, bound, audit);
+  const completedAudit = successAudit(lease, bound, audit);
+  if (mode === "audit") return completedAudit;
+  if (checkpointBuffer === undefined) {
+    fail(
+      "pilot_runtime.checkpoint_capture",
+      "Pilot authoring capture produced no private checkpoint buffer",
+    );
+  }
+  return Object.freeze({
+    audit: completedAudit,
+    checkpoints: exactCheckpointTuple(checkpointBuffer),
+  });
 }

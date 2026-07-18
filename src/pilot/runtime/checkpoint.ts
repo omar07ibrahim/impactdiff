@@ -10,6 +10,10 @@ import { normalizeAccessibilitySnapshot } from "../../capture/normalize-ax.js";
 import type { ActionPlan, CaptureSpec, LayoutSnapshot } from "../../capture/schema.js";
 import { assertCaptureGraphBindings } from "../../capture/validate.js";
 import type { ArtifactRef } from "../../contracts/artifacts.js";
+import {
+  intrinsicUint8ArrayByteLength,
+  snapshotUint8Array,
+} from "../../contracts/byte-array.js";
 import { canonicalJson, computeCheckpointId } from "../../contracts/canonical.js";
 import { PilotFixtureAuthoringRuntimeError } from "./errors.js";
 
@@ -21,6 +25,25 @@ const actionTargetIdPattern = /^idat1_[0-9a-f]{64}$/u;
 
 function fail(code: string, message: string, options?: ErrorOptions): never {
   throw new PilotFixtureAuthoringRuntimeError(code, message, options);
+}
+
+function standaloneCheckpointBytes(bytes: Uint8Array): Buffer {
+  const byteLength = intrinsicUint8ArrayByteLength(bytes);
+  if (byteLength === null) {
+    fail(
+      "pilot_runtime.checkpoint_bytes",
+      "checkpoint payload must be backed by fixed private bytes",
+    );
+  }
+  try {
+    return snapshotUint8Array(bytes, byteLength);
+  } catch (error) {
+    fail(
+      "pilot_runtime.checkpoint_bytes",
+      "checkpoint payload could not be copied into fixed private bytes",
+      { cause: error },
+    );
+  }
 }
 
 function captureProtocolRecord(value: unknown, name: string): Record<string, unknown> {
@@ -159,22 +182,22 @@ export class PilotFixtureAuthoringCheckpointBytes {
     }
     this.checkpoint_id = value.checkpoint_id;
     this.ordinal = value.ordinal;
-    this.#screenshot = Buffer.from(value.screenshot);
-    this.#accessibilityTree = Buffer.from(value.accessibility_tree);
-    this.#layoutGraph = Buffer.from(value.layout_graph);
+    this.#screenshot = standaloneCheckpointBytes(value.screenshot);
+    this.#accessibilityTree = standaloneCheckpointBytes(value.accessibility_tree);
+    this.#layoutGraph = standaloneCheckpointBytes(value.layout_graph);
     Object.freeze(this);
   }
 
   get screenshot(): Buffer {
-    return Buffer.from(this.#screenshot);
+    return standaloneCheckpointBytes(this.#screenshot);
   }
 
   get accessibility_tree(): Buffer {
-    return Buffer.from(this.#accessibilityTree);
+    return standaloneCheckpointBytes(this.#accessibilityTree);
   }
 
   get layout_graph(): Buffer {
-    return Buffer.from(this.#layoutGraph);
+    return standaloneCheckpointBytes(this.#layoutGraph);
   }
 }
 
