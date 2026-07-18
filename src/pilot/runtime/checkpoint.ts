@@ -141,10 +141,9 @@ async function captureTargetBackendNodeId(
   );
 }
 
-function assertPilotCheckpointTarget(
+function assertPilotObservationTarget(
   layout: LayoutSnapshot,
   primaryActionTargetId: string,
-  ordinal: 0 | 1 | 2,
 ): void {
   const actualCount = layout.nodes.filter(
     (node) => node.action_target_id === primaryActionTargetId,
@@ -152,7 +151,7 @@ function assertPilotCheckpointTarget(
   if (actualCount !== 1) {
     fail(
       "pilot_runtime.checkpoint_target_binding",
-      `checkpoint ${ordinal} must contain exactly one authenticated primary-action layout target`,
+      "Pilot observation must contain exactly one authenticated primary-action layout target",
     );
   }
 }
@@ -203,28 +202,37 @@ export class PilotFixtureAuthoringCheckpointBytes {
 
 Object.freeze(PilotFixtureAuthoringCheckpointBytes.prototype);
 
-export interface PilotFixtureAuthoringCheckpointCapture {
+/** @internal Kept out of the package root; consumed only by Pilot runtime code. */
+export interface PilotFixtureAuthoringObservationCapture {
   readonly page: Page;
   readonly capture_spec: CaptureSpec;
   readonly action_plan: ActionPlan;
-  readonly action_plan_reference: ArtifactRef;
   readonly primary_action_target_id: string;
   readonly primary_action_test_id: string;
+}
+
+/** @internal ID-free observation bytes with defensive reads. */
+export interface PilotFixtureAuthoringObservationBytes {
+  readonly screenshot: Buffer;
+  readonly accessibility_tree: Buffer;
+  readonly layout_graph: Buffer;
+}
+
+export interface PilotFixtureAuthoringCheckpointCapture extends PilotFixtureAuthoringObservationCapture {
+  readonly action_plan_reference: ArtifactRef;
   readonly ordinal: 0 | 1 | 2;
 }
 
-interface CapturedCheckpointPayload {
-  readonly checkpointId: string;
-  readonly ordinal: 0 | 1 | 2;
+interface CapturedObservationPayload {
   readonly screenshot: Buffer;
   readonly accessibilityTree: Buffer;
   readonly layoutGraph: Buffer;
 }
 
-async function captureCheckpointPayload(
-  input: PilotFixtureAuthoringCheckpointCapture,
+async function captureObservationPayload(
+  input: PilotFixtureAuthoringObservationCapture,
   client: CDPSession,
-): Promise<CapturedCheckpointPayload> {
+): Promise<CapturedObservationPayload> {
   const targetBackendNodeId = await captureTargetBackendNodeId(
     client,
     input.primary_action_test_id,
@@ -257,27 +265,48 @@ async function captureCheckpointPayload(
     accessibilityInput,
     layout.backendDomNodeToLayoutIndex,
   );
-  assertPilotCheckpointTarget(
-    layout.snapshot,
-    input.primary_action_target_id,
-    input.ordinal,
-  );
+  assertPilotObservationTarget(layout.snapshot, input.primary_action_target_id);
   assertCaptureGraphBindings(input.action_plan, accessibility, layout.snapshot);
   const screenshot = canonicalizePng(
     screenshotInput,
     input.capture_spec.display.viewport,
   ).bytes;
   return Object.freeze({
-    checkpointId: computeCheckpointId(input.action_plan_reference, input.ordinal),
-    ordinal: input.ordinal,
     screenshot,
     accessibilityTree: Buffer.from(canonicalJson(accessibility), "utf8"),
     layoutGraph: Buffer.from(canonicalJson(layout.snapshot), "utf8"),
   });
 }
 
-function assertInternalCaptureInput(
-  input: PilotFixtureAuthoringCheckpointCapture,
+function defensiveObservationBytes(
+  payload: CapturedObservationPayload,
+): PilotFixtureAuthoringObservationBytes {
+  const screenshot = standaloneCheckpointBytes(payload.screenshot);
+  const accessibilityTree = standaloneCheckpointBytes(payload.accessibilityTree);
+  const layoutGraph = standaloneCheckpointBytes(payload.layoutGraph);
+  const result = {} as PilotFixtureAuthoringObservationBytes;
+  Object.defineProperties(result, {
+    screenshot: {
+      configurable: false,
+      enumerable: true,
+      get: () => standaloneCheckpointBytes(screenshot),
+    },
+    accessibility_tree: {
+      configurable: false,
+      enumerable: true,
+      get: () => standaloneCheckpointBytes(accessibilityTree),
+    },
+    layout_graph: {
+      configurable: false,
+      enumerable: true,
+      get: () => standaloneCheckpointBytes(layoutGraph),
+    },
+  });
+  return Object.freeze(result);
+}
+
+function assertInternalObservationInput(
+  input: PilotFixtureAuthoringObservationCapture,
 ): void {
   if (!testIdPattern.test(input.primary_action_test_id)) {
     fail(
@@ -291,6 +320,12 @@ function assertInternalCaptureInput(
       "primary action target ID must use the idat1 SHA-256 form",
     );
   }
+}
+
+function assertInternalCheckpointInput(
+  input: PilotFixtureAuthoringCheckpointCapture,
+): void {
+  assertInternalObservationInput(input);
   if (input.ordinal !== 0 && input.ordinal !== 1 && input.ordinal !== 2) {
     fail(
       "pilot_runtime.checkpoint_input",
@@ -300,16 +335,15 @@ function assertInternalCaptureInput(
 }
 
 /**
- * Captures one bound Pilot observation without exposing its Page or CDP
- * capability. Each invocation owns and detaches its capture CDP session, and a
- * public checkpoint value is created only after capture cleanup succeeds.
+ * Captures one ID-free bound Pilot observation. Each invocation owns font
+ * authentication, its capture CDP session, and all returned byte storage.
  *
  * @internal Imported only by the Pilot authoring session.
  */
-export async function capturePilotFixtureAuthoringCheckpoint(
-  input: PilotFixtureAuthoringCheckpointCapture,
-): Promise<PilotFixtureAuthoringCheckpointBytes> {
-  assertInternalCaptureInput(input);
+export async function capturePilotFixtureAuthoringObservation(
+  input: PilotFixtureAuthoringObservationCapture,
+): Promise<PilotFixtureAuthoringObservationBytes> {
+  assertInternalObservationInput(input);
   await assertClosedChromiumFonts(input.page, {
     expectedPlatformFamilyName: "Noto Sans",
     createError: (message, options) =>
@@ -321,11 +355,11 @@ export async function capturePilotFixtureAuthoringCheckpoint(
   });
 
   let client: CDPSession | undefined;
-  let captured: CapturedCheckpointPayload | undefined;
+  let captured: CapturedObservationPayload | undefined;
   const errors: unknown[] = [];
   try {
     client = await input.page.context().newCDPSession(input.page);
-    captured = await captureCheckpointPayload(input, client);
+    captured = await captureObservationPayload(input, client);
   } catch (error) {
     errors.push(error);
   }
@@ -338,7 +372,10 @@ export async function capturePilotFixtureAuthoringCheckpoint(
   }
   if (errors.length === 1) throw errors[0];
   if (errors.length > 1) {
-    throw new AggregateError(errors, "Pilot checkpoint capture and CDP cleanup failed");
+    throw new AggregateError(
+      errors,
+      "Pilot observation capture and CDP cleanup failed",
+    );
   }
   if (captured === undefined) {
     fail(
@@ -346,11 +383,31 @@ export async function capturePilotFixtureAuthoringCheckpoint(
       "Pilot checkpoint capture produced no complete payload",
     );
   }
+  return defensiveObservationBytes(captured);
+}
+
+/**
+ * Adds the ActionPlan-derived identity to one ID-free observation while
+ * preserving the checkpoint capability and byte-ownership boundary.
+ *
+ * @internal Imported only by the Pilot authoring session.
+ */
+export async function capturePilotFixtureAuthoringCheckpoint(
+  input: PilotFixtureAuthoringCheckpointCapture,
+): Promise<PilotFixtureAuthoringCheckpointBytes> {
+  assertInternalCheckpointInput(input);
+  const observation = await capturePilotFixtureAuthoringObservation({
+    page: input.page,
+    capture_spec: input.capture_spec,
+    action_plan: input.action_plan,
+    primary_action_target_id: input.primary_action_target_id,
+    primary_action_test_id: input.primary_action_test_id,
+  });
   return new PilotFixtureAuthoringCheckpointBytes(checkpointConstructorToken, {
-    checkpoint_id: captured.checkpointId,
-    ordinal: captured.ordinal,
-    screenshot: captured.screenshot,
-    accessibility_tree: captured.accessibilityTree,
-    layout_graph: captured.layoutGraph,
+    checkpoint_id: computeCheckpointId(input.action_plan_reference, input.ordinal),
+    ordinal: input.ordinal,
+    screenshot: observation.screenshot,
+    accessibility_tree: observation.accessibility_tree,
+    layout_graph: observation.layout_graph,
   });
 }

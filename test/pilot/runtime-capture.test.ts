@@ -17,7 +17,11 @@ import {
 } from "../../src/contracts/canonical.js";
 import { loadPilotFixtureAuthoringPackage } from "../../src/pilot/fixture/package.js";
 import { capturePilotFixtureAuthoringWorkflow } from "../../src/pilot/runtime/capture.js";
-import { PilotFixtureAuthoringCheckpointBytes } from "../../src/pilot/runtime/checkpoint.js";
+import {
+  capturePilotFixtureAuthoringObservation,
+  PilotFixtureAuthoringCheckpointBytes,
+  type PilotFixtureAuthoringObservationBytes,
+} from "../../src/pilot/runtime/checkpoint.js";
 import {
   acquirePilotFixtureAuthoringEnvironment,
   launchPilotFixtureAuthoringEnvironment,
@@ -63,6 +67,111 @@ function assertDefensiveBytes(
   validate(protectedBytes);
 }
 
+async function captureInitialIdFreeObservation(
+  environment: PilotFixtureAuthoringEnvironment,
+  workflowKey: string,
+): Promise<PilotFixtureAuthoringObservationBytes> {
+  const lease = acquirePilotFixtureAuthoringEnvironment(environment);
+  const authoringPackage = lease.authoring_snapshot.authoring_package;
+  const manifest = authoringPackage.manifest;
+  const packagedWorkflow = authoringPackage.workflows.find(
+    ({ workflow_key: key }) => key === workflowKey,
+  );
+  const workflow = manifest.workflows.find(
+    ({ workflow_key: key }) => key === workflowKey,
+  );
+  assert.ok(packagedWorkflow !== undefined);
+  assert.ok(workflow !== undefined);
+  const actionPlan = parseActionPlan(packagedWorkflow.action_plan.bytes);
+  const primaryActionTargetId = actionPlan.actions.at(-1)?.target_id;
+  if (typeof primaryActionTargetId !== "string") {
+    throw new Error("the fixture primary action must bind one target ID");
+  }
+
+  let context: Awaited<ReturnType<typeof lease.browser.newContext>> | undefined;
+  let reusable = false;
+  try {
+    const captureSpec = lease.capture_spec;
+    context = await lease.browser.newContext({
+      viewport: { ...captureSpec.display.viewport },
+      screen: { ...captureSpec.display.screen },
+      deviceScaleFactor: captureSpec.display.device_scale_factor,
+      locale: captureSpec.internationalization.locale,
+      timezoneId: captureSpec.internationalization.timezone_id,
+      colorScheme: captureSpec.media.color_scheme,
+      reducedMotion: captureSpec.media.reduced_motion,
+      forcedColors: captureSpec.media.forced_colors,
+      serviceWorkers: captureSpec.network.service_workers,
+      acceptDownloads: false,
+      permissions: [],
+      bypassCSP: false,
+      javaScriptEnabled: true,
+      hasTouch: false,
+      isMobile: false,
+    });
+    const fixtureOrigin = "https://pilot-fixture.impactdiff.invalid";
+    await context.route("**/*", async (route) => {
+      const url = new URL(route.request().url());
+      const path =
+        url.origin === fixtureOrigin
+          ? url.pathname === "/"
+            ? manifest.entrypoint
+            : url.pathname.slice(1)
+          : "";
+      const resource = manifest.resources.find(({ path: value }) => value === path);
+      const bytes = lease.authoring_snapshot.resources.read(path);
+      if (resource === undefined || bytes === undefined) {
+        await route.abort("blockedbyclient");
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        body: bytes,
+        headers: {
+          "cache-control": "no-store",
+          "content-security-policy": manifest.content_security_policy,
+          "content-type": resource.media_type,
+          "x-content-type-options": "nosniff",
+        },
+      });
+    });
+    const page = await context.newPage();
+    page.setDefaultNavigationTimeout(captureSpec.budgets.navigation_timeout_ms);
+    page.setDefaultTimeout(captureSpec.budgets.action_timeout_ms);
+    await page.clock.install({ time: captureSpec.clock.epoch_ms });
+    await page.clock.pauseAt(captureSpec.clock.epoch_ms);
+    await page.goto(`${fixtureOrigin}/`, { waitUntil: "load" });
+    await page.waitForFunction(
+      (readinessGlobal) => {
+        const state = Reflect.get(window, readinessGlobal) as
+          { readonly ready?: unknown; readonly pendingRequests?: unknown } | undefined;
+        return state?.ready === true && state.pendingRequests === 0;
+      },
+      manifest.readiness.global,
+      { timeout: captureSpec.budgets.readiness_timeout_ms },
+    );
+    const observation = await capturePilotFixtureAuthoringObservation({
+      page,
+      capture_spec: captureSpec,
+      action_plan: actionPlan,
+      primary_action_target_id: primaryActionTargetId,
+      primary_action_test_id: workflow.abi.primary.value,
+    });
+    reusable = true;
+    return observation;
+  } finally {
+    try {
+      await context?.close();
+    } catch (error) {
+      reusable = false;
+      throw error;
+    } finally {
+      if (reusable) lease.release();
+      else lease.invalidate();
+    }
+  }
+}
+
 test("Pilot capture checkpoints reject forged constructor capabilities", () => {
   assert.equal(Object.isFrozen(PilotFixtureAuthoringCheckpointBytes.prototype), true);
   assert.deepEqual(
@@ -90,6 +199,31 @@ test(
     let closed = false;
     try {
       assert.equal(ownedContextCount(environment), 0);
+      const initialObservation = await captureInitialIdFreeObservation(
+        environment,
+        "add_bundle",
+      );
+      assert.equal(ownedContextCount(environment), 0);
+      assert.equal(Object.isFrozen(initialObservation), true);
+      assert.deepEqual(Reflect.ownKeys(initialObservation).sort(), [
+        "accessibility_tree",
+        "layout_graph",
+        "screenshot",
+      ]);
+      assert.equal("checkpoint_id" in initialObservation, false);
+      assert.equal("ordinal" in initialObservation, false);
+      assertDefensiveBytes(
+        () => initialObservation.screenshot,
+        (bytes) => canonicalizePng(bytes, captureSpec.display.viewport),
+      );
+      assertDefensiveBytes(
+        () => initialObservation.accessibility_tree,
+        (bytes) => parseAccessibilitySnapshot(bytes),
+      );
+      assertDefensiveBytes(
+        () => initialObservation.layout_graph,
+        (bytes) => parseLayoutSnapshot(bytes),
+      );
       for (const packagedWorkflow of authoringPackage.workflows) {
         await t.test(packagedWorkflow.workflow_key, async () => {
           const actionPlan = parseActionPlan(packagedWorkflow.action_plan.bytes);
@@ -176,6 +310,20 @@ test(
 
           const firstAttempt = attempts[0];
           assert.ok(firstAttempt !== undefined);
+          if (packagedWorkflow.workflow_key === "add_bundle") {
+            assert.deepEqual(
+              firstAttempt.checkpoints[0].screenshot,
+              initialObservation.screenshot,
+            );
+            assert.deepEqual(
+              firstAttempt.checkpoints[0].accessibility_tree,
+              initialObservation.accessibility_tree,
+            );
+            assert.deepEqual(
+              firstAttempt.checkpoints[0].layout_graph,
+              initialObservation.layout_graph,
+            );
+          }
           const boundaryDigests = firstAttempt.checkpoints.map((checkpoint) =>
             sha256Hex(
               Buffer.concat([
