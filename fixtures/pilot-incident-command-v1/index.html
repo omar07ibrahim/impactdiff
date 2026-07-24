@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; base-uri 'none'; connect-src 'none'; font-src 'self'; form-action 'none'; frame-src 'none'; img-src 'self'; manifest-src 'none'; media-src 'none'; object-src 'none'; script-src 'self'; style-src 'self' 'nonce-aW1wYWN0ZGlmZi1pbmNpZGVudC1jb21tYW5kLXYx'; webrtc 'block'; worker-src 'none'"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Nightwatch Relay | Incident command</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <main
+      class="command-shell"
+      data-testid="incident-command-root"
+      data-alert-state="idle"
+      data-responder-state="idle"
+      aria-labelledby="command-title"
+    >
+      <aside class="severity-rail" aria-label="Operations summary">
+        <header class="relay-mark">
+          <img
+            data-testid="severity-glyph"
+            src="glyphs/severity.svg"
+            width="72"
+            height="72"
+            alt=""
+            aria-hidden="true"
+          />
+          <div>
+            <p class="eyebrow">On-call workspace</p>
+            <p class="relay-name">Nightwatch<br />Relay</p>
+          </div>
+        </header>
+
+        <section class="severity-stack" aria-labelledby="severity-heading">
+          <h2 id="severity-heading">Open signal</h2>
+          <ol>
+            <li class="severity-row severity-row--critical">
+              <span>Critical</span><strong>01</strong>
+            </li>
+            <li class="severity-row severity-row--high">
+              <span>High</span><strong>01</strong>
+            </li>
+            <li class="severity-row severity-row--medium">
+              <span>Medium</span><strong>01</strong>
+            </li>
+          </ol>
+        </section>
+
+        <section class="shift-note" aria-label="Shift note">
+          <p class="eyebrow">Shift 04 · UTC</p>
+          <p>Three synthetic alerts are held in a fixed review queue.</p>
+        </section>
+
+        <footer class="rail-footer">
+          <span aria-hidden="true">NR</span>
+          <p>Local drill · no live services</p>
+        </footer>
+      </aside>
+
+      <section class="command-board">
+        <header class="board-heading">
+          <div>
+            <p class="eyebrow">Incident command · Exercise 017</p>
+            <h1 id="command-title">Stabilize the morning handoff</h1>
+          </div>
+          <p class="board-state"><span aria-hidden="true"></span> Review window open</p>
+        </header>
+
+        <section class="alert-ledger" aria-labelledby="ledger-title">
+          <div class="ledger-heading">
+            <div>
+              <p class="eyebrow">Prioritized queue</p>
+              <h2 id="ledger-title">Active alerts</h2>
+            </div>
+            <p>3 signals · fixed snapshot</p>
+          </div>
+
+          <div class="alert-table" role="table" aria-label="Synthetic alert queue">
+            <div class="alert-table__head" role="row">
+              <span role="columnheader">Severity</span>
+              <span role="columnheader">Signal</span>
+              <span role="columnheader">Service</span>
+              <span role="columnheader">Age</span>
+            </div>
+            <div class="alert-table__row" role="row">
+              <span class="severity-pill severity-pill--critical" role="cell"
+                >Critical</span
+              >
+              <span role="cell"><strong>Ledger replica gap</strong></span>
+              <span role="cell">Copper Ledger</span>
+              <span role="cell">3 min</span>
+            </div>
+            <div class="alert-table__row" role="row">
+              <span class="severity-pill severity-pill--high" role="cell">High</span>
+              <span role="cell"><strong>Edge cache lag</strong></span>
+              <span role="cell">Atlas Edge</span>
+              <span role="cell">8 min</span>
+            </div>
+            <div class="alert-table__row" role="row">
+              <span class="severity-pill severity-pill--medium" role="cell"
+                >Medium</span
+              >
+              <span role="cell"><strong>Worker queue rise</strong></span>
+              <span role="cell">Juniper Jobs</span>
+              <span role="cell">14 min</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="command-actions">
+          <section class="command-card" aria-labelledby="acknowledge-title">
+            <header>
+              <span aria-hidden="true">A</span>
+              <div>
+                <h2 id="acknowledge-title">Acknowledge signal</h2>
+                <p>Bind an owner-visible receipt to one alert.</p>
+              </div>
+            </header>
+
+            <label for="alert-selection">Alert to acknowledge</label>
+            <select id="alert-selection" data-testid="alert-selection">
+              <option value="edge-cache-lag" data-service="Atlas Edge">
+                Edge cache lag
+              </option>
+              <option value="ledger-replica-gap" data-service="Copper Ledger">
+                Ledger replica gap
+              </option>
+            </select>
+
+            <p class="pressure-line" data-testid="acknowledge-alert-pressure">
+              Receipt note: acknowledgement remains visible through handoff.
+            </p>
+
+            <div class="button-clip" data-testid="acknowledge-alert-clip">
+              <div class="button-anchor" data-testid="acknowledge-alert-anchor">
+                <button
+                  class="command-button"
+                  type="button"
+                  data-testid="acknowledge-alert"
+                >
+                  Acknowledge
+                </button>
+              </div>
+              <button
+                class="command-button"
+                type="button"
+                data-testid="acknowledge-alert-peer"
+              >
+                Open runbook
+              </button>
+            </div>
+
+            <p
+              class="command-status"
+              data-testid="acknowledge-alert-status"
+              role="status"
+              aria-live="polite"
+              tabindex="-1"
+            >
+              No acknowledgement recorded.
+            </p>
+          </section>
+
+          <section class="command-card" aria-labelledby="responder-title">
+            <header>
+              <span aria-hidden="true">R</span>
+              <div>
+                <h2 id="responder-title">Assign responder</h2>
+                <p>Route the queue to a named rotation member.</p>
+              </div>
+            </header>
+
+            <label for="responder-selection">Responder</label>
+            <select id="responder-selection" data-testid="responder-selection">
+              <option value="avery-noor" data-rotation="Core services">
+                Avery Noor · Core services
+              </option>
+              <option value="min-park" data-rotation="Data systems">
+                Min Park · Data systems
+              </option>
+            </select>
+
+            <p class="pressure-line" data-testid="assign-responder-pressure">
+              Routing note: one responder owns the next queue review.
+            </p>
+
+            <div class="button-clip" data-testid="assign-responder-clip">
+              <div class="button-anchor" data-testid="assign-responder-anchor">
+                <button
+                  class="command-button"
+                  type="button"
+                  data-testid="assign-responder"
+                >
+                  Assign responder
+                </button>
+              </div>
+              <button
+                class="command-button"
+                type="button"
+                data-testid="assign-responder-peer"
+              >
+                View rotation
+              </button>
+            </div>
+
+            <p
+              class="command-status"
+              data-testid="assign-responder-status"
+              role="status"
+              aria-live="polite"
+              tabindex="-1"
+            >
+              Queue has no assigned responder.
+            </p>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
