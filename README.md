@@ -65,37 +65,40 @@ Implemented today:
   binding both canonical records, and exposes the pair with one same-parent directory
   rename. Startup recovers only reserved owned stages; committed releases are idempotent
   and immutable; and
-- the first pre-release Pilot authoring package, `pilot-market-basket-v1`. Its strict
-  manifest binds an independently designed 800 by 600 Thread & Tally UI, two four-action
-  workflows, the shared mutation ABI, exact resource provenance, a canonical
+- two independently authored Pilot pre-release packages: the Thread & Tally
+  `pilot-market-basket-v1` board and the Nightwatch Relay `pilot-incident-command-v1`
+  console. Each strict manifest binds an application-owned 800 by 600 UI, two
+  four-action workflows, the shared mutation ABI, exact resource provenance, a canonical
   SourceState, and two derived ActionPlans without creating identity cycles. The loader
-  itself is deliberately `official: false` and has no outcome, capture, or label
-  surface; and
-- a separate Pilot browser-authoring runtime for that package. It snapshots the audited
-  fixture bytes before launch, binds them to the pinned Chromium and CaptureSpec, and
-  replays either workflow in a fresh isolated context. The replay closes request, CSP,
-  WebRTC, shadow-root, custom-font, readiness, ABI, action, bounded live-document, and
-  lifecycle audits around a raw source-center click. The ordinary replay API returns
-  only a success audit marked `official: false`; a separate capture-first API returns,
-  only after the success oracle and cleanup complete, an `official: false` result with
-  exactly three manifest-bound checkpoints. Their payloads are canonical PNG and
-  canonical accessibility-tree and layout-graph JSON bytes, exposed through defensive
-  copies. The current-fixture gate requires three fresh-context runs of each
-  market-basket workflow to produce byte-identical payloads at every checkpoint. This
-  attests reviewed, repository-authored fixture code rather than hostile page code. It
-  creates no `capture_id`, corpus row, operator, outcome, label, generation-plan
-  execution, or benchmark result, and no failure or cleanup error exposes a partial
-  capture result; and
-- the first executable Pilot operator slice for that authoring package.
+  remains deliberately `official: false` and has no outcome, capture, or label surface;
+  and
+- a separate Pilot browser-authoring runtime exercised across all four workflows. It
+  snapshots each audited fixture before launch, binds it to the pinned Chromium and
+  CaptureSpec, and replays one workflow in a fresh isolated context. The replay closes
+  request, CSP, WebRTC, shadow-root, custom-font, readiness, ABI, action, bounded
+  live-document, and lifecycle audits around a raw source-center click. The ordinary
+  replay API returns only a success audit marked `official: false`; a separate
+  capture-first API returns, only after the success oracle and cleanup complete, an
+  `official: false` result with exactly three manifest-bound checkpoints. Their payloads
+  are canonical PNG and canonical accessibility-tree and layout-graph JSON bytes,
+  exposed through defensive copies. The current authoring gate requires three
+  fresh-context runs of every market-basket and incident-command workflow to produce
+  byte-identical payloads at every checkpoint. This attests reviewed,
+  repository-authored fixture code rather than hostile page code. It creates no
+  `capture_id`, corpus row, operator, outcome, label, generation-plan execution, or
+  benchmark result, and no failure or cleanup error exposes a partial capture result;
+  and
+- the first executable Pilot operator slice across both authoring packages.
   `authorPilotFixturePointerHitTestingPair` accepts only either exact catalogued pointer
   definition, runs a successful baseline and candidate in separate fresh contexts,
   installs the same CSP-authorized transparent owned layer twice, measures the complete
   installed `P, O, D, N, F, A, C, V` policy, proves exact inverse and final cleanup over
   DOM, computed style, pixels, accessibility, layout, hit testing, focus, scroll,
   listener registrations, and owned handles, and independently classifies the candidate
-  as `exact_success` or `exact_unchanged`. Its small frozen result remains
-  `official: false`; checkpoints, probes, declared relations, labels, and private
-  browser capabilities never cross the API boundary.
+  as `exact_success` or `exact_unchanged`. The complete current slice covers four
+  workflows by two definitions, with three exact fresh attempts per case. Its small
+  frozen result remains `official: false`; checkpoints, probes, declared relations,
+  labels, and private browser capabilities never cross the API boundary.
 
 The capture contract names the exact installed file trees for `@playwright/test`,
 `playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
@@ -192,7 +195,10 @@ the corpus exists. The
 [market-basket authoring note](docs/pilot-v0.1-market-basket-authoring.md) documents the
 first fixture's two tasks, closed ABI, acyclic source/task identity graph, verified
 baseline browser replay, capture-first checkpoint boundary, source predicates, and the
-first executable pointer-definition pair.
+first executable pointer-definition pair. The
+[incident-command authoring note](docs/pilot-v0.1-incident-command-authoring.md) records
+the independent second application, exact source/task identities, all eight source
+predicates per task, deterministic checkpoint repetitions, and its pointer-pair matrix.
 
 ## Repository map
 
@@ -215,9 +221,11 @@ first executable pointer-definition pair.
   checkpoint and predicate capture, plus the reversible pointer-pair authoring API;
 - `src/cli/` — the bounded development-release command; and
 - `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
-  capture tests; and
+  capture tests;
 - `fixtures/pilot-market-basket-v1/` — the independently authored Thread & Tally
-  pre-release with two Pilot workflows and no official outcomes.
+  pre-release with two Pilot workflows and no official outcomes; and
+- `fixtures/pilot-incident-command-v1/` — the independently authored Nightwatch Relay
+  pre-release with two more Pilot workflows and no official outcomes.
 
 The fixture vendors the Latin variable WOFF2 from
 `@fontsource-variable/noto-sans@5.2.10`. Noto Sans remains licensed under the SIL Open
