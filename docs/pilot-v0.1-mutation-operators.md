@@ -394,11 +394,11 @@ The older development `pointer_interceptor` and `palette_swap` implementations d
 become Pilot definitions by sharing a concept or primitive. They remain outside the
 Pilot matrix.
 
-The separate `official: false` market-basket authoring runtime now executes only the two
-exact pointer-definition artifacts through their authenticated catalog bindings. It
-measures the full installed predicate policy, performs the required apply/inverse/apply
-lifecycle, proves all 11 inverse and cleanup probes, and independently classifies exact
-baseline/candidate task states. That pre-release slice creates no label or corpus row
-and does not resolve a generation-plan cell. The other 14 definitions remain
-non-executable, and none of the 16 rows has an official corpus or benchmark-outcome
-claim.
+The separate `official: false` authoring runtime now executes only the two exact
+pointer-definition artifacts across the market-basket and incident-command packages
+through their authenticated catalog bindings. It measures the full installed predicate
+policy, performs the required apply/inverse/apply lifecycle, proves all 11 inverse and
+cleanup probes, and independently classifies exact baseline/candidate task states. Those
+pre-release slices create no label or corpus row and do not resolve a generation-plan
+cell. The other 14 definitions remain non-executable, and none of the 16 rows has an
+official corpus or benchmark-outcome claim.

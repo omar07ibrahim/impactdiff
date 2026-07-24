@@ -5,9 +5,10 @@
 This document defines the planned human-readable catalog for Pilot v0.1: 20 local
 mini-applications, two workflows per application, and one outer block per application.
 It is a construction specification, not evidence that the complete fixture corpus,
-official captures, labels, features, models, or results exist. Only the mutable
-`pilot-market-basket-v1` pre-release, its baseline browser-authoring replay, and its
-capture-first authoring path are implemented so far; the other 19 applications remain
+official captures, labels, features, models, or results exist. The mutable
+`pilot-market-basket-v1` and `pilot-incident-command-v1` pre-releases, their baseline
+browser-authoring replays, capture-first paths, source-predicate measurements, and
+pointer-definition pairs are implemented so far; the other 18 applications remain
 planned.
 
 The keys below are stable review and authoring keys. They are deliberately not
@@ -120,16 +121,17 @@ requires its own state-changing expectation; an aliased focus entry must not dup
 one.
 
 The code-owned catalog binds planned keys and blocks but does not resolve fixture,
-action-plan, operator, or audit bytes. The baseline Pilot runtime now reopens the exact
-market-basket package from an in-memory snapshot, enforces its retained ABI and
+action-plan, operator, or audit bytes. The baseline Pilot runtime now reopens either
+exact authored package from an in-memory snapshot, enforces its retained ABI and
 three-boundary workflow schedule in fresh browser contexts, performs the source-center
 pointer action, and returns a success-only `official: false` audit. Its separate
 capture-first API returns exactly three canonical PNG, accessibility-tree, and
 layout-graph payloads only after the success oracle and attempt/context lifecycle
 cleanup complete. Checkpoint bytes are exposed through defensive copies; a failed
-execution or cleanup returns no partial tuple. Neither path executes the eight predicate
-families. A resolved operator verifier must still open the exact references, validate
-every mutation audit, and bind them before the generation plan may execute.
+execution or cleanup returns no partial tuple. The source-predicate API measures all
+eight local predicates separately, while the pointer-pair API executes only the two
+pointer definitions. A resolved operator verifier must still open the exact references,
+validate every mutation audit, and bind them before the generation plan may execute.
 
 ## Data and shared-infrastructure policy
 
@@ -199,16 +201,18 @@ establish:
 - exact restoration of DOM, styles, listeners, accessibility, and layout after each
   operator inverse and cleanup.
 
-The current market-basket implementation covers package/resource binding, the closed
-no-mutation browser replay, and the current-fixture portion of the modality gate. For
-each of its two workflows, three fresh-context capture-first runs must produce
+The current market-basket and incident-command implementations cover package/resource
+binding, closed no-mutation browser replay, and the current-authoring portion of the
+modality gate. For all four workflows, three fresh-context capture-first runs produce
 byte-identical canonical PNG, accessibility-tree, and layout-graph bytes at all three
-manifest boundaries. The success-only `official: false` result is withheld until cleanup
-completes, and its checkpoint getters return defensive byte copies.
+manifest boundaries. Their source vectors pass the exact `P, O, D, N, F, A, C, V`
+preconditions. The success-only `official: false` results are withheld until cleanup
+completes, and checkpoint getters return defensive byte copies.
 
-That narrow gate does not establish official 20-application acceptance, 16-operator
-compatibility, or exact apply/inverse restoration. It creates no `capture_id`, official
-corpus row, operator, outcome, label, generation-plan execution, or benchmark result.
+The two pointer definitions also complete exact apply/inverse/apply and final cleanup
+for each workflow, but that narrow slice does not establish official 20-application
+acceptance or 16-operator compatibility. It creates no `capture_id`, official corpus
+row, operator outcome, label, generation-plan execution, or benchmark result.
 
 Authoring checks may execute only explicitly versioned, mutable pre-release source and
 action bytes. They produce no official corpus row, sealed label, or operator outcome and

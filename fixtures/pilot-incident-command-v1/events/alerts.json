@@ -1,0 +1,43 @@
+{
+  "alerts": [
+    {
+      "age": "8 min",
+      "detail": "Regional cache fill time crossed the operating envelope.",
+      "id": "edge-cache-lag",
+      "label": "Edge cache lag",
+      "service": "Atlas Edge",
+      "severity": "High"
+    },
+    {
+      "age": "3 min",
+      "detail": "Replica apply position is behind the durable ledger head.",
+      "id": "ledger-replica-gap",
+      "label": "Ledger replica gap",
+      "service": "Copper Ledger",
+      "severity": "Critical"
+    },
+    {
+      "age": "14 min",
+      "detail": "Queue depth remains elevated after the previous drain window.",
+      "id": "worker-queue-rise",
+      "label": "Worker queue rise",
+      "service": "Juniper Jobs",
+      "severity": "Medium"
+    }
+  ],
+  "command": "Nightwatch Relay",
+  "contract": "impactdiff.synthetic-incident-catalog",
+  "responders": [
+    {
+      "id": "avery-noor",
+      "label": "Avery Noor",
+      "rotation": "Core services"
+    },
+    {
+      "id": "min-park",
+      "label": "Min Park",
+      "rotation": "Data systems"
+    }
+  ],
+  "version": 1
+}

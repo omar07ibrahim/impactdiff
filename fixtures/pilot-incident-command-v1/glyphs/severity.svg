@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-labelledby="title description">
+  <title id="title">Severity beacon</title>
+  <desc id="description">Three offset signal bars around a central incident marker.</desc>
+  <rect width="128" height="128" rx="28" fill="#162133"/>
+  <path d="M24 86h16V54H24zm32 0h16V34H56zm32 0h16V18H88z" fill="#f0b45a"/>
+  <circle cx="64" cy="103" r="9" fill="#f6f1e8"/>
+  <path d="M64 98v10m-5-5h10" stroke="#b44236" stroke-width="3" stroke-linecap="round"/>
+</svg>
