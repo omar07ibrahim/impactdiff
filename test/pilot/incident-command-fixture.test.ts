@@ -73,7 +73,7 @@ const expectedCheckpoints = Object.freeze([
 ]);
 
 const goldenSourceReference = Object.freeze({
-  sha256: "a0b7dfa02df2a54ddb3a761cf38c1c9ab1f9d00eb2e4c52f5b60c8590a3a5eb1",
+  sha256: "d3286a6dd8bf12f5e11a9af2b97029694da2a0ec77e996a01a0a294aae4e9f23",
   byte_length: 1_739,
   media_type: "application/vnd.impactdiff.source-state+json",
   format_version: 1,
@@ -83,22 +83,22 @@ const goldenWorkflows = Object.freeze([
   Object.freeze({
     workflow_key: "acknowledge_alert",
     reference: Object.freeze({
-      sha256: "33e39f416d954b1610252d33921c7a889061594fcc328f528b627553b63c88db",
+      sha256: "15c1be30ee6bfe383875c6c04558b3d424b5ba5c83e93fe58189b37ca06db169",
       byte_length: 1_025,
       media_type: "application/vnd.impactdiff.action-plan+json",
       format_version: 1,
     }),
-    task_id: "idtk1_07bc1d3f996949f90cb05bffc536db37bb5eb44cc4d0ffce4b1552ac818acfde",
+    task_id: "idtk1_f30e42e674b6429551d797fb11dad55cb0ddaec07d80ccc8dbba8c352d2542e2",
   }),
   Object.freeze({
     workflow_key: "assign_responder",
     reference: Object.freeze({
-      sha256: "75b79d026a0dee8c045f03aac73091aca04a6c17c1136ce1617aa7ebcdbbfb26",
+      sha256: "6a7684322dd8cbc2345989f00a3a30aa8b15a74b1f587a3c098c5648de739eed",
       byte_length: 1_025,
       media_type: "application/vnd.impactdiff.action-plan+json",
       format_version: 1,
     }),
-    task_id: "idtk1_249a415b452d67a36b4aa1d78a4cefad4d200ab14cbaab5448195431b630c3c8",
+    task_id: "idtk1_24cee5532e154c630c54aa376ff95fb8507179fb18c57dd2182ceb263743e747",
   }),
 ]);
 
@@ -169,7 +169,7 @@ test("Incident Command manifest is canonical and binds its frozen catalog slot",
   assert.equal(rawManifest.byteLength, 6_677);
   assert.equal(
     sha256Hex(rawManifest),
-    "7adff4f1e822d63b77e04e1c872010c62b06d248ab5c89b4156a04d6b82baede",
+    "5455f0881475c4a9db92a364f7aea7e5dfe2ae670ff819b97b50a3c1f21ecce5",
   );
   assert.equal(rawManifest.at(-1), 0x0a);
   assert.notEqual(rawManifest.at(-2), 0x0a);
@@ -241,14 +241,14 @@ test("Incident Command package derives closed source and task identities", async
   assert.equal(first.source_state_id, computeSourceStateId(goldenSourceReference));
   assert.equal(
     first.source_state_id,
-    "idss1_7a515aacaa462bfd3d0059976d838a3d5d86073fced9f244b7056d7749036198",
+    "idss1_5de36eaaeb9774c8ff5d68f2e48ffa9eedc2b5043f480286197011a63dca49f6",
   );
   assert.equal(
     Buffer.from(first.source_state.bytes).toString("utf8"),
     canonicalJson(sourceState),
   );
   assert.deepEqual(sourceState.source.raw_manifest, {
-    sha256: "7adff4f1e822d63b77e04e1c872010c62b06d248ab5c89b4156a04d6b82baede",
+    sha256: "5455f0881475c4a9db92a364f7aea7e5dfe2ae670ff819b97b50a3c1f21ecce5",
     byte_length: 6_677,
   });
   assert.deepEqual(

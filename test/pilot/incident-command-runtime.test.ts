@@ -87,7 +87,7 @@ function assertAudit(
   assert.equal(audit.fixture_revision, "pilot-incident-command-v1.0.0-authoring.1");
   assert.equal(
     audit.source_state_id,
-    "idss1_7a515aacaa462bfd3d0059976d838a3d5d86073fced9f244b7056d7749036198",
+    "idss1_5de36eaaeb9774c8ff5d68f2e48ffa9eedc2b5043f480286197011a63dca49f6",
   );
   assert.equal(audit.workflow_key, workflowKey);
   assert.equal(audit.task_id, taskId);

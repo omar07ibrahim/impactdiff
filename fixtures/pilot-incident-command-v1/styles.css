@@ -226,6 +226,7 @@ select {
 }
 
 .alert-ledger {
+  height: 190px;
   padding: 14px 16px 13px;
   border: 1px solid #8e9aa8;
   background: #f9faf9;
@@ -402,7 +403,7 @@ select {
 .button-clip {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 7px;
   overflow: visible;
   padding: 8px 0 10px;
 }
@@ -423,10 +424,6 @@ select {
   font-size: 10px;
   font-weight: 760;
   line-height: 1;
-}
-
-.command-button:hover {
-  background: #31465f;
 }
 
 .command-status {
