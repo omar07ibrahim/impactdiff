@@ -3,12 +3,26 @@ import { lstat, rename } from "node:fs/promises";
 import { basename, dirname, resolve } from "node:path";
 
 import { canonicalizePng } from "../artifacts/png.js";
-import { parseCaptureSpec } from "../capture/validate.js";
+import {
+  assertCaptureGraphBindings,
+  parseAccessibilitySnapshot,
+  parseActionPlan,
+  parseCaptureSpec,
+  parseLayoutSnapshot,
+} from "../capture/validate.js";
 import {
   canonicalJson,
+  computeCheckpointId,
   computeEnvironmentId,
+  computeSourceStateId,
+  computeTaskId,
+  parseCanonicalJson,
   sha256Hex,
 } from "../contracts/canonical.js";
+import type { ArtifactRef } from "../contracts/artifacts.js";
+import { buildPilotFixtureActionPlanArtifacts } from "../pilot/fixture/action-plan.js";
+import { parsePilotFixtureManifest } from "../pilot/fixture/validate.js";
+import { parseSourceState } from "../source/validate.js";
 import { PilotPortfolioEvidenceError } from "./errors.js";
 import {
   createRepositoryStage,
@@ -22,9 +36,11 @@ import {
 } from "./repository-filesystem.js";
 import {
   pilotPortfolioEvidenceCaptureSpecFile,
+  pilotPortfolioEvidenceCatalog,
   pilotPortfolioEvidenceManifestFile,
   type CapturedPilotPortfolioEvidence,
   type PilotPortfolioEvidenceManifest,
+  type PilotPortfolioNamedArtifactIdentity,
   type PilotPortfolioScreenshotIdentity,
   type VerifiedPilotPortfolioEvidence,
 } from "./schema.js";
@@ -33,7 +49,7 @@ import { parsePilotPortfolioEvidenceManifest } from "./validate.js";
 
 const outputNamePattern = /^[a-z0-9][a-z0-9._-]{0,127}$/u;
 const maximumManifestBytes = 131_072;
-const maximumEntries = 14;
+const maximumEntries = 50;
 
 export const PILOT_PORTFOLIO_EVIDENCE_V1_THREAT_MODEL = Object.freeze({
   filesystem:
@@ -111,13 +127,40 @@ function screenshotReferences(
   );
 }
 
+type BundleArtifactReference =
+  PilotPortfolioNamedArtifactIdentity | PilotPortfolioScreenshotIdentity;
+
+function bundleArtifactReferences(
+  manifest: PilotPortfolioEvidenceManifest,
+): readonly BundleArtifactReference[] {
+  const references: BundleArtifactReference[] = [
+    Object.freeze({
+      file: pilotPortfolioEvidenceCaptureSpecFile,
+      ...manifest.runtime.capture_spec,
+    }),
+  ];
+  for (const fixture of manifest.fixtures) {
+    references.push(fixture.fixture_manifest, fixture.source_state);
+    for (const workflow of fixture.workflows) {
+      references.push(workflow.action_plan, workflow.workflow_audit);
+      for (const checkpoint of workflow.checkpoints) {
+        references.push(
+          checkpoint.screenshot,
+          checkpoint.accessibility_tree,
+          checkpoint.layout_graph,
+        );
+      }
+    }
+  }
+  return Object.freeze(references);
+}
+
 function exactExpectedFileNames(
   manifest: PilotPortfolioEvidenceManifest,
 ): readonly string[] {
   const names = [
     pilotPortfolioEvidenceManifestFile,
-    pilotPortfolioEvidenceCaptureSpecFile,
-    ...screenshotReferences(manifest).map(({ file }) => file),
+    ...bundleArtifactReferences(manifest).map(({ file }) => file),
   ].sort();
   if (new Set(names).size !== maximumEntries) {
     fail(
@@ -181,14 +224,11 @@ function verifyCaptureInput(capture: CapturedPilotPortfolioEvidence): {
       "capture does not contain the exact closed evidence file set",
     );
   }
-  const screenshotByName = new Map(
-    screenshotReferences(manifest).map((reference) => [reference.file, reference]),
+  const artifactByName = new Map(
+    bundleArtifactReferences(manifest).map((reference) => [reference.file, reference]),
   );
   for (const file of files) {
-    const reference =
-      file.name === pilotPortfolioEvidenceCaptureSpecFile
-        ? manifest.runtime.capture_spec
-        : screenshotByName.get(file.name);
+    const reference = artifactByName.get(file.name);
     if (
       reference === undefined ||
       reference.sha256 !== sha256Hex(file.bytes) ||
@@ -287,6 +327,353 @@ function assertManifestCaptureSpecBindings(
   }
 }
 
+function artifactReference(
+  identity: Pick<
+    PilotPortfolioNamedArtifactIdentity,
+    "sha256" | "byte_length" | "media_type" | "format_version"
+  >,
+): ArtifactRef {
+  return Object.freeze({
+    sha256: identity.sha256,
+    byte_length: identity.byte_length,
+    media_type: identity.media_type,
+    format_version: identity.format_version,
+  });
+}
+
+function exactPlainRecord(
+  value: unknown,
+  expectedKeys: readonly string[],
+  code: string,
+): Record<string, unknown> {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Object.prototype
+  ) {
+    fail(code, "portfolio evidence artifact must be a plain canonical object");
+  }
+  const record = value as Record<string, unknown>;
+  const actualKeys = Object.keys(record).sort();
+  const sortedExpected = [...expectedKeys].sort();
+  if (
+    actualKeys.length !== sortedExpected.length ||
+    actualKeys.some((key, index) => key !== sortedExpected[index])
+  ) {
+    fail(code, "portfolio evidence artifact has unexpected contract keys");
+  }
+  return record;
+}
+
+function authoredFixtureManifest(bytes: Buffer) {
+  const payload =
+    bytes.byteLength > 1 &&
+    bytes[bytes.byteLength - 1] === 0x0a &&
+    bytes[bytes.byteLength - 2] !== 0x0a &&
+    bytes[bytes.byteLength - 2] !== 0x0d
+      ? bytes.subarray(0, bytes.byteLength - 1)
+      : bytes;
+  try {
+    const manifest = parsePilotFixtureManifest(payload);
+    const canonical = Buffer.from(canonicalJson(manifest), "utf8");
+    if (!canonical.equals(payload)) {
+      fail(
+        "portfolio_evidence.fixture_manifest_canonical",
+        "fixture manifest artifact is not canonical JSON with at most one authored newline",
+      );
+    }
+    return manifest;
+  } catch (error) {
+    if (error instanceof PilotPortfolioEvidenceError) throw error;
+    fail(
+      "portfolio_evidence.fixture_manifest_codec",
+      "fixture manifest artifact is invalid",
+      { cause: error },
+    );
+  }
+}
+
+function assertWorkflowAuditBindings(
+  bytes: Buffer,
+  fixtureManifest: ReturnType<typeof parsePilotFixtureManifest>,
+  fixture: PilotPortfolioEvidenceManifest["fixtures"][number],
+  workflow: PilotPortfolioEvidenceManifest["fixtures"][number]["workflows"][number],
+): void {
+  let value;
+  try {
+    value = parseCanonicalJson(bytes, {
+      maximumBytes: 131_072,
+      maximumDepth: 8,
+      maximumValues: 1_024,
+    });
+  } catch (error) {
+    fail(
+      "portfolio_evidence.workflow_audit_codec",
+      "workflow audit is not bounded canonical JSON",
+      { cause: error },
+    );
+  }
+  const audit = exactPlainRecord(
+    value,
+    [
+      "kind",
+      "official",
+      "fixture_key",
+      "fixture_revision",
+      "source_state_id",
+      "workflow_key",
+      "task_id",
+      "environment_id",
+      "actions_executed",
+      "checkpoint_after_action_ordinals",
+      "resource_requests",
+      "blocked_external_requests",
+      "unexpected_fixture_requests",
+    ],
+    "portfolio_evidence.workflow_audit_schema",
+  );
+  const schedule = workflow.checkpoint_after_action_ordinals;
+  if (
+    audit.kind !== "pilot_fixture_workflow_authoring_audit" ||
+    audit.official !== false ||
+    audit.fixture_key !== fixture.fixture_key ||
+    audit.fixture_revision !== fixture.fixture_revision ||
+    audit.source_state_id !== fixture.source_state_id ||
+    audit.workflow_key !== workflow.workflow_key ||
+    audit.task_id !== workflow.task_id ||
+    audit.environment_id !== workflow.environment_id ||
+    audit.actions_executed !== workflow.actions_executed ||
+    !Array.isArray(audit.checkpoint_after_action_ordinals) ||
+    audit.checkpoint_after_action_ordinals.length !== schedule.length ||
+    audit.checkpoint_after_action_ordinals.some(
+      (ordinal, index) => ordinal !== schedule[index],
+    ) ||
+    !Array.isArray(audit.blocked_external_requests) ||
+    audit.blocked_external_requests.length !== 0 ||
+    !Array.isArray(audit.unexpected_fixture_requests) ||
+    audit.unexpected_fixture_requests.length !== 0 ||
+    !Array.isArray(audit.resource_requests)
+  ) {
+    fail(
+      "portfolio_evidence.workflow_audit_binding",
+      "workflow audit differs from its manifest workflow identity",
+    );
+  }
+  const fixtureResourcePaths = new Set(
+    fixtureManifest.resources.map(({ path }) => path),
+  );
+  const requestCounts = new Map<string, number>();
+  let previousPath: string | undefined;
+  let requestCount = 0;
+  for (const requestValue of audit.resource_requests) {
+    const request = exactPlainRecord(
+      requestValue,
+      ["path", "request_count"],
+      "portfolio_evidence.workflow_audit_schema",
+    );
+    if (
+      typeof request.path !== "string" ||
+      !fixtureResourcePaths.has(request.path) ||
+      (previousPath !== undefined && request.path <= previousPath) ||
+      !Number.isSafeInteger(request.request_count) ||
+      (request.request_count as number) < 1 ||
+      (request.request_count as number) > 32
+    ) {
+      fail(
+        "portfolio_evidence.workflow_audit_requests",
+        "workflow resource requests are not unique, sorted, bounded fixture resources",
+      );
+    }
+    previousPath = request.path;
+    const boundedRequestCount = request.request_count as number;
+    requestCounts.set(request.path, boundedRequestCount);
+    requestCount += boundedRequestCount;
+  }
+  if (
+    requestCount !== workflow.resource_request_count ||
+    requestCounts.get(fixtureManifest.entrypoint) !== 1 ||
+    requestCounts.get(fixtureManifest.font.path) !== 1 ||
+    workflow.blocked_external_requests !== 0 ||
+    workflow.unexpected_fixture_requests !== 0
+  ) {
+    fail(
+      "portfolio_evidence.workflow_audit_count",
+      "workflow request audit counts differ from the manifest",
+    );
+  }
+}
+
+function assertFixtureArtifactBindings(
+  manifest: PilotPortfolioEvidenceManifest,
+  bytesByName: ReadonlyMap<string, Buffer>,
+): void {
+  for (const [fixtureIndex, fixture] of manifest.fixtures.entries()) {
+    const catalogFixture = pilotPortfolioEvidenceCatalog[fixtureIndex]!;
+    const fixtureManifestBytes = bytesByName.get(fixture.fixture_manifest.file);
+    const sourceStateBytes = bytesByName.get(fixture.source_state.file);
+    if (fixtureManifestBytes === undefined || sourceStateBytes === undefined) {
+      fail(
+        "portfolio_evidence.fixture_artifacts",
+        "fixture manifest or source-state artifact is absent",
+      );
+    }
+    const fixtureManifest = authoredFixtureManifest(fixtureManifestBytes);
+    if (
+      fixtureManifest.application_key !== fixture.application_key ||
+      fixtureManifest.fixture_key !== fixture.fixture_key ||
+      fixtureManifest.revision !== fixture.fixture_revision ||
+      fixtureManifest.workflows.length !== fixture.workflows.length
+    ) {
+      fail(
+        "portfolio_evidence.fixture_manifest_binding",
+        "fixture manifest differs from the closed portfolio catalog",
+      );
+    }
+    let sourceState;
+    try {
+      sourceState = parseSourceState(sourceStateBytes);
+    } catch (error) {
+      fail(
+        "portfolio_evidence.source_state_codec",
+        "source-state artifact is invalid",
+        { cause: error },
+      );
+    }
+    const sourceStateReference = artifactReference(fixture.source_state);
+    const expectedSourceState = {
+      contract: "impactdiff.source-state",
+      version: 1,
+      source: {
+        kind: "closed_fixture",
+        fixture_id: fixtureManifest.fixture_key,
+        revision: fixtureManifest.revision,
+        license: fixtureManifest.license,
+        entrypoint: fixtureManifest.entrypoint,
+        raw_manifest: {
+          sha256: fixture.fixture_manifest.sha256,
+          byte_length: fixture.fixture_manifest.byte_length,
+        },
+        resources: fixtureManifest.resources,
+      },
+      initial_state: {
+        kind: "fixture_default",
+        route: "/",
+        storage: "empty",
+      },
+    };
+    if (
+      !sameCanonicalJson(sourceState, expectedSourceState) ||
+      fixture.source_state_id !== computeSourceStateId(sourceStateReference)
+    ) {
+      fail(
+        "portfolio_evidence.source_state_binding",
+        "source-state bytes or identity differ from the fixture manifest",
+      );
+    }
+
+    const expectedPlans = buildPilotFixtureActionPlanArtifacts(
+      fixtureManifest,
+      fixture.fixture_manifest.sha256,
+    );
+    for (const [workflowIndex, workflow] of fixture.workflows.entries()) {
+      const catalogWorkflow = catalogFixture.workflows[workflowIndex]!;
+      const fixtureWorkflow = fixtureManifest.workflows[workflowIndex];
+      const expectedPlan = expectedPlans[workflowIndex];
+      const actionPlanBytes = bytesByName.get(workflow.action_plan.file);
+      const workflowAuditBytes = bytesByName.get(workflow.workflow_audit.file);
+      if (
+        fixtureWorkflow === undefined ||
+        fixtureWorkflow.workflow_key !== catalogWorkflow.workflow_key ||
+        expectedPlan === undefined ||
+        expectedPlan.workflow_key !== workflow.workflow_key ||
+        actionPlanBytes === undefined ||
+        workflowAuditBytes === undefined
+      ) {
+        fail(
+          "portfolio_evidence.workflow_artifacts",
+          "workflow artifacts differ from the fixture workflow catalog",
+        );
+      }
+      let actionPlan;
+      try {
+        actionPlan = parseActionPlan(actionPlanBytes);
+      } catch (error) {
+        fail(
+          "portfolio_evidence.action_plan_codec",
+          "action-plan artifact is invalid",
+          { cause: error },
+        );
+      }
+      const actionPlanReference = artifactReference(workflow.action_plan);
+      if (
+        !Buffer.from(expectedPlan.bytes).equals(actionPlanBytes) ||
+        !sameCanonicalJson(expectedPlan.reference, actionPlanReference) ||
+        workflow.task_id !== computeTaskId(actionPlanReference) ||
+        workflow.task_id !== expectedPlan.task_id ||
+        actionPlan.actions.length !== workflow.actions_executed ||
+        !sameCanonicalJson(
+          actionPlan.checkpoints.map(
+            ({ after_action_ordinal: afterActionOrdinal }) => afterActionOrdinal,
+          ),
+          workflow.checkpoint_after_action_ordinals,
+        )
+      ) {
+        fail(
+          "portfolio_evidence.action_plan_binding",
+          "action-plan bytes, task identity, or schedule differ from the fixture workflow",
+        );
+      }
+      assertWorkflowAuditBindings(
+        workflowAuditBytes,
+        fixtureManifest,
+        fixture,
+        workflow,
+      );
+      for (const [checkpointIndex, checkpoint] of workflow.checkpoints.entries()) {
+        if (
+          checkpoint.checkpoint_id !==
+          computeCheckpointId(actionPlanReference, checkpointIndex)
+        ) {
+          fail(
+            "portfolio_evidence.checkpoint_identity",
+            "checkpoint identity is not derived from its action plan",
+          );
+        }
+        const accessibilityBytes = bytesByName.get(checkpoint.accessibility_tree.file);
+        const layoutBytes = bytesByName.get(checkpoint.layout_graph.file);
+        if (accessibilityBytes === undefined || layoutBytes === undefined) {
+          fail(
+            "portfolio_evidence.checkpoint_artifacts",
+            "checkpoint modality artifact is absent",
+          );
+        }
+        let accessibility: ReturnType<typeof parseAccessibilitySnapshot>;
+        let layout: ReturnType<typeof parseLayoutSnapshot>;
+        try {
+          accessibility = parseAccessibilitySnapshot(accessibilityBytes);
+          layout = parseLayoutSnapshot(layoutBytes);
+        } catch (error) {
+          fail(
+            "portfolio_evidence.checkpoint_modality_codec",
+            "checkpoint accessibility or layout artifact is invalid",
+            { cause: error },
+          );
+        }
+        try {
+          assertCaptureGraphBindings(actionPlan, accessibility, layout);
+        } catch (error) {
+          fail(
+            "portfolio_evidence.checkpoint_graph_binding",
+            "checkpoint accessibility and layout graphs differ from the action plan",
+            { cause: error },
+          );
+        }
+      }
+    }
+  }
+}
+
 export async function verifyPilotPortfolioEvidence(
   bundleDirectory: string,
 ): Promise<VerifiedPilotPortfolioEvidence> {
@@ -305,24 +692,39 @@ export async function verifyPilotPortfolioEvidence(
   const expectedNames = exactExpectedFileNames(manifest);
   assertExactDirectoryEntries(initialEntries, expectedNames);
 
-  const captureSpecBytes = await readStableRepositoryFile(
-    resolve(root, pilotPortfolioEvidenceCaptureSpecFile),
-    65_536,
-  );
-  assertManifestCaptureSpecBindings(manifest, captureSpecBytes);
-  for (const screenshot of screenshotReferences(manifest)) {
+  const bytesByName = new Map<string, Buffer>();
+  for (const reference of bundleArtifactReferences(manifest)) {
     const bytes = await readStableRepositoryFile(
-      resolve(root, screenshot.file),
-      screenshot.byte_length,
+      resolve(root, reference.file),
+      reference.byte_length,
     );
     if (
-      bytes.byteLength !== screenshot.byte_length ||
-      sha256Hex(bytes) !== screenshot.sha256
+      bytes.byteLength !== reference.byte_length ||
+      sha256Hex(bytes) !== reference.sha256
     ) {
       fail(
-        "portfolio_evidence.screenshot_binding",
-        "screenshot differs from its checkpoint byte identity",
+        "portfolio_evidence.artifact_binding",
+        "bundle artifact differs from its manifest byte identity",
       );
+    }
+    bytesByName.set(reference.file, bytes);
+  }
+  if (bytesByName.size !== maximumEntries - 1) {
+    fail(
+      "portfolio_evidence.artifact_cardinality",
+      "bundle artifact identities are not unique and complete",
+    );
+  }
+  const captureSpecBytes = bytesByName.get(pilotPortfolioEvidenceCaptureSpecFile);
+  if (captureSpecBytes === undefined) {
+    fail("portfolio_evidence.capture_spec_binding", "capture specification is absent");
+  }
+  assertManifestCaptureSpecBindings(manifest, captureSpecBytes);
+  assertFixtureArtifactBindings(manifest, bytesByName);
+  for (const screenshot of screenshotReferences(manifest)) {
+    const bytes = bytesByName.get(screenshot.file);
+    if (bytes === undefined) {
+      fail("portfolio_evidence.screenshot_binding", "checkpoint screenshot is absent");
     }
     let canonical;
     try {
@@ -367,7 +769,7 @@ export async function verifyPilotPortfolioEvidenceForRepository(
   bundleDirectory: string,
 ): Promise<VerifiedPilotPortfolioEvidence> {
   const verified = await verifyPilotPortfolioEvidence(bundleDirectory);
-  await verifyPilotPortfolioSourceFreshness(repositoryRoot, verified.manifest.source);
+  await verifyPilotPortfolioSourceFreshness(repositoryRoot, verified.manifest);
   return verified;
 }
 

@@ -16,7 +16,12 @@ export {
   pilotPortfolioEvidenceContract,
   pilotPortfolioEvidenceManifestFile,
   pilotPortfolioEvidenceVersion,
+  pilotPortfolioActionPlanFileName,
+  pilotPortfolioCheckpointArtifactFileName,
+  pilotPortfolioFixtureManifestFileName,
   pilotPortfolioScreenshotFileName,
+  pilotPortfolioSourceStateFileName,
+  pilotPortfolioWorkflowAuditFileName,
 } from "./schema.js";
 export type {
   CapturedPilotPortfolioEvidence,
@@ -25,6 +30,7 @@ export type {
   PilotPortfolioEvidenceFile,
   PilotPortfolioEvidenceManifest,
   PilotPortfolioFixtureEvidence,
+  PilotPortfolioNamedArtifactIdentity,
   PilotPortfolioScreenshotIdentity,
   PilotPortfolioWorkflowEvidence,
   VerifiedPilotPortfolioEvidence,

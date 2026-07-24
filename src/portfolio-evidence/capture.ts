@@ -18,11 +18,16 @@ import { PilotPortfolioEvidenceError } from "./errors.js";
 import { publishPilotPortfolioEvidence } from "./publication.js";
 import {
   pilotPortfolioCheckpointKeys,
+  pilotPortfolioActionPlanFileName,
+  pilotPortfolioCheckpointArtifactFileName,
   pilotPortfolioEvidenceCaptureSpecFile,
   pilotPortfolioEvidenceCatalog,
   pilotPortfolioEvidenceContract,
   pilotPortfolioEvidenceVersion,
+  pilotPortfolioFixtureManifestFileName,
   pilotPortfolioScreenshotFileName,
+  pilotPortfolioSourceStateFileName,
+  pilotPortfolioWorkflowAuditFileName,
   type CapturedPilotPortfolioEvidence,
   type PilotPortfolioCatalogFixture,
   type PilotPortfolioEvidenceFile,
@@ -80,13 +85,12 @@ async function closeEnvironment(
   }
 }
 
-function assertPinnedNodeRuntime(): string {
+function assertPinnedNodeRuntime(): "127" {
   if (
     process.versions.node !== "22.23.1" ||
     process.platform !== "linux" ||
     process.arch !== "x64" ||
-    typeof process.versions.modules !== "string" ||
-    !/^[1-9][0-9]{0,5}$/u.test(process.versions.modules)
+    process.versions.modules !== "127"
   ) {
     fail(
       "portfolio_evidence.node_runtime",
@@ -128,6 +132,19 @@ function byteIdentity(bytes: Uint8Array) {
   });
 }
 
+function namedArtifactIdentity<const MediaType extends string>(
+  file: string,
+  bytes: Uint8Array,
+  mediaType: MediaType,
+) {
+  return Object.freeze({
+    file,
+    media_type: mediaType,
+    format_version: 1 as const,
+    ...byteIdentity(bytes),
+  });
+}
+
 async function captureFixture(
   repositoryRoot: string,
   fixture: PilotPortfolioCatalogFixture,
@@ -140,9 +157,16 @@ async function captureFixture(
   const fixtureDirectory = join(repositoryRoot, fixture.fixture_directory);
   const [authoringPackage, manifestFile] = await Promise.all([
     loadPilotFixtureAuthoringPackage(fixtureDirectory),
-    readStableProvenanceFile(join(fixtureDirectory, "fixture.json"), 131_072, false),
+    readStableProvenanceFile(join(fixtureDirectory, "fixture.json"), 131_072, true),
   ]);
   assertFixtureCatalog(fixture, authoringPackage);
+  const fixtureManifestBytes = manifestFile.bytes;
+  if (fixtureManifestBytes === undefined) {
+    fail(
+      "portfolio_evidence.fixture_manifest",
+      "Pilot fixture manifest bytes were not captured",
+    );
+  }
 
   const environment = await launchPilotFixtureAuthoringEnvironment(fixtureDirectory);
   let primaryError: unknown;
@@ -159,9 +183,39 @@ async function captureFixture(
       );
     }
 
-    const files: PilotPortfolioEvidenceFile[] = [];
+    const fixtureManifestFile = pilotPortfolioFixtureManifestFileName(fixture);
+    const sourceStateFile = pilotPortfolioSourceStateFileName(fixture);
+    const sourceStateBytes = Buffer.from(authoringPackage.source_state.bytes);
+    const files: PilotPortfolioEvidenceFile[] = [
+      Object.freeze({
+        name: fixtureManifestFile,
+        bytes: Buffer.from(fixtureManifestBytes),
+      }),
+      Object.freeze({
+        name: sourceStateFile,
+        bytes: Buffer.from(sourceStateBytes),
+      }),
+    ];
     const workflows: PilotPortfolioWorkflowEvidence[] = [];
     for (const [workflowIndex, catalogWorkflow] of fixture.workflows.entries()) {
+      const packagedWorkflow = authoringPackage.workflows[workflowIndex];
+      if (
+        packagedWorkflow === undefined ||
+        packagedWorkflow.workflow_key !== catalogWorkflow.workflow_key
+      ) {
+        fail(
+          "portfolio_evidence.action_plan",
+          "Pilot action plan differs from the closed portfolio workflow catalog",
+        );
+      }
+      const actionPlanFile = pilotPortfolioActionPlanFileName(fixture, catalogWorkflow);
+      const actionPlanBytes = Buffer.from(packagedWorkflow.action_plan.bytes);
+      files.push(
+        Object.freeze({
+          name: actionPlanFile,
+          bytes: Buffer.from(actionPlanBytes),
+        }),
+      );
       const result = await capturePilotFixtureAuthoringWorkflow(
         environment,
         catalogWorkflow.workflow_key,
@@ -174,6 +228,7 @@ async function captureFixture(
         audit.fixture_revision !== fixture.fixture_revision ||
         audit.source_state_id !== authoringPackage.source_state_id ||
         audit.workflow_key !== catalogWorkflow.workflow_key ||
+        audit.task_id !== packagedWorkflow.task_id ||
         audit.actions_executed !== 4 ||
         !exactStrings(
           audit.checkpoint_after_action_ordinals.map(String),
@@ -187,6 +242,17 @@ async function captureFixture(
           "Pilot capture audit differs from the closed portfolio evidence boundary",
         );
       }
+      const workflowAuditFile = pilotPortfolioWorkflowAuditFileName(
+        fixture,
+        catalogWorkflow,
+      );
+      const workflowAuditBytes = Buffer.from(canonicalJson(audit), "utf8");
+      files.push(
+        Object.freeze({
+          name: workflowAuditFile,
+          bytes: Buffer.from(workflowAuditBytes),
+        }),
+      );
       const checkpoints = result.checkpoints.map((checkpoint, checkpointIndex) => {
         if (
           checkpoint.ordinal !== checkpointIndex ||
@@ -225,6 +291,28 @@ async function captureFixture(
             bytes: Buffer.from(screenshot),
           }),
         );
+        const accessibilityFile = pilotPortfolioCheckpointArtifactFileName(
+          fixture,
+          catalogWorkflow,
+          ordinal,
+          "accessibility",
+        );
+        const layoutFile = pilotPortfolioCheckpointArtifactFileName(
+          fixture,
+          catalogWorkflow,
+          ordinal,
+          "layout",
+        );
+        files.push(
+          Object.freeze({
+            name: accessibilityFile,
+            bytes: Buffer.from(accessibilityTree),
+          }),
+          Object.freeze({
+            name: layoutFile,
+            bytes: Buffer.from(layoutGraph),
+          }),
+        );
         return Object.freeze({
           key: pilotPortfolioCheckpointKeys[ordinal],
           ordinal,
@@ -234,12 +322,21 @@ async function captureFixture(
           screenshot: Object.freeze({
             file: fileName,
             media_type: "image/png" as const,
+            format_version: 1 as const,
             width: 800 as const,
             height: 600 as const,
             ...byteIdentity(screenshot),
           }),
-          accessibility_tree: byteIdentity(accessibilityTree),
-          layout_graph: byteIdentity(layoutGraph),
+          accessibility_tree: namedArtifactIdentity(
+            accessibilityFile,
+            accessibilityTree,
+            "application/vnd.impactdiff.accessibility+json",
+          ),
+          layout_graph: namedArtifactIdentity(
+            layoutFile,
+            layoutGraph,
+            "application/vnd.impactdiff.layout+json",
+          ),
         });
       });
       if (checkpoints.length !== 3) {
@@ -256,14 +353,21 @@ async function captureFixture(
         Object.freeze({
           workflow_key: catalogWorkflow.workflow_key,
           official: false as const,
+          action_plan: namedArtifactIdentity(
+            actionPlanFile,
+            actionPlanBytes,
+            "application/vnd.impactdiff.action-plan+json",
+          ),
+          workflow_audit: namedArtifactIdentity(
+            workflowAuditFile,
+            workflowAuditBytes,
+            "application/vnd.impactdiff.pilot-workflow-authoring-audit+json",
+          ),
           task_id: audit.task_id,
           environment_id: audit.environment_id,
           actions_executed: 4 as const,
           checkpoint_after_action_ordinals:
             catalogWorkflow.checkpoint_after_action_ordinals,
-          resource_request_audit_sha256: sha256Hex(
-            canonicalJson(audit.resource_requests),
-          ),
           resource_request_count: resourceRequestCount,
           blocked_external_requests: 0 as const,
           unexpected_fixture_requests: 0 as const,
@@ -291,10 +395,16 @@ async function captureFixture(
       application_key: fixture.application_key,
       fixture_key: fixture.fixture_key,
       fixture_revision: fixture.fixture_revision,
-      fixture_manifest: Object.freeze({
-        sha256: manifestFile.sha256,
-        byte_length: manifestFile.byteLength,
-      }),
+      fixture_manifest: namedArtifactIdentity(
+        fixtureManifestFile,
+        fixtureManifestBytes,
+        "application/vnd.impactdiff.pilot-fixture-manifest+json",
+      ),
+      source_state: namedArtifactIdentity(
+        sourceStateFile,
+        sourceStateBytes,
+        "application/vnd.impactdiff.source-state+json",
+      ),
       source_state_id: authoringPackage.source_state_id,
       workflows: workflows as [
         PilotPortfolioWorkflowEvidence,
@@ -340,10 +450,10 @@ export async function capturePilotPortfolioEvidence(
     fixtures.push(captured.fixture);
     files.push(...captured.files);
   }
-  if (captureSpecBytes === undefined || fixtures.length !== 2 || files.length !== 12) {
+  if (captureSpecBytes === undefined || fixtures.length !== 2) {
     fail(
       "portfolio_evidence.capture_cardinality",
-      "complete Pilot portfolio capture did not produce two fixtures and twelve screenshots",
+      "complete Pilot portfolio capture did not produce the closed two-fixture artifact set",
     );
   }
   const sourceAfterCapture = await inspectPilotPortfolioSourceIdentity(
@@ -388,6 +498,12 @@ export async function capturePilotPortfolioEvidence(
     PilotPortfolioFixtureEvidence,
   ];
 
+  if (files.length !== 49) {
+    fail(
+      "portfolio_evidence.capture_cardinality",
+      "complete Pilot portfolio capture did not produce forty-nine data artifacts",
+    );
+  }
   const manifestDraft = {
     contract: pilotPortfolioEvidenceContract,
     version: pilotPortfolioEvidenceVersion,

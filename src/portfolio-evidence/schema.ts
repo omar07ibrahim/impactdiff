@@ -79,9 +79,18 @@ export interface PilotPortfolioByteIdentity {
   readonly byte_length: number;
 }
 
+export interface PilotPortfolioNamedArtifactIdentity<
+  MediaType extends string = string,
+> extends PilotPortfolioByteIdentity {
+  readonly file: string;
+  readonly media_type: MediaType;
+  readonly format_version: 1;
+}
+
 export interface PilotPortfolioScreenshotIdentity extends PilotPortfolioByteIdentity {
   readonly file: string;
   readonly media_type: "image/png";
+  readonly format_version: 1;
   readonly width: 800;
   readonly height: 600;
 }
@@ -92,18 +101,19 @@ export interface PilotPortfolioCheckpointEvidence {
   readonly after_action_ordinal: -1 | 2 | 3;
   readonly checkpoint_id: string;
   readonly screenshot: PilotPortfolioScreenshotIdentity;
-  readonly accessibility_tree: PilotPortfolioByteIdentity;
-  readonly layout_graph: PilotPortfolioByteIdentity;
+  readonly accessibility_tree: PilotPortfolioNamedArtifactIdentity<"application/vnd.impactdiff.accessibility+json">;
+  readonly layout_graph: PilotPortfolioNamedArtifactIdentity<"application/vnd.impactdiff.layout+json">;
 }
 
 export interface PilotPortfolioWorkflowEvidence {
   readonly workflow_key: string;
   readonly official: false;
+  readonly action_plan: PilotPortfolioNamedArtifactIdentity<"application/vnd.impactdiff.action-plan+json">;
+  readonly workflow_audit: PilotPortfolioNamedArtifactIdentity<"application/vnd.impactdiff.pilot-workflow-authoring-audit+json">;
   readonly task_id: string;
   readonly environment_id: string;
   readonly actions_executed: 4;
   readonly checkpoint_after_action_ordinals: readonly [-1, 2, 3];
-  readonly resource_request_audit_sha256: string;
   readonly resource_request_count: number;
   readonly blocked_external_requests: 0;
   readonly unexpected_fixture_requests: 0;
@@ -118,7 +128,8 @@ export interface PilotPortfolioFixtureEvidence {
   readonly application_key: string;
   readonly fixture_key: string;
   readonly fixture_revision: string;
-  readonly fixture_manifest: PilotPortfolioByteIdentity;
+  readonly fixture_manifest: PilotPortfolioNamedArtifactIdentity<"application/vnd.impactdiff.pilot-fixture-manifest+json">;
+  readonly source_state: PilotPortfolioNamedArtifactIdentity<"application/vnd.impactdiff.source-state+json">;
   readonly source_state_id: string;
   readonly workflows: readonly [
     PilotPortfolioWorkflowEvidence,
@@ -161,7 +172,7 @@ export interface PilotPortfolioEvidenceManifest {
   };
   readonly runtime: {
     readonly node_version: "22.23.1";
-    readonly node_module_abi: string;
+    readonly node_module_abi: "127";
     readonly platform: "linux";
     readonly architecture: "x64";
     readonly capture_spec_file: typeof pilotPortfolioEvidenceCaptureSpecFile;
@@ -220,4 +231,44 @@ export function pilotPortfolioScreenshotFileName(
     "_",
     "-",
   )}.png`;
+}
+
+export function pilotPortfolioFixtureManifestFileName(
+  fixture: PilotPortfolioCatalogFixture,
+): string {
+  return `${fixture.file_stem}--fixture-manifest.json`;
+}
+
+export function pilotPortfolioSourceStateFileName(
+  fixture: PilotPortfolioCatalogFixture,
+): string {
+  return `${fixture.file_stem}--source-state.json`;
+}
+
+export function pilotPortfolioActionPlanFileName(
+  fixture: PilotPortfolioCatalogFixture,
+  workflow: PilotPortfolioCatalogWorkflow,
+): string {
+  return `${fixture.file_stem}--${workflow.file_stem}--action-plan.json`;
+}
+
+export function pilotPortfolioWorkflowAuditFileName(
+  fixture: PilotPortfolioCatalogFixture,
+  workflow: PilotPortfolioCatalogWorkflow,
+): string {
+  return `${fixture.file_stem}--${workflow.file_stem}--workflow-audit.json`;
+}
+
+export function pilotPortfolioCheckpointArtifactFileName(
+  fixture: PilotPortfolioCatalogFixture,
+  workflow: PilotPortfolioCatalogWorkflow,
+  checkpointOrdinal: 0 | 1 | 2,
+  modality: "accessibility" | "layout",
+): string {
+  const screenshot = pilotPortfolioScreenshotFileName(
+    fixture,
+    workflow,
+    checkpointOrdinal,
+  );
+  return `${screenshot.slice(0, -".png".length)}--${modality}.json`;
 }

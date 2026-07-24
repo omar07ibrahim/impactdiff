@@ -2,12 +2,17 @@ import { parseCanonicalJson } from "../contracts/canonical.js";
 import type { ArtifactRef } from "../contracts/artifacts.js";
 import { PilotPortfolioEvidenceError } from "./errors.js";
 import {
+  pilotPortfolioActionPlanFileName,
+  pilotPortfolioCheckpointArtifactFileName,
   pilotPortfolioCheckpointKeys,
   pilotPortfolioEvidenceCaptureSpecFile,
   pilotPortfolioEvidenceCatalog,
   pilotPortfolioEvidenceContract,
   pilotPortfolioEvidenceVersion,
+  pilotPortfolioFixtureManifestFileName,
   pilotPortfolioScreenshotFileName,
+  pilotPortfolioSourceStateFileName,
+  pilotPortfolioWorkflowAuditFileName,
   type PilotPortfolioByteIdentity,
   type PilotPortfolioEvidenceManifest,
 } from "./schema.js";
@@ -18,7 +23,6 @@ const checkpointIdPattern = /^idck1_[0-9a-f]{64}$/u;
 const sourceStateIdPattern = /^idss1_[0-9a-f]{64}$/u;
 const taskIdPattern = /^idtk1_[0-9a-f]{64}$/u;
 const environmentIdPattern = /^iden1_[0-9a-f]{64}$/u;
-const nodeModuleAbiPattern = /^[1-9][0-9]{0,5}$/u;
 const maximumManifestBytes = 131_072;
 
 function fail(code: string, message: string, options?: ErrorOptions): never {
@@ -126,6 +130,27 @@ function artifactReference(value: unknown, path: string): ArtifactRef {
   return record as unknown as ArtifactRef;
 }
 
+function namedArtifactReference(
+  value: unknown,
+  path: string,
+  expectedFile: string,
+  expectedMediaType: string,
+  maximumBytes: number,
+): void {
+  const record = exactRecord(
+    value,
+    ["file", "sha256", "byte_length", "media_type", "format_version"],
+    path,
+  );
+  exactString(record.file, expectedFile, `${path}/file`);
+  patternString(record.sha256, sha256Pattern, `${path}/sha256`);
+  boundedInteger(record.byte_length, 1, maximumBytes, `${path}/byte_length`);
+  exactString(record.media_type, expectedMediaType, `${path}/media_type`);
+  if (record.format_version !== 1) {
+    fail("portfolio_evidence.schema", `${path}/format_version must equal 1`);
+  }
+}
+
 function validateSource(value: unknown): void {
   const source = exactRecord(
     value,
@@ -189,11 +214,7 @@ function validateRuntime(value: unknown): void {
     "/runtime",
   );
   exactString(runtime.node_version, "22.23.1", "/runtime/node_version");
-  patternString(
-    runtime.node_module_abi,
-    nodeModuleAbiPattern,
-    "/runtime/node_module_abi",
-  );
+  exactString(runtime.node_module_abi, "127", "/runtime/node_module_abi");
   exactString(runtime.platform, "linux", "/runtime/platform");
   exactString(runtime.architecture, "x64", "/runtime/architecture");
   exactString(
@@ -336,7 +357,15 @@ function validateCheckpoint(
 
   const screenshot = exactRecord(
     checkpoint.screenshot,
-    ["file", "media_type", "width", "height", "sha256", "byte_length"],
+    [
+      "file",
+      "media_type",
+      "format_version",
+      "width",
+      "height",
+      "sha256",
+      "byte_length",
+    ],
     `${path}/screenshot`,
   );
   exactString(
@@ -349,6 +378,9 @@ function validateCheckpoint(
     `${path}/screenshot/file`,
   );
   exactString(screenshot.media_type, "image/png", `${path}/screenshot/media_type`);
+  if (screenshot.format_version !== 1) {
+    fail("portfolio_evidence.schema", `${path}/screenshot/format_version must equal 1`);
+  }
   if (screenshot.width !== 800 || screenshot.height !== 600) {
     fail(
       "portfolio_evidence.schema",
@@ -362,8 +394,30 @@ function validateCheckpoint(
     8_388_608,
     `${path}/screenshot/byte_length`,
   );
-  byteIdentity(checkpoint.accessibility_tree, `${path}/accessibility_tree`, 2_097_152);
-  byteIdentity(checkpoint.layout_graph, `${path}/layout_graph`, 4_194_304);
+  namedArtifactReference(
+    checkpoint.accessibility_tree,
+    `${path}/accessibility_tree`,
+    pilotPortfolioCheckpointArtifactFileName(
+      catalogFixture,
+      catalogWorkflow,
+      checkpointIndex as 0 | 1 | 2,
+      "accessibility",
+    ),
+    "application/vnd.impactdiff.accessibility+json",
+    2_097_152,
+  );
+  namedArtifactReference(
+    checkpoint.layout_graph,
+    `${path}/layout_graph`,
+    pilotPortfolioCheckpointArtifactFileName(
+      catalogFixture,
+      catalogWorkflow,
+      checkpointIndex as 0 | 1 | 2,
+      "layout",
+    ),
+    "application/vnd.impactdiff.layout+json",
+    4_194_304,
+  );
 }
 
 function validateWorkflow(
@@ -377,11 +431,12 @@ function validateWorkflow(
     [
       "workflow_key",
       "official",
+      "action_plan",
+      "workflow_audit",
       "task_id",
       "environment_id",
       "actions_executed",
       "checkpoint_after_action_ordinals",
-      "resource_request_audit_sha256",
       "resource_request_count",
       "blocked_external_requests",
       "unexpected_fixture_requests",
@@ -391,6 +446,7 @@ function validateWorkflow(
   );
   const catalogWorkflow =
     pilotPortfolioEvidenceCatalog[fixtureIndex]!.workflows[workflowIndex]!;
+  const catalogFixture = pilotPortfolioEvidenceCatalog[fixtureIndex]!;
   exactString(
     workflow.workflow_key,
     catalogWorkflow.workflow_key,
@@ -399,6 +455,20 @@ function validateWorkflow(
   if (workflow.official !== false) {
     fail("portfolio_evidence.schema", `${path}/official must be false`);
   }
+  namedArtifactReference(
+    workflow.action_plan,
+    `${path}/action_plan`,
+    pilotPortfolioActionPlanFileName(catalogFixture, catalogWorkflow),
+    "application/vnd.impactdiff.action-plan+json",
+    131_072,
+  );
+  namedArtifactReference(
+    workflow.workflow_audit,
+    `${path}/workflow_audit`,
+    pilotPortfolioWorkflowAuditFileName(catalogFixture, catalogWorkflow),
+    "application/vnd.impactdiff.pilot-workflow-authoring-audit+json",
+    131_072,
+  );
   patternString(workflow.task_id, taskIdPattern, `${path}/task_id`);
   patternString(
     workflow.environment_id,
@@ -421,11 +491,6 @@ function validateWorkflow(
       );
     }
   });
-  patternString(
-    workflow.resource_request_audit_sha256,
-    sha256Pattern,
-    `${path}/resource_request_audit_sha256`,
-  );
   boundedInteger(
     workflow.resource_request_count,
     1,
@@ -456,6 +521,7 @@ function validateFixture(value: unknown, fixtureIndex: number): void {
       "fixture_key",
       "fixture_revision",
       "fixture_manifest",
+      "source_state",
       "source_state_id",
       "workflows",
     ],
@@ -473,7 +539,20 @@ function validateFixture(value: unknown, fixtureIndex: number): void {
     catalogFixture.fixture_revision,
     `${path}/fixture_revision`,
   );
-  byteIdentity(fixture.fixture_manifest, `${path}/fixture_manifest`, 131_072);
+  namedArtifactReference(
+    fixture.fixture_manifest,
+    `${path}/fixture_manifest`,
+    pilotPortfolioFixtureManifestFileName(catalogFixture),
+    "application/vnd.impactdiff.pilot-fixture-manifest+json",
+    131_072,
+  );
+  namedArtifactReference(
+    fixture.source_state,
+    `${path}/source_state`,
+    pilotPortfolioSourceStateFileName(catalogFixture),
+    "application/vnd.impactdiff.source-state+json",
+    1_048_576,
+  );
   patternString(
     fixture.source_state_id,
     sourceStateIdPattern,

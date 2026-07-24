@@ -20,7 +20,7 @@ import { PilotPortfolioEvidenceError } from "./errors.js";
 const repositoryDirectoryMode = 0o755;
 const repositoryFileMode = 0o644;
 const stagingNamePattern = /^\.impactdiff-stage-[0-9a-f]{32}\.tmp$/u;
-const maximumCleanupEntries = 32;
+const maximumCleanupEntries = 64;
 
 export interface RepositoryDirectoryIdentity {
   readonly dev: bigint;
