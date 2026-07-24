@@ -234,10 +234,14 @@ kept beside the font.
 
 ## Development
 
-ImpactDiff requires Node.js 22 or newer. Install the locked dependencies and the pinned
-browser, then run the same verification used in CI:
+ImpactDiff requires Node.js 22 or newer. The local reproducibility baseline is pinned in
+`.node-version` to Node.js 22.23.1 with npm 10.9.8 recorded in `package.json`; CI also
+exercises Node.js 24. Install the locked dependencies and the pinned browser, then run
+the same verification used in CI:
 
 ```bash
+node --version
+npm --version
 npm ci
 npx playwright install chromium
 npm run format:check

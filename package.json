@@ -1,6 +1,7 @@
 {
   "name": "impactdiff",
   "version": "0.0.0",
+  "packageManager": "npm@10.9.8",
   "private": true,
   "description": "Task-aware multimodal visual regression research lab",
   "license": "Apache-2.0",
