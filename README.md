@@ -2,157 +2,266 @@
 
 [![CI](https://github.com/omar07ibrahim/impactdiff/actions/workflows/ci.yml/badge.svg)](https://github.com/omar07ibrahim/impactdiff/actions/workflows/ci.yml)
 
-ImpactDiff is a research lab for task-aware visual regression detection. A pixel diff
-can show that a page changed; this project asks whether the change breaks a user task,
-damages accessibility, and which visible or structural evidence supports that
+ImpactDiff is a research lab for **task-aware visual regression detection**. A pixel
+diff can show that a page changed; this project asks whether the change breaks a user
+task, damages accessibility, and which visible or structural evidence supports that
 conclusion.
+
+<table>
+  <tr>
+    <td width="50%">
+      <a href="docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action.png">
+        <img src="docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action.png" alt="Thread and Tally add-bundle workflow after the primary action" />
+      </a>
+    </td>
+    <td width="50%">
+      <a href="docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action.png">
+        <img src="docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action.png" alt="Nightwatch Relay acknowledge-alert workflow after the primary action" />
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Thread &amp; Tally</strong> — bundle action completed.</td>
+    <td><strong>Nightwatch Relay</strong> — alert acknowledgement completed.</td>
+  </tr>
+</table>
+
+These are real 800 × 600 Chromium captures from deterministic local fixtures. All
+visible content is synthetic. They are authoring evidence marked `official: false`, not
+benchmark results.
+
+## Current result
+
+The repository implements an executable evidence boundary and the deterministic core of
+the capture and mutation pipeline. Its present scope is deliberately explicit:
+
+| Surface                              |                                                      Current |                Pilot v0.1 target |
+| ------------------------------------ | -----------------------------------------------------------: | -------------------------------: |
+| Independently authored applications  |                                                   **2 / 20** |                               20 |
+| Declared workflows                   |                                                   **4 / 40** |                               40 |
+| Local authoring checkpoints          |                                                       **12** |      Not an official corpus unit |
+| Operator definitions                 | **16 catalogued / 2 browser-executable pointer definitions** | 16 definitions across 8 families |
+| Official before/after pairs          |                                                  **0 / 640** |            640 at replicate zero |
+| Dataset / models / benchmark results |                                                **0 / 0 / 0** |           Future research stages |
+
+The committed evidence bundle contains 50 exact files: 12 screenshots, their
+accessibility and layout payloads, fixture/task metadata, runtime provenance, and one
+canonical manifest. Its manifest SHA-256 is
+`da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae`.
+
+There is **no released dataset, trained model, official pair, benchmark result, or
+accuracy claim**. The full implemented capability inventory and qualifications live in
+[docs/implementation-status.md](docs/implementation-status.md).
+
+## Run it
+
+The reproducibility baseline is Node.js 22.23.1 and npm 10.9.8. Build, tests, and
+committed-bundle verification support Node.js 22 or newer; a fresh evidence capture is
+intentionally stricter and requires exact Node.js 22.23.1 on Linux x64 with ABI 127.
+Install the locked dependencies and pinned browser:
+
+```bash
+git clone https://github.com/omar07ibrahim/impactdiff.git
+cd impactdiff
+node --version
+npm --version
+npm ci
+npx playwright install chromium
+npm run check
+npm test
+```
+
+On a fresh Linux runner, use `npx playwright install --with-deps chromium` if the
+Playwright distribution packages are not already installed.
+
+### Verify the committed evidence
+
+These checks rebuild the TypeScript CLI, validate every bound file and current source
+identity, and then verify that the README visuals still match their declared inputs:
+
+```bash
+npm run evidence:pilot:check
+node tools/render-readme-visuals.mjs check
+```
+
+The primary evidence check returns this path-free receipt:
+
+```json
+{
+  "official": false,
+  "manifest_sha256": "da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae",
+  "fixture_count": 2,
+  "workflow_count": 4,
+  "checkpoint_count": 12
+}
+```
+
+To capture a fresh bundle, use exact Node.js 22.23.1 on Linux x64 with ABI 127, start
+from a clean worktree, create a private parent, and choose an absent final leaf. The
+capture command refuses an existing destination:
+
+```bash
+install -d -m 0700 ../impactdiff-evidence-output
+npm run evidence:pilot -- capture --repository . --output ../impactdiff-evidence-output/pilot-evidence
+npm run evidence:pilot -- check --repository . --output ../impactdiff-evidence-output/pilot-evidence
+```
+
+The committed bundle can be inspected directly in
+[`docs/images/pilot-portfolio-evidence/`](docs/images/pilot-portfolio-evidence/MANIFEST.json).
+
+## Real workflow captures
+
+Each triptych is one manifest-bound local authoring replay. The three images are the
+canonical `initial_state`, `pre_primary_action`, and `post_primary_action` checkpoints;
+the corresponding accessibility-tree and bounded layout-graph JSON files sit beside each
+PNG.
+
+### Thread & Tally · Add bundle
+
+|                                                                                               `initial_state`                                                                                                |                                                                                                              `pre_primary_action`                                                                                                              |                                                                                                        `post_primary_action`                                                                                                        |
+| :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| [![Add-bundle workflow initial state](docs/images/pilot-portfolio-evidence/market-basket--add-bundle--initial-state.png)](docs/images/pilot-portfolio-evidence/market-basket--add-bundle--initial-state.png) | [![Add-bundle workflow immediately before the primary action](docs/images/pilot-portfolio-evidence/market-basket--add-bundle--pre-primary-action.png)](docs/images/pilot-portfolio-evidence/market-basket--add-bundle--pre-primary-action.png) | [![Add-bundle workflow after the primary action](docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action.png)](docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action.png) |
+
+The deterministic action selects the bundle target and performs the authored coordinate
+click; the final checkpoint contains the fixture's visible success receipt.
+
+### Thread & Tally · Choose pickup
+
+|                                                                                                    `initial_state`                                                                                                    |                                                                                                                  `pre_primary_action`                                                                                                                   |                                                                                                            `post_primary_action`                                                                                                             |
+| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| [![Choose-pickup workflow initial state](docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--initial-state.png)](docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--initial-state.png) | [![Choose-pickup workflow immediately before the primary action](docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--pre-primary-action.png)](docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--pre-primary-action.png) | [![Choose-pickup workflow after the primary action](docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--post-primary-action.png)](docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--post-primary-action.png) |
+
+The same fixture is replayed with an independent ActionPlan for its pickup task.
+
+### Nightwatch Relay · Acknowledge alert
+
+|                                                                                                             `initial_state`                                                                                                             |                                                                                                                           `pre_primary_action`                                                                                                                            |                                                                                                                     `post_primary_action`                                                                                                                      |
+| :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| [![Acknowledge-alert workflow initial state](docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--initial-state.png)](docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--initial-state.png) | [![Acknowledge-alert workflow immediately before the primary action](docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--pre-primary-action.png)](docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--pre-primary-action.png) | [![Acknowledge-alert workflow after the primary action](docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action.png)](docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action.png) |
+
+The post-action checkpoint shows the authored acknowledgement receipt for the selected
+synthetic alert.
+
+### Nightwatch Relay · Assign responder
+
+|                                                                                                           `initial_state`                                                                                                            |                                                                                                                          `pre_primary_action`                                                                                                                          |                                                                                                                    `post_primary_action`                                                                                                                    |
+| :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------: |
+| [![Assign-responder workflow initial state](docs/images/pilot-portfolio-evidence/incident-command--assign-responder--initial-state.png)](docs/images/pilot-portfolio-evidence/incident-command--assign-responder--initial-state.png) | [![Assign-responder workflow immediately before the primary action](docs/images/pilot-portfolio-evidence/incident-command--assign-responder--pre-primary-action.png)](docs/images/pilot-portfolio-evidence/incident-command--assign-responder--pre-primary-action.png) | [![Assign-responder workflow after the primary action](docs/images/pilot-portfolio-evidence/incident-command--assign-responder--post-primary-action.png)](docs/images/pilot-portfolio-evidence/incident-command--assign-responder--post-primary-action.png) |
+
+This ActionPlan exercises the fixture's separate responder-assignment task in a fresh
+browser context.
+
+## Key capabilities
+
+- Strict canonical contracts bind screenshots, accessibility trees, layout graphs,
+  action plans, source state, mutation provenance, and visible/sealed dataset records.
+- Runtime-owned Chromium replay pins browser, Playwright, fonts, locale, viewport, time,
+  animation, and network policy, then audits lifecycle closure and exact cleanup.
+- Reversible mutation authoring currently executes both catalogued pointer definitions
+  across all four authored workflows in fresh baseline and candidate contexts.
+- Content-addressed storage and resolved-record replay reject missing, extra,
+  non-canonical, or semantically inconsistent artifacts.
+- Manifest-last, same-parent publication makes verified evidence and paired development
+  releases visible atomically.
+
+## What the evidence says
+
+The labels below describe how each SVG is produced:
+
+- **Source-derived** — rendered from tracked contracts, catalogs, and implementation
+  source.
+- **Captured** — computed from manifest-bound evidence or recorded run artifacts.
+- **Mixed** — combines captured evidence with source-backed verification metadata.
+
+![Pilot implementation grid](docs/images/readme/pilot-implementation-grid.svg)
+
+**Source-derived — Pilot v0.1 implementation coverage.** Exactly 2 of 20 applications
+and 4 of 40 workflows have local authoring packages; all 16 operator definitions are
+catalogued, while 2 pointer definitions are browser-executable. The 12 checkpoints are
+not official corpus pairs.
+
+![Checkpoint modalities](docs/images/readme/checkpoint-modalities.svg)
+
+**Captured — accessibility and layout nodes by checkpoint.** Counts come from 24
+committed canonical JSON payloads across 12 checkpoints. They describe structural
+evidence volume, not model quality.
+
+![Evidence bundle overview](docs/images/readme/evidence-bundle-overview.svg)
+
+**Captured — Pilot portfolio evidence receipt.** This summarizes the exact 50-file
+bundle, captured runtime identity, and explicit `official: false` boundary.
+
+## Architecture and trust boundary
 
 The planned benchmark input is a matched before/after capture containing screenshots,
 accessibility trees, bounded layout graphs, and a fixed action plan. Pilot v0.1 narrows
-the learned task to a calibrated binary task-regression score. Ordinal severity and
-learned localization remain later research questions rather than promised outputs.
+the future learned task to a calibrated binary task-regression score. Ordinal severity
+and learned localization remain later research questions, not promised outputs.
 
-## Current status
+![Implemented and planned architecture](docs/images/readme/architecture-contours.svg)
 
-The repository contains an executable evidence boundary and the deterministic core of
-the capture/mutation pipeline. It does **not** yet contain a released dataset, trained
-model, or benchmark result, and makes no accuracy claim.
+**Source-derived — implemented and planned architecture.** Solid connections are
+implemented and tested; dashed connections are the remaining research pipeline, not a
+claim about shipped data or models.
 
-Implemented today:
+![Evidence trust chain](docs/images/readme/evidence-trust-chain.svg)
 
-- a machine-validated Pilot v0.1 protocol frozen before corpus outcomes: 20 application
-  keys, two workflows per application, eight causal mutation families, paired breaking
-  and preserving relations, four application-disjoint outer folds, exact metrics, and
-  explicit claim gates;
-- a content-addressed Pilot operator catalog with 16 exact definitions. Each definition
-  binds typed effects, source and installed probes, inverse/cleanup requirements, and an
-  ordered eight-predicate causal policy that distinguishes designated, correlated, and
-  preserved effects;
-- four closed dataset-manifest schemas with strict canonical JSON, content-derived
-  identities, visible/sealed binding, and leakage-aware split validation;
-- a registered-codec content-addressed store that canonicalizes on write, revalidates on
-  read and audit, and enforces exact membership, plus a paired audit that keeps visible
-  and sealed roots disjoint;
-- bounded canonical PNG decoding and deterministic RGBA re-encoding, including removal
-  of ancillary metadata and invisible-RGB channels;
-- closed action-plan, capture-specification, accessibility, and layout payloads, plus
-  deterministic accessibility/layout normalization and Q64 geometry;
-- resolved evidence/intervention validators that bind every supplied payload to its
-  manifest reference, checkpoint schedule, viewport, graph links, and sealed mutation
-  provenance;
-- closed changed-surface, executable-oracle, raw-trace, and localization payloads, plus
-  resolved-record replay that derives outcomes from captured task state instead of
-  trusting stored labels;
-- a typed, reversible mutation compiler for a contrast-safe palette swap and a pointer
-  interceptor expected to break the task, with source probes and derived preconditions;
-- a runtime-owned Chromium mutation environment over a deterministic checkout fixture.
-  It derives environment identity from canonical CaptureSpec bytes that bind installed
-  Playwright and browser trees, the project-pinned live executable and launch profile,
-  declared font bytes, and capture settings. The session separately verifies fixture
-  resources, CSP, actual custom-font use, virtual time, network policy, DOM/CSS
-  integrity, and exact mutation cleanup. Its authenticated task executor derives and
-  locks deterministic scroll/target geometry, performs a true coordinate click, then
-  emits two canonical PNG, accessibility-tree, and layout-graph checkpoints without
-  exposing a partial run;
-- a fixed fresh-pair assembler for `checkout-card-v1`. It commits replicate zero before
-  execution, runs baseline and candidate sequentially in distinct browser contexts under
-  one verified Chromium environment, requires cleanup, audited session closes, an empty
-  blocked-external-request audit, and browser shutdown, then derives and replays the
-  complete pair before publication; and
-- an append-only paired-release publisher. It snapshots caller bytes before its first
-  asynchronous operation, builds independent visible and sealed CAS roots in one private
-  staging directory, verifies exact topology and full semantic replay, writes a commit
-  binding both canonical records, and exposes the pair with one same-parent directory
-  rename. Startup recovers only reserved owned stages; committed releases are idempotent
-  and immutable; and
-- two independently authored Pilot pre-release packages: the Thread & Tally
-  `pilot-market-basket-v1` board and the Nightwatch Relay `pilot-incident-command-v1`
-  console. Each strict manifest binds an application-owned 800 by 600 UI, two
-  four-action workflows, the shared mutation ABI, exact resource provenance, a canonical
-  SourceState, and two derived ActionPlans without creating identity cycles. The loader
-  remains deliberately `official: false` and has no outcome, capture, or label surface;
-  and
-- a separate Pilot browser-authoring runtime exercised across all four workflows. It
-  snapshots each audited fixture before launch, binds it to the pinned Chromium and
-  CaptureSpec, and replays one workflow in a fresh isolated context. The replay closes
-  request, CSP, WebRTC, shadow-root, custom-font, readiness, ABI, action, bounded
-  live-document, and lifecycle audits around a raw source-center click. The ordinary
-  replay API returns only a success audit marked `official: false`; a separate
-  capture-first API returns, only after the success oracle and cleanup complete, an
-  `official: false` result with exactly three manifest-bound checkpoints. Their payloads
-  are canonical PNG and canonical accessibility-tree and layout-graph JSON bytes,
-  exposed through defensive copies. The current authoring gate requires three
-  fresh-context runs of every market-basket and incident-command workflow to produce
-  byte-identical payloads at every checkpoint. This attests reviewed,
-  repository-authored fixture code rather than hostile page code. It creates no
-  `capture_id`, corpus row, operator, outcome, label, generation-plan execution, or
-  benchmark result, and no failure or cleanup error exposes a partial capture result;
-  and
-- the first executable Pilot operator slice across both authoring packages.
-  `authorPilotFixturePointerHitTestingPair` accepts only either exact catalogued pointer
-  definition, runs a successful baseline and candidate in separate fresh contexts,
-  installs the same CSP-authorized transparent owned layer twice, measures the complete
-  installed `P, O, D, N, F, A, C, V` policy, proves exact inverse and final cleanup over
-  DOM, computed style, pixels, accessibility, layout, hit testing, focus, scroll,
-  listener registrations, and owned handles, and independently classifies the candidate
-  as `exact_success` or `exact_unchanged`. The complete current slice covers four
-  workflows by two definitions, with three exact fresh attempts per case. Its small
-  frozen result remains `official: false`; checkpoints, probes, declared relations,
-  labels, and private browser capabilities never cross the API boundary.
+**Source-derived — evidence trust chain.** The manifest binds the Git revision and tree,
+selected root files, authored and compiled trees, Node/Playwright/Chromium identities,
+fixture and task identities, and every checkpoint byte identity. Repository-aware
+verification also enforces freshness against the current checkout.
 
-The capture contract names the exact installed file trees for `@playwright/test`,
-`playwright`, and `playwright-core` 1.61.1; the Chromium Headless Shell executable,
-complete installation tree, source revision, and normalized launch profile; every
-render-font file; and an honest Linux host or an OCI shape reserved for external
-attestation verification. The current launcher produces a host capability only. The
-verified single-role runtime, fixed fresh-pair assembler, and paired-release transaction
-are implemented for the closed checkout fixture. Real-browser integration covers the
-task-breaking pointer interceptor and task-preserving palette swap. This is a
-development path, not a corpus generator: multi-pair dataset construction,
-process-isolated feature loading, general scoring, training, and learned baselines
-remain future work.
+![Atomic evidence publication](docs/images/readme/atomic-publication.svg)
 
-## Architecture
+**Source-derived — manifest-last atomic publication.** Capture is validated before
+staging; artifacts are written before the manifest; exact topology and semantics are
+verified before and after one same-parent rename.
 
-Solid arrows are implemented and tested. Dashed arrows are the remaining research
-pipeline, not a claim about shipped data or models.
+![Quality verification](docs/images/readme/quality-verification.svg)
 
-```mermaid
-flowchart LR
-  fixture["Pinned fixture bytes"] --> environment["Owned capture environment"]
-  environment -->|"branded browser + CaptureSpec"| session["Verified Chromium session"]
-  source["Sealed source-state provenance"] --> session
-  actions["Canonical action plan"] --> session
-  session --> probe["Live source probe"]
-  probe --> compiler["Reversible mutation compiler"]
-  compiler --> runtime["Audited mutation runtime"]
+**Mixed — scoped quality verification.** The recorded run passes 388 of 388 tests and
+reports 90.83% line, 83.46% branch, and 95.59% function coverage across loaded emitted
+JavaScript under `dist`, including `dist/src + dist/test`. Chromium page JavaScript,
+non-JavaScript assets, and unloaded modules are outside that coverage scope. The project
+declares no minimum coverage threshold. This is verification evidence, not a broad
+quality or performance claim.
 
-  modalities["Canonical PNG · AX · layout"] --> assembler["Fresh-pair assembler"]
-  assembler -->|derive + replay complete pair| publisher["Atomic paired publisher"]
-  publisher -->|exact visible + sealed membership| cas["Codec-bound CAS"]
-  publisher -->|replay before + after rename| resolver["Manifest-bound bundle validator"]
+### Hard technical decisions
 
-  runtime -->|authenticated task capture| modalities
-  resolver -.->|dataset publication| dataset["Leakage-aware paired dataset"]
-  dataset -.->|training + ablations| models["Calibrated multimodal scorer"]
-```
+- **Outcome before label:** executable task state derives the measured outcome; an
+  operator's declared task relation remains provenance, not a trusted label.
+- **Visible/sealed separation:** model-visible evidence and mutation/outcome metadata
+  use disjoint content-addressed roots and are replayed before publication.
+- **Canonical modalities:** bounded PNG decoding, deterministic RGBA re-encoding,
+  normalized accessibility trees, and Q64 layout geometry remove incidental variance.
+- **Closed runtime identity:** CaptureSpec bytes bind browser, Playwright, launch
+  profile, fonts, viewport, locale, time, animation, and network policy.
+- **Failure-atomic final output:** incomplete capture and cleanup failures expose no
+  partial final result; append-only releases become visible only after semantic
+  verification.
 
-## Research question
+The detailed implementation claims and qualifications are kept in the
+[implementation status](docs/implementation-status.md).
 
-On application-disjoint synthetic workflows, can a model that combines pixel and
-structured accessibility/layout evidence detect task-breaking changes better than both
-learned unimodal baselines? The comparison is supported only when the lower bound of a
-paired 95% application-cluster bootstrap interval for each average-precision difference
-is above zero.
+## Research question and evaluation plan
 
-ImpactDiff will test that question with paired interventions. Each source state will be
-rendered both unchanged and under a controlled mutation. Mutation metadata will be
-retained for scoring and audit but excluded from model features. Scripted task outcomes
-will provide the binary measured label.
+On application-disjoint synthetic workflows, can a model combining pixel and structured
+accessibility/layout evidence detect task-breaking changes better than learned unimodal
+baselines? The comparison is supported only when the lower bound of a paired 95%
+application-cluster bootstrap interval for each average-precision difference is above
+zero.
 
-## Intended evidence bundle
+Pilot v0.1 freezes 20 separately designed local mini-applications, two workflows per
+application, eight causal mutation families, matched task-breaking and task-preserving
+variants, and exactly 640 planned pairs at replicate zero. Four predeclared
+five-application blocks rotate through grouped outer folds; each fold uses 10/5/5
+training, validation, and test applications, and every application contributes
+outer-test predictions exactly once. Average precision is primary; AUROC, recall at a 5%
+benign false-positive rate, Brier score, calibration error, per-group results, and
+resource cost are supporting measurements. Family and joint slices are diagnostics, not
+claim-eligible holdouts in v0.1.
 
-Each benchmark item will contain:
+Each future benchmark item is intended to contain:
 
 - fixed-environment before and after screenshots;
 - normalized accessibility snapshots;
@@ -161,97 +270,72 @@ Each benchmark item will contain:
 - content hashes and capture-environment provenance; and
 - separately sealed traces, oracle results, mutation provenance, and labels.
 
-The current compiler deliberately starts with two operators: a benign, contrast-checked
-palette swap and a pointer interceptor expected to break the primary click task. A
-larger benchmark mutation set is planned to cover occlusion, clipping, focus order,
-accessible names, responsive collapse, safe reflow, copy edits, and other controlled
-changes. An operator's declared task relation is provenance, not a measured label;
-labels must still come from execution outcomes.
+The compiler starts with a benign, contrast-checked palette swap and a pointer
+interceptor expected to break the primary click task. A larger mutation set is planned
+for occlusion, clipping, focus order, accessible names, responsive collapse, safe
+reflow, copy edits, and other controlled changes.
 
-## Evaluation plan
+## Documentation
 
-Pilot v0.1 freezes a plan for 20 separately designed local mini-applications, two
-declared workflows per application, eight causal mutation families, and matched
-task-breaking and task-preserving variants. Replicate zero produces exactly 640 planned
-pairs. Four predeclared five-application blocks rotate through grouped outer folds; each
-fold uses 10/5/5 training, validation, and test applications, and every application
-contributes outer-test predictions exactly once. Average precision is primary; AUROC,
-recall at a 5% benign false-positive rate, Brier score, calibration error, per-group
-results, and resource cost are supporting measurements. Family and joint slices are
-diagnostics, not claim-eligible holdouts in v0.1.
-
-See [the research charter](docs/charter.md) for hypotheses, metrics, falsification
-criteria, and non-goals. The [data-boundary contract](docs/data-boundary.md) separates
-model-visible evidence from outcomes and mutation metadata. The
-[contract invariants](docs/contract-invariants.md) document canonical payloads, resolved
-artifact checks, and the v1 artifact-store threat boundary. The
-[fresh-pair generation protocol](docs/fresh-pair-generation.md) documents lifecycle
-closure, the narrow development label policy, and its non-claims. The
-[paired-publication protocol](docs/paired-publication.md) documents its commit point,
-recovery rules, and unsupported filesystem adversaries. The
-[Pilot v0.1 protocol](docs/pilot-v0.1-protocol.md) freezes the corpus matrix, primary
-split, metric hierarchy, claim gate, release artifacts, and explicit non-claims before
-the corpus exists. The
-[market-basket authoring note](docs/pilot-v0.1-market-basket-authoring.md) documents the
-first fixture's two tasks, closed ABI, acyclic source/task identity graph, verified
-baseline browser replay, capture-first checkpoint boundary, source predicates, and the
-first executable pointer-definition pair. The
-[incident-command authoring note](docs/pilot-v0.1-incident-command-authoring.md) records
-the independent second application, exact source/task identities, all eight source
-predicates per task, deterministic checkpoint repetitions, and its pointer-pair matrix.
+- [Research charter](docs/charter.md) — hypotheses, metrics, falsification criteria, and
+  non-goals.
+- [Pilot v0.1 protocol](docs/pilot-v0.1-protocol.md) — frozen corpus matrix, split,
+  metric hierarchy, claim gate, and explicit non-claims.
+- [Pilot application catalog](docs/pilot-v0.1-application-catalog.md) — the 20 planned
+  application keys and 40 workflows.
+- [Pilot mutation operators](docs/pilot-v0.1-mutation-operators.md) — the closed
+  operator-definition catalog and causal policy.
+- [Data-boundary contract](docs/data-boundary.md) — model-visible evidence versus sealed
+  outcome and mutation metadata.
+- [Contract invariants](docs/contract-invariants.md) — canonical payloads, resolved
+  artifact checks, and artifact-store threat boundary.
+- [Fresh-pair generation](docs/fresh-pair-generation.md) — lifecycle closure,
+  development label policy, and non-claims.
+- [Paired publication](docs/paired-publication.md) — commit point, recovery rules, and
+  unsupported filesystem adversaries.
+- [Market-basket authoring](docs/pilot-v0.1-market-basket-authoring.md) and
+  [incident-command authoring](docs/pilot-v0.1-incident-command-authoring.md) — exact
+  fixture/task identities, deterministic replay, predicates, and current pointer slice.
+- [Implementation status](docs/implementation-status.md) — complete implemented
+  capability inventory and scope qualifications.
 
 ## Repository map
 
 - `src/contracts/` — visible/sealed manifests, identities, resolved bundles, and dataset
-  validation;
-- `src/artifacts/` — canonical PNG handling and the registered-codec artifact store;
-- `src/capture/` — capture payload schemas, validators, normalizers, and stable fixture
-  target identities;
-- `src/mutations/` — mutation identities, sealed plans, compiler, and verified Chromium
-  runtime;
-- `src/generation/` — fixed fresh-pair orchestration, development grouping and label
-  policy, pair derivation, and resolved replay before publication;
-- `src/sealed/` — oracle, trace, changed-surface, and localization contracts;
-- `src/publication/` — paired commits, input snapshots, atomic publication, recovery,
-  and strict reopen verification;
-- `src/benchmark/` — the machine-validated frozen Pilot v0.1 research protocol;
-- `src/pilot/fixture/` — authoring-only Pilot fixture manifests, package verification,
-  source-state derivation, and in-memory ActionPlan construction;
-- `src/pilot/runtime/` — the isolated Pilot browser-authoring environment, audit replay,
-  checkpoint and predicate capture, plus the reversible pointer-pair authoring API;
-- `src/cli/` — the bounded development-release command; and
-- `fixtures/checkout-card-v1/` — the deterministic local checkout state for pinned
-  capture tests;
-- `fixtures/pilot-market-basket-v1/` — the independently authored Thread & Tally
-  pre-release with two Pilot workflows and no official outcomes; and
-- `fixtures/pilot-incident-command-v1/` — the independently authored Nightwatch Relay
-  pre-release with two more Pilot workflows and no official outcomes.
+  validation.
+- `src/artifacts/` — canonical PNG handling and the registered-codec artifact store.
+- `src/capture/` — capture schemas, validators, normalizers, and fixture target
+  identities.
+- `src/mutations/` — operator catalog, mutation compiler, and verified Chromium runtime.
+- `src/generation/` — fresh-pair orchestration, pair derivation, and resolved replay.
+- `src/sealed/` — oracle, trace, changed-surface, and localization contracts.
+- `src/publication/` — atomic paired publication, recovery, and reopen verification.
+- `src/benchmark/` — machine-validated Pilot v0.1 protocol and application catalog.
+- `src/pilot/` — fixture manifests, source identities, authoring replay, checkpoint
+  capture, and pointer-pair authoring.
+- `src/portfolio-evidence/` — source/runtime identity, capture, atomic publication, and
+  repository-aware verification for this README's evidence.
+- `src/cli/` — bounded development-release and portfolio-evidence commands.
+- `fixtures/` — the checkout development fixture and two independently authored Pilot
+  applications.
+- `tools/render-readme-visuals.mjs` — deterministic, network-free README visual
+  generation and verification.
 
-The fixture vendors the Latin variable WOFF2 from
+The checkout fixture vendors the Latin variable WOFF2 from
 `@fontsource-variable/noto-sans@5.2.10`. Noto Sans remains licensed under the SIL Open
-Font License 1.1; the [bundled license](fixtures/checkout-card-v1/fonts/OFL-1.1.txt) is
-kept beside the font.
+Font License 1.1; its [bundled license](fixtures/checkout-card-v1/fonts/OFL-1.1.txt)
+stays beside the font.
 
-## Development
-
-ImpactDiff requires Node.js 22 or newer. The local reproducibility baseline is pinned in
-`.node-version` to Node.js 22.23.1 with npm 10.9.8 recorded in `package.json`; CI also
-exercises Node.js 24. Install the locked dependencies and the pinned browser, then run
-the same verification used in CI:
+## Development commands
 
 ```bash
-node --version
-npm --version
-npm ci
-npx playwright install chromium
 npm run format:check
 npm run check
 npm test
+npm run coverage
+npm run evidence:pilot:check
+node tools/render-readme-visuals.mjs check
 ```
-
-On a fresh Linux runner, Playwright may also need its distribution packages; CI installs
-them with `npx playwright install --with-deps chromium`. `npm run coverage` executes the
-same suite with Node's source-coverage report.
 
 To build one real pointer-interceptor development release, provide a pre-existing
 private root. Generated releases are intentionally ignored by Git:
@@ -265,16 +349,12 @@ Success prints one JSON receipt. The command fixes the operator to `pointer_inte
 and replicate index to `0`; the public TypeScript API also supports the `palette_swap`
 development case.
 
-## Engineering constraints
-
-- The data generator and capture path must run without paid APIs.
-- Browser, fonts, locale, viewport, timezone, animation, and time are pinned or
-  recorded.
-- Supported artifacts are content-addressed, codec-canonical, and independently
-  verifiable.
-- Training is CPU-capable at development scale; larger optional runs must not be
-  required to validate the pipeline.
-- Evidence and labels come from executable state checks, not free-form model judgments.
+Engineering constraints: capture runs without paid APIs; browser, fonts, locale,
+viewport, timezone, animation, and time are pinned or recorded; supported artifacts are
+content-addressed, codec-canonical, and independently verifiable; future
+development-scale training is constrained by the frozen plan to a CPU-capable budget;
+and evidence and labels come from executable state checks, not free-form model
+judgments.
 
 ## License
 
