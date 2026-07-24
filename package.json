@@ -28,6 +28,8 @@
     "test": "npm run build && node --test --test-concurrency=1 'dist/test/**/*.test.js'",
     "coverage": "npm run build && node --test --test-concurrency=1 --experimental-test-coverage 'dist/test/**/*.test.js'",
     "release:dev": "npm run build && node dist/src/cli/development-release.js",
+    "evidence:pilot": "npm run build && node dist/src/cli/pilot-portfolio-evidence.js",
+    "evidence:pilot:check": "npm run build && node dist/src/cli/pilot-portfolio-evidence.js check --repository . --output docs/images/pilot-portfolio-evidence",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },
