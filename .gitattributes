@@ -1,0 +1,2 @@
+# Preserve fixed-width TAP output byte-for-byte as captured verification evidence.
+docs/quality/*.tap -whitespace

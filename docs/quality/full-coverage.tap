@@ -1,0 +1,2539 @@
+
+> impactdiff@0.0.0 coverage
+> npm run build && node --test --test-concurrency=1 --experimental-test-coverage 'dist/test/**/*.test.js'
+
+
+> impactdiff@0.0.0 build
+> tsc -p tsconfig.json
+
+TAP version 13
+# Subtest: Pilot v0.1 catalog freezes 20 applications, 40 workflows, and four balanced blocks
+ok 1 - Pilot v0.1 catalog freezes 20 applications, 40 workflows, and four balanced blocks
+  ---
+  duration_ms: 1.773734
+  type: 'test'
+  ...
+# Subtest: catalog keys, fixture keys, and full workflow keys are unique and internally mapped
+ok 2 - catalog keys, fixture keys, and full workflow keys are unique and internally mapped
+  ---
+  duration_ms: 0.333142
+  type: 'test'
+  ...
+# Subtest: the code-owned catalog has a stable canonical identity and is deeply frozen
+ok 3 - the code-owned catalog has a stable canonical identity and is deeply frozen
+  ---
+  duration_ms: 4.411413
+  type: 'test'
+  ...
+# Subtest: the reviewer-facing Markdown table matches the code-owned catalog
+ok 4 - the reviewer-facing Markdown table matches the code-owned catalog
+  ---
+  duration_ms: 12.475459
+  type: 'test'
+  ...
+# Subtest: a complete Pilot generation plan binds 20 apps and exactly 640 cells
+ok 5 - a complete Pilot generation plan binds 20 apps and exactly 640 cells
+  ---
+  duration_ms: 5.052984
+  type: 'test'
+  ...
+# Subtest: the exported Pilot catalogs cannot be mutated between validations
+ok 6 - the exported Pilot catalogs cannot be mutated between validations
+  ---
+  duration_ms: 0.242476
+  type: 'test'
+  ...
+# Subtest: the plan, split, and workflow identities are stable canonical commitments
+ok 7 - the plan, split, and workflow identities are stable canonical commitments
+  ---
+  duration_ms: 58.647065
+  type: 'test'
+  ...
+# Subtest: Pilot family identities preserve the separate legacy runtime identities
+ok 8 - Pilot family identities preserve the separate legacy runtime identities
+  ---
+  duration_ms: 0.253076
+  type: 'test'
+  ...
+# Subtest: canonical plan bytes parse and noncanonical bytes are rejected
+ok 9 - canonical plan bytes parse and noncanonical bytes are rejected
+  ---
+  duration_ms: 389.558354
+  type: 'test'
+  ...
+# Subtest: a stale plan identity and a substituted protocol identity are rejected
+ok 10 - a stale plan identity and a substituted protocol identity are rejected
+  ---
+  duration_ms: 397.15837
+  type: 'test'
+  ...
+# Subtest: application and workflow catalogs reject key, fixture, and order substitutions
+ok 11 - application and workflow catalogs reject key, fixture, and order substitutions
+  ---
+  duration_ms: 504.346413
+  type: 'test'
+  ...
+# Subtest: application-group identities cannot be selected independently
+ok 12 - application-group identities cannot be selected independently
+  ---
+  duration_ms: 126.81354
+  type: 'test'
+  ...
+# Subtest: application and workflow identities must remain globally unique
+ok 13 - application and workflow identities must remain globally unique
+  ---
+  duration_ms: 405.151262
+  type: 'test'
+  ...
+# Subtest: source, task, and workflow identities cannot be independently substituted
+ok 14 - source, task, and workflow identities cannot be independently substituted
+  ---
+  duration_ms: 338.763061
+  type: 'test'
+  ...
+# Subtest: one source state cannot be reassigned to another application
+ok 15 - one source state cannot be reassigned to another application
+  ---
+  duration_ms: 87.795132
+  type: 'test'
+  ...
+# Subtest: family and global operator catalogs reject identity and relation confounds
+ok 16 - family and global operator catalogs reject identity and relation confounds
+  ---
+  duration_ms: 697.64148
+  type: 'test'
+  ...
+# Subtest: the exact ordered matrix rejects source, operator, relation, and order changes
+ok 17 - the exact ordered matrix rejects source, operator, relation, and order changes
+  ---
+  duration_ms: 332.885615
+  type: 'test'
+  ...
+# Subtest: application blocks must equal the catalog key-to-block mapping
+ok 18 - application blocks must equal the catalog key-to-block mapping
+  ---
+  duration_ms: 144.901178
+  type: 'test'
+  ...
+# Subtest: the exact fold schedule rejects a different valid-looking rotation
+ok 19 - the exact fold schedule rejects a different valid-looking rotation
+  ---
+  duration_ms: 54.402143
+  type: 'test'
+  ...
+# Subtest: audit payloads must be three distinct canonical commitments
+ok 20 - audit payloads must be three distinct canonical commitments
+  ---
+  duration_ms: 450.368597
+  type: 'test'
+  ...
+# Subtest: matrix counts and closed relation-only cells fail closed
+ok 21 - matrix counts and closed relation-only cells fail closed
+  ---
+  duration_ms: 75.525806
+  type: 'test'
+  ...
+# Subtest: non-JSON, cyclic, accessor, and exotic inputs fail before schema use
+ok 22 - non-JSON, cyclic, accessor, and exotic inputs fail before schema use
+  ---
+  duration_ms: 19.566343
+  type: 'test'
+  ...
+# Subtest: Pilot v0.1 freezes the complete 640-pair grouped-outer design
+ok 23 - Pilot v0.1 freezes the complete 640-pair grouped-outer design
+  ---
+  duration_ms: 2.250824
+  type: 'test'
+  ...
+# Subtest: the exported protocol has a stable canonical identity and is deeply frozen
+ok 24 - the exported protocol has a stable canonical identity and is deeply frozen
+  ---
+  duration_ms: 11.961476
+  type: 'test'
+  ...
+# Subtest: a syntactically valid substituted protocol identity is rejected
+ok 25 - a syntactically valid substituted protocol identity is rejected
+  ---
+  duration_ms: 3.644913
+  type: 'test'
+  ...
+# Subtest: every frozen protocol leaf rejects mutation even with a recomputed identity
+ok 26 - every frozen protocol leaf rejects mutation even with a recomputed identity
+  ---
+  duration_ms: 557.003125
+  type: 'test'
+  ...
+# Subtest: missing and unknown fields fail closed
+ok 27 - missing and unknown fields fail closed
+  ---
+  duration_ms: 2.112395
+  type: 'test'
+  ...
+# Subtest: non-JSON, cyclic, accessor, symbolic, and exotic inputs fail closed
+ok 28 - non-JSON, cyclic, accessor, symbolic, and exotic inputs fail closed
+  ---
+  duration_ms: 2.642449
+  type: 'test'
+  ...
+# Subtest: canonical JSON is stable across object insertion order
+ok 29 - canonical JSON is stable across object insertion order
+  ---
+  duration_ms: 2.544033
+  type: 'test'
+  ...
+# Subtest: strict decoding rejects ambiguous JSON representations
+ok 30 - strict decoding rejects ambiguous JSON representations
+  ---
+  duration_ms: 1.064148
+  type: 'test'
+  ...
+# Subtest: strict decoding rejects invalid Unicode and UTF-8
+ok 31 - strict decoding rejects invalid Unicode and UTF-8
+  ---
+  duration_ms: 0.983203
+  type: 'test'
+  ...
+# Subtest: contract numbers are exact safe integers
+ok 32 - contract numbers are exact safe integers
+  ---
+  duration_ms: 0.205613
+  type: 'test'
+  ...
+# Subtest: decoder resource limits fail closed
+ok 33 - decoder resource limits fail closed
+  ---
+  duration_ms: 0.338031
+  type: 'test'
+  ...
+# Subtest: decoder rejects malformed resource-limit overrides
+ok 34 - decoder rejects malformed resource-limit overrides
+  ---
+  duration_ms: 0.440319
+  type: 'test'
+  ...
+# Subtest: SHA-256 snapshots fixed byte views and rejects unstable backing memory
+ok 35 - SHA-256 snapshots fixed byte views and rejects unstable backing memory
+  ---
+  duration_ms: 0.257127
+  type: 'test'
+  ...
+# Subtest: domain-separated identities bind their canonical bodies
+ok 36 - domain-separated identities bind their canonical bodies
+  ---
+  duration_ms: 1.665966
+  type: 'test'
+  ...
+# Subtest: canonical encoder rejects values outside the JSON data model
+ok 37 - canonical encoder rejects values outside the JSON data model
+  ---
+  duration_ms: 0.396526
+  type: 'test'
+  ...
+# Subtest: canonical encoder and decoder apply the same Unicode rules to keys
+ok 38 - canonical encoder and decoder apply the same Unicode rules to keys
+  ---
+  duration_ms: 0.203363
+  type: 'test'
+  ...
+# Subtest: closed Chromium font audit accepts only rendered custom-family glyphs
+ok 39 - closed Chromium font audit accepts only rendered custom-family glyphs
+  ---
+  duration_ms: 2.368602
+  type: 'test'
+  ...
+# Subtest: closed Chromium font audit rejects fallback and empty glyph usage
+    # Subtest: platform fallback
+    ok 1 - platform fallback
+      ---
+      duration_ms: 0.883737
+      type: 'test'
+      ...
+    # Subtest: no rendered glyphs
+    ok 2 - no rendered glyphs
+      ---
+      duration_ms: 0.277638
+      type: 'test'
+      ...
+    1..2
+ok 40 - closed Chromium font audit rejects fallback and empty glyph usage
+  ---
+  duration_ms: 1.709229
+  type: 'test'
+  ...
+# Subtest: closed Chromium font audit aggregates probing and detach failures
+ok 41 - closed Chromium font audit aggregates probing and detach failures
+  ---
+  duration_ms: 0.367444
+  type: 'test'
+  ...
+# Subtest: closed Chromium font audit types a CDP session initialization failure
+ok 42 - closed Chromium font audit types a CDP session initialization failure
+  ---
+  duration_ms: 0.289308
+  type: 'test'
+  ...
+# Subtest: closed Chromium font audit reports a detach-only failure
+ok 43 - closed Chromium font audit reports a detach-only failure
+  ---
+  duration_ms: 0.288679
+  type: 'test'
+  ...
+# Subtest: the Chromium style request order is closed and immutable
+ok 44 - the Chromium style request order is closed and immutable
+  ---
+  duration_ms: 1.812897
+  type: 'test'
+  ...
+# Subtest: adapter collapses non-layout parents and excludes complete pseudo subtrees
+ok 45 - adapter collapses non-layout parents and excludes complete pseudo subtrees
+  ---
+  duration_ms: 4.413892
+  type: 'test'
+  ...
+# Subtest: bounds use viewport coordinates while overflow clips translate local client rects
+ok 46 - bounds use viewport coordinates while overflow clips translate local client rects
+  ---
+  duration_ms: 0.627
+  type: 'test'
+  ...
+# Subtest: text rows never establish overflow clips
+ok 47 - text rows never establish overflow clips
+  ---
+  duration_ms: 0.558486
+  type: 'test'
+  ...
+# Subtest: a resolved target may be absent from layout after becoming hidden
+ok 48 - a resolved target may be absent from layout after becoming hidden
+  ---
+  duration_ms: 0.513223
+  type: 'test'
+  ...
+# Subtest: adapter binds one exact fixture document and viewport
+ok 49 - adapter binds one exact fixture document and viewport
+  ---
+  duration_ms: 1.059657
+  type: 'test'
+  ...
+# Subtest: adapter binds each closed document profile to its exact fixture URL
+ok 50 - adapter binds each closed document profile to its exact fixture URL
+  ---
+  duration_ms: 1.300274
+  type: 'test'
+  ...
+# Subtest: adapter rejects malformed indexes, styles, rectangles, and parallel tables
+ok 51 - adapter rejects malformed indexes, styles, rectangles, and parallel tables
+  ---
+  duration_ms: 1.121302
+  type: 'test'
+  ...
+# Subtest: adapter rejects ambiguous DOM, layout, pseudo, and target identities
+ok 52 - adapter rejects ambiguous DOM, layout, pseudo, and target identities
+  ---
+  duration_ms: 1.304853
+  type: 'test'
+  ...
+# Subtest: adapter enforces raw node limits and rejects active input objects
+ok 53 - adapter enforces raw node limits and rejects active input objects
+  ---
+  duration_ms: 1.669197
+  type: 'test'
+  ...
+# Subtest: Q64 quantization uses nearest ties-to-even for positive and negative values
+ok 54 - Q64 quantization uses nearest ties-to-even for positive and negative values
+  ---
+  duration_ms: 1.426832
+  type: 'test'
+  ...
+# Subtest: Q64 quantization rejects non-finite and out-of-range geometry
+ok 55 - Q64 quantization rejects non-finite and out-of-range geometry
+  ---
+  duration_ms: 0.784461
+  type: 'test'
+  ...
+# Subtest: layout normalization is stable under input shuffling and emits preorder
+ok 56 - layout normalization is stable under input shuffling and emits preorder
+  ---
+  duration_ms: 9.99937
+  type: 'test'
+  ...
+# Subtest: layout output strips browser identities, selectors, classes, paths and attributes
+ok 57 - layout output strips browser identities, selectors, classes, paths and attributes
+  ---
+  duration_ms: 0.352212
+  type: 'test'
+  ...
+# Subtest: layout normalization rejects duplicate, dangling and cyclic identities
+ok 58 - layout normalization rejects duplicate, dangling and cyclic identities
+  ---
+  duration_ms: 0.494611
+  type: 'test'
+  ...
+# Subtest: layout normalization rejects ambiguous ordering and invalid geometry
+ok 59 - layout normalization rejects ambiguous ordering and invalid geometry
+  ---
+  duration_ms: 0.475951
+  type: 'test'
+  ...
+# Subtest: accessibility normalization is stable under raw CDP array shuffling
+ok 60 - accessibility normalization is stable under raw CDP array shuffling
+  ---
+  duration_ms: 6.485946
+  type: 'test'
+  ...
+# Subtest: accessibility normalization preserves Pilot landmarks and native select semantics
+ok 61 - accessibility normalization preserves Pilot landmarks and native select semantics
+  ---
+  duration_ms: 1.432322
+  type: 'test'
+  ...
+# Subtest: accessibility output contains only normalized allowlisted fields
+ok 62 - accessibility output contains only normalized allowlisted fields
+  ---
+  duration_ms: 0.436668
+  type: 'test'
+  ...
+# Subtest: accessibility normalization rejects cycles, dangling and duplicate IDs
+ok 63 - accessibility normalization rejects cycles, dangling and duplicate IDs
+  ---
+  duration_ms: 0.554215
+  type: 'test'
+  ...
+# Subtest: accessibility backend links remain partial for non-rendered DOM nodes
+ok 64 - accessibility backend links remain partial for non-rendered DOM nodes
+  ---
+  duration_ms: 0.443468
+  type: 'test'
+  ...
+# Subtest: normalizers enforce the 4096-node and 64-edge budgets
+ok 65 - normalizers enforce the 4096-node and 64-edge budgets
+  ---
+  duration_ms: 2.327289
+  type: 'test'
+  ...
+# Subtest: all four payload schemas close every object boundary
+ok 66 - all four payload schemas close every object boundary
+  ---
+  duration_ms: 2.597717
+  type: 'test'
+  ...
+# Subtest: canonical v1 payloads parse into frozen typed data
+ok 67 - canonical v1 payloads parse into frozen typed data
+  ---
+  duration_ms: 47.201602
+  type: 'test'
+  ...
+# Subtest: action plan rejects branching and browser-control canaries
+ok 68 - action plan rejects branching and browser-control canaries
+  ---
+  duration_ms: 14.21844
+  type: 'test'
+  ...
+# Subtest: action plan enforces exact variants, identities, and ordering
+ok 69 - action plan enforces exact variants, identities, and ordering
+  ---
+  duration_ms: 7.084673
+  type: 'test'
+  ...
+# Subtest: capture spec pins software, display, timeouts, and forbids machine paths
+ok 70 - capture spec pins software, display, timeouts, and forbids machine paths
+  ---
+  duration_ms: 22.911387
+  type: 'test'
+  ...
+# Subtest: capture spec names the complete Playwright closure and live browser identity
+ok 71 - capture spec names the complete Playwright closure and live browser identity
+  ---
+  duration_ms: 32.752497
+  type: 'test'
+  ...
+# Subtest: capture spec separates honest host execution from attested OCI execution
+ok 72 - capture spec separates honest host execution from attested OCI execution
+  ---
+  duration_ms: 6.617484
+  type: 'test'
+  ...
+# Subtest: capture spec defines a complete, sorted font file set
+ok 73 - capture spec defines a complete, sorted font file set
+  ---
+  duration_ms: 7.02667
+  type: 'test'
+  ...
+# Subtest: capture spec keeps v1 only as an explicit pre-release reset
+ok 74 - capture spec keeps v1 only as an explicit pre-release reset
+  ---
+  duration_ms: 1.87242
+  type: 'test'
+  ...
+# Subtest: capture spec byte budget is enforced before schema validation
+ok 75 - capture spec byte budget is enforced before schema validation
+  ---
+  duration_ms: 3.615202
+  type: 'test'
+  ...
+# Subtest: accessibility graph rejects raw CDP canaries and unsorted state
+ok 76 - accessibility graph rejects raw CDP canaries and unsorted state
+  ---
+  duration_ms: 6.378589
+  type: 'test'
+  ...
+# Subtest: accessibility graph rejects dangling, reopened, and overdeep trees
+ok 77 - accessibility graph rejects dangling, reopened, and overdeep trees
+  ---
+  duration_ms: 11.24972
+  type: 'test'
+  ...
+# Subtest: layout graph rejects raw DOM canaries and ambiguous targets
+ok 78 - layout graph rejects raw DOM canaries and ambiguous targets
+  ---
+  duration_ms: 16.081829
+  type: 'test'
+  ...
+# Subtest: cross-graph binding permits dynamic targets but rejects undeclared IDs and dangling AX links
+ok 79 - cross-graph binding permits dynamic targets but rejects undeclared IDs and dangling AX links
+  ---
+  duration_ms: 10.896078
+  type: 'test'
+  ...
+# Subtest: fractional and noncanonical JSON never reach a payload schema
+ok 80 - fractional and noncanonical JSON never reach a payload schema
+  ---
+  duration_ms: 1.437112
+  type: 'test'
+  ...
+# Subtest: production capture codecs preserve only strict canonical payloads
+ok 81 - production capture codecs preserve only strict canonical payloads
+  ---
+  duration_ms: 13.024694
+  type: 'test'
+  ...
+# Subtest: put canonicalizes before hashing and publishes exact private modes
+ok 82 - put canonicalizes before hashing and publishes exact private modes
+  ---
+  duration_ms: 37.812811
+  type: 'test'
+  ...
+# Subtest: CAS directory creation repairs a maximally restrictive umask
+ok 83 - CAS directory creation repairs a maximally restrictive umask
+  ---
+  duration_ms: 16.673668
+  type: 'test'
+  ...
+# Subtest: writes are serialized and concurrent same-digest puts converge
+ok 84 - writes are serialized and concurrent same-digest puts converge
+  ---
+  duration_ms: 44.688841
+  type: 'test'
+  ...
+# Subtest: only the codec registered at open can authorize an artifact
+ok 85 - only the codec registered at open can authorize an artifact
+  ---
+  duration_ms: 1.820026
+  type: 'test'
+  ...
+# Subtest: manifest-driven reads select only the codec registered for the media type
+ok 86 - manifest-driven reads select only the codec registered for the media type
+  ---
+  duration_ms: 14.839471
+  type: 'test'
+  ...
+# Subtest: resolver rejects path-like digests and non-data references
+ok 87 - resolver rejects path-like digests and non-data references
+  ---
+  duration_ms: 15.584898
+  type: 'test'
+  ...
+# Subtest: length, hash, hardlink, and symlink tampering fail closed
+    # Subtest: appended bytes
+    ok 1 - appended bytes
+      ---
+      duration_ms: 15.907199
+      type: 'test'
+      ...
+    # Subtest: same-length replacement
+    ok 2 - same-length replacement
+      ---
+      duration_ms: 16.86753
+      type: 'test'
+      ...
+    # Subtest: hardlink
+    ok 3 - hardlink
+      ---
+      duration_ms: 15.117437
+      type: 'test'
+      ...
+    # Subtest: symlink leaf
+    ok 4 - symlink leaf
+      ---
+      duration_ms: 14.885713
+      type: 'test'
+      ...
+    # Subtest: symlink shard
+    ok 5 - symlink shard
+      ---
+      duration_ms: 15.370784
+      type: 'test'
+      ...
+    1..5
+ok 88 - length, hash, hardlink, and symlink tampering fail closed
+  ---
+  duration_ms: 79.390423
+  type: 'test'
+  ...
+# Subtest: exact root, directory, and leaf modes are enforced on every read and audit
+    # Subtest: root 0755
+    ok 1 - root 0755
+      ---
+      duration_ms: 1.325555
+      type: 'test'
+      ...
+    # Subtest: root changed to 0755
+    ok 2 - root changed to 0755
+      ---
+      duration_ms: 16.729011
+      type: 'test'
+      ...
+    # Subtest: shard 0755
+    ok 3 - shard 0755
+      ---
+      duration_ms: 16.323905
+      type: 'test'
+      ...
+    # Subtest: leaf 0444
+    ok 4 - leaf 0444
+      ---
+      duration_ms: 16.55334
+      type: 'test'
+      ...
+    1..4
+ok 89 - exact root, directory, and leaf modes are enforced on every read and audit
+  ---
+  duration_ms: 51.670079
+  type: 'test'
+  ...
+# Subtest: store roots reject symbolic aliases and nesting
+ok 90 - store roots reject symbolic aliases and nesting
+  ---
+  duration_ms: 3.628882
+  type: 'test'
+  ...
+# Subtest: audit rejects abandoned temp files and enforces exact membership
+ok 91 - audit rejects abandoned temp files and enforces exact membership
+  ---
+  duration_ms: 34.157858
+  type: 'test'
+  ...
+# Subtest: audit requires exact digest-directory topology
+    # Subtest: extra empty shard
+    ok 1 - extra empty shard
+      ---
+      duration_ms: 16.790046
+      type: 'test'
+      ...
+    # Subtest: digest directory in an empty store
+    ok 2 - digest directory in an empty store
+      ---
+      duration_ms: 1.898522
+      type: 'test'
+      ...
+    1..2
+ok 92 - audit requires exact digest-directory topology
+  ---
+  duration_ms: 19.20529
+  type: 'test'
+  ...
+# Subtest: audit bounds hostile directory enumeration before materializing it
+ok 93 - audit bounds hostile directory enumeration before materializing it
+  ---
+  duration_ms: 15.335562
+  type: 'test'
+  ...
+# Subtest: a crash-style temp never exposes a final artifact and audit rejects it
+ok 94 - a crash-style temp never exposes a final artifact and audit rejects it
+  ---
+  duration_ms: 17.153088
+  type: 'test'
+  ...
+# Subtest: noncanonical bytes with a matching digest are rejected by resolve and audit
+ok 95 - noncanonical bytes with a matching digest are rejected by resolve and audit
+  ---
+  duration_ms: 3.927841
+  type: 'test'
+  ...
+# Subtest: a raw PNG cannot bypass its codec by using a matching raw-byte digest
+ok 96 - a raw PNG cannot bypass its codec by using a matching raw-byte digest
+  ---
+  duration_ms: 10.563627
+  type: 'test'
+  ...
+# Subtest: malformed raw and stored artifacts are rejected by the registered codec
+    # Subtest: put
+    ok 1 - put
+      ---
+      duration_ms: 1.220098
+      type: 'test'
+      ...
+    # Subtest: resolve and audit
+    ok 2 - resolve and audit
+      ---
+      duration_ms: 3.936982
+      type: 'test'
+      ...
+    1..2
+ok 97 - malformed raw and stored artifacts are rejected by the registered codec
+  ---
+  duration_ms: 5.556166
+  type: 'test'
+  ...
+# Subtest: pair audit detects copied canonical bytes across visible and sealed stores
+ok 98 - pair audit detects copied canonical bytes across visible and sealed stores
+  ---
+  duration_ms: 31.70881
+  type: 'test'
+  ...
+# Subtest: resolve validates the verified buffer even if its path is replaced
+ok 99 - resolve validates the verified buffer even if its path is replaced
+  ---
+  duration_ms: 15.835114
+  type: 'test'
+  ...
+# Subtest: media type and codec-specific byte budgets are enforced
+ok 100 - media type and codec-specific byte budgets are enforced
+  ---
+  duration_ms: 14.272224
+  type: 'test'
+  ...
+# Subtest: byte budgets use intrinsic typed-array lengths before copying
+ok 101 - byte budgets use intrinsic typed-array lengths before copying
+  ---
+  duration_ms: 1.283572
+  type: 'test'
+  ...
+# Subtest: store root and aggregate byte budget are runtime immutable
+ok 102 - store root and aggregate byte budget are runtime immutable
+  ---
+  duration_ms: 1.237799
+  type: 'test'
+  ...
+# Subtest: a successful audit seals publication and exposes no mutable map
+ok 103 - a successful audit seals publication and exposes no mutable map
+  ---
+  duration_ms: 16.049938
+  type: 'test'
+  ...
+# Subtest: development release CLI prints help without starting generation
+ok 104 - development release CLI prints help without starting generation
+  ---
+  duration_ms: 44.526881
+  type: 'test'
+  ...
+# Subtest: development release CLI rejects unknown, duplicate, and missing arguments
+    # Subtest: []
+    ok 1 - []
+      ---
+      duration_ms: 41.276493
+      type: 'test'
+      ...
+    # Subtest: ["--unknown"]
+    ok 2 - ["--unknown"]
+      ---
+      duration_ms: 41.193118
+      type: 'test'
+      ...
+    # Subtest: ["positional"]
+    ok 3 - ["positional"]
+      ---
+      duration_ms: 43.73006
+      type: 'test'
+      ...
+    # Subtest: ["--root"]
+    ok 4 - ["--root"]
+      ---
+      duration_ms: 44.520561
+      type: 'test'
+      ...
+    # Subtest: ["--root","--help"]
+    ok 5 - ["--root","--help"]
+      ---
+      duration_ms: 41.762324
+      type: 'test'
+      ...
+    # Subtest: ["--root","first","--root","second"]
+    ok 6 - ["--root","first","--root","second"]
+      ---
+      duration_ms: 40.316541
+      type: 'test'
+      ...
+    # Subtest: ["--help","--help"]
+    ok 7 - ["--help","--help"]
+      ---
+      duration_ms: 39.655639
+      type: 'test'
+      ...
+    # Subtest: ["--root","publication","--help"]
+    ok 8 - ["--root","publication","--help"]
+      ---
+      duration_ms: 44.03152
+      type: 'test'
+      ...
+    1..8
+ok 105 - development release CLI rejects unknown, duplicate, and missing arguments
+  ---
+  duration_ms: 338.164613
+  type: 'test'
+  ...
+# Subtest: development release CLI exposes only a safe publication preflight code
+ok 106 - development release CLI exposes only a safe publication preflight code
+  ---
+  duration_ms: 1140.147364
+  type: 'test'
+  ...
+# Subtest: development release CLI publishes and strictly reopens one real pair
+ok 107 - development release CLI publishes and strictly reopens one real pair
+  ---
+  duration_ms: 27569.032736
+  type: 'test'
+  ...
+# Subtest: fresh-pair options reject accessors and unknown fields synchronously
+ok 108 - fresh-pair options reject accessors and unknown fields synchronously
+  ---
+  duration_ms: 1.71614
+  type: 'test'
+  ...
+# Subtest: publication topology is checked before Chromium launch
+ok 109 - publication topology is checked before Chromium launch
+  ---
+  duration_ms: 6.411461
+  type: 'test'
+  ...
+# Subtest: one-shot generation publishes real pointer and palette pairs
+ok 110 - one-shot generation publishes real pointer and palette pairs
+  ---
+  duration_ms: 77252.737845
+  type: 'test'
+  ...
+# Subtest: development grouping and policy identities are deterministic and separated
+ok 111 - development grouping and policy identities are deterministic and separated
+  ---
+  duration_ms: 3.27425
+  type: 'test'
+  ...
+# Subtest: development labels close baseline-invalid, pass, and primary-block branches
+ok 112 - development labels close baseline-invalid, pass, and primary-block branches
+  ---
+  duration_ms: 0.293619
+  type: 'test'
+  ...
+# Subtest: Pilot mutation identities retain their frozen domain-separated values
+ok 113 - Pilot mutation identities retain their frozen domain-separated values
+  ---
+  duration_ms: 3.43452
+  type: 'test'
+  ...
+# Subtest: pair and catalog identities project only their non-circular inputs
+ok 114 - pair and catalog identities project only their non-circular inputs
+  ---
+  duration_ms: 1.048787
+  type: 'test'
+  ...
+# Subtest: palette compilation is canonical, deterministic, and reversible
+ok 115 - palette compilation is canonical, deterministic, and reversible
+  ---
+  duration_ms: 31.099261
+  type: 'test'
+  ...
+# Subtest: pointer compilation binds exact fixed-point bounds and a breaking descriptor
+ok 116 - pointer compilation binds exact fixed-point bounds and a breaking descriptor
+  ---
+  duration_ms: 4.405922
+  type: 'test'
+  ...
+# Subtest: instance identity and seed change only with the pre-outcome request
+ok 117 - instance identity and seed change only with the pre-outcome request
+  ---
+  duration_ms: 6.262971
+  type: 'test'
+  ...
+# Subtest: failed preconditions return an explicit result without fallback or a plan
+ok 118 - failed preconditions return an explicit result without fallback or a plan
+  ---
+  duration_ms: 2.701443
+  type: 'test'
+  ...
+# Subtest: palette safety is a compile-time precondition
+ok 119 - palette safety is a compile-time precondition
+  ---
+  duration_ms: 7.713094
+  type: 'test'
+  ...
+# Subtest: compiler rejects a probe from another immutable source
+ok 120 - compiler rejects a probe from another immutable source
+  ---
+  duration_ms: 2.070002
+  type: 'test'
+  ...
+# Subtest: source probes cannot be reused after any request identity change
+ok 121 - source probes cannot be reused after any request identity change
+  ---
+  duration_ms: 2.607176
+  type: 'test'
+  ...
+# Subtest: request and plan schemas reject extension and code injection surfaces
+ok 122 - request and plan schemas reject extension and code injection surfaces
+  ---
+  duration_ms: 6.668698
+  type: 'test'
+  ...
+# Subtest: source probes bind their bytes and reject ambiguous selected targets
+ok 123 - source probes bind their bytes and reject ambiguous selected targets
+  ---
+  duration_ms: 9.20425
+  type: 'test'
+  ...
+# Subtest: precondition reports require unique sorted checks and derived applicability
+ok 124 - precondition reports require unique sorted checks and derived applicability
+  ---
+  duration_ms: 12.609917
+  type: 'test'
+  ...
+# Subtest: plan semantics bind descriptor, target, inverse, seed, and opcode
+ok 125 - plan semantics bind descriptor, target, inverse, seed, and opcode
+  ---
+  duration_ms: 8.317623
+  type: 'test'
+  ...
+# Subtest: compilation bundle rejects swapped or tampered sealed evidence
+ok 126 - compilation bundle rejects swapped or tampered sealed evidence
+  ---
+  duration_ms: 24.152767
+  type: 'test'
+  ...
+# Subtest: production mutation codecs bind canonical plans and preconditions
+ok 127 - production mutation codecs bind canonical plans and preconditions
+  ---
+  duration_ms: 14.464036
+  type: 'test'
+  ...
+# Subtest: owned capture environment seals exact package, browser, launch, and font bytes
+ok 128 - owned capture environment seals exact package, browser, launch, and font bytes
+  ---
+  duration_ms: 632.352076
+  type: 'test'
+  ...
+# Subtest: capture environment rejects forged capabilities and changed font bytes
+ok 129 - capture environment rejects forged capabilities and changed font bytes
+  ---
+  duration_ms: 12.274846
+  type: 'test'
+  ...
+# Subtest: Pilot v0.1 definitions freeze the exact ordered 8 x 2 catalog
+ok 130 - Pilot v0.1 definitions freeze the exact ordered 8 x 2 catalog
+  ---
+  duration_ms: 2.126506
+  type: 'test'
+  ...
+# Subtest: installed predicate policies freeze the exact 16-row causal matrix
+ok 131 - installed predicate policies freeze the exact 16-row causal matrix
+  ---
+  duration_ms: 0.738577
+  type: 'test'
+  ...
+# Subtest: installed predicate policies reject malformed rows and semantic rebinding
+ok 132 - installed predicate policies reject malformed rows and semantic rebinding
+  ---
+  duration_ms: 11.902872
+  type: 'test'
+  ...
+# Subtest: pair, operator, artifact, and catalog identities retain golden values
+ok 133 - pair, operator, artifact, and catalog identities retain golden values
+  ---
+  duration_ms: 6.321065
+  type: 'test'
+  ...
+# Subtest: every exported catalog structure and code-owned spec is deeply frozen
+ok 134 - every exported catalog structure and code-owned spec is deeply frozen
+  ---
+  duration_ms: 1.774203
+  type: 'test'
+  ...
+# Subtest: closed definitions reject executable text and unknown fields
+ok 135 - closed definitions reject executable text and unknown fields
+  ---
+  duration_ms: 1.908192
+  type: 'test'
+  ...
+# Subtest: definition keys cannot be rebound across families, relations, effects, or predicates
+ok 136 - definition keys cannot be rebound across families, relations, effects, or predicates
+  ---
+  duration_ms: 3.450651
+  type: 'test'
+  ...
+# Subtest: source probes reject reordering, omission, duplication, and family substitution
+ok 137 - source probes reject reordering, omission, duplication, and family substitution
+  ---
+  duration_ms: 2.876354
+  type: 'test'
+  ...
+# Subtest: visual definitions reject cross-mixed palettes and trusted ratio fields
+ok 138 - visual definitions reject cross-mixed palettes and trusted ratio fields
+  ---
+  duration_ms: 3.022384
+  type: 'test'
+  ...
+# Subtest: definition-set validation rejects reordering and duplicate members
+ok 139 - definition-set validation rejects reordering and duplicate members
+  ---
+  duration_ms: 37.757198
+  type: 'test'
+  ...
+# Subtest: definition-set wrappers reject sparse, subclassed, overridden-map, and getter inputs
+ok 140 - definition-set wrappers reject sparse, subclassed, overridden-map, and getter inputs
+  ---
+  duration_ms: 1.465964
+  type: 'test'
+  ...
+# Subtest: catalog validation rejects reordered and duplicate definition bindings
+ok 141 - catalog validation rejects reordered and duplicate definition bindings
+  ---
+  duration_ms: 6.363847
+  type: 'test'
+  ...
+# Subtest: canonical definition and catalog parsers reject alternate JSON encodings
+ok 142 - canonical definition and catalog parsers reject alternate JSON encodings
+  ---
+  duration_ms: 11.347137
+  type: 'test'
+  ...
+# Subtest: production operator codecs round-trip only canonical closed payloads
+ok 143 - production operator codecs round-trip only canonical closed payloads
+  ---
+  duration_ms: 18.311313
+  type: 'test'
+  ...
+# Subtest: provenance trees are globally sorted and independent of creation order
+ok 144 - provenance trees are globally sorted and independent of creation order
+  ---
+  duration_ms: 28.582501
+  type: 'test'
+  ...
+# Subtest: provenance trees bound empty-directory and entry traversal
+ok 145 - provenance trees bound empty-directory and entry traversal
+  ---
+  duration_ms: 589.084986
+  type: 'test'
+  ...
+# Subtest: provenance trees enforce required paths, file bytes, and depth
+ok 146 - provenance trees enforce required paths, file bytes, and depth
+  ---
+  duration_ms: 37.651261
+  type: 'test'
+  ...
+# Subtest: provenance trees reject malformed and aggregate byte budgets
+ok 147 - provenance trees reject malformed and aggregate byte budgets
+  ---
+  duration_ms: 2.901945
+  type: 'test'
+  ...
+# Subtest: provenance trees reject symbolic and hard-linked aliases
+ok 148 - provenance trees reject symbolic and hard-linked aliases
+  ---
+  duration_ms: 5.925519
+  type: 'test'
+  ...
+# Subtest: verified fixture loader emits the exact reusable action-plan artifact
+ok 149 - verified fixture loader emits the exact reusable action-plan artifact
+  ---
+  duration_ms: 2.604626
+  type: 'test'
+  ...
+# Subtest: baseline task uses a true coordinate click and the fixture route aborts external traffic
+ok 150 - baseline task uses a true coordinate click and the fixture route aborts external traffic
+  ---
+  duration_ms: 1024.502999
+  type: 'test'
+  ...
+# Subtest: pinned Chromium AX output normalizes through the closed accessibility contract
+ok 151 - pinned Chromium AX output normalizes through the closed accessibility contract
+  ---
+  duration_ms: 315.016783
+  type: 'test'
+  ...
+# Subtest: authenticated task capture emits deterministic canonical checkpoints
+ok 152 - authenticated task capture emits deterministic canonical checkpoints
+  ---
+  duration_ms: 5773.746004
+  type: 'test'
+  ...
+# Subtest: captured task outcomes distinguish preserving and breaking mutations
+ok 153 - captured task outcomes distinguish preserving and breaking mutations
+  ---
+  duration_ms: 3275.079044
+  type: 'test'
+  ...
+# Subtest: task capture enforces its phase, geometry, plan, and operation lock
+ok 154 - task capture enforces its phase, geometry, plan, and operation lock
+  ---
+  duration_ms: 2111.752422
+  type: 'test'
+  ...
+# Subtest: factory rejects changed manifest bytes, resources, and directory members
+ok 155 - factory rejects changed manifest bytes, resources, and directory members
+  ---
+  duration_ms: 1895.978883
+  type: 'test'
+  ...
+# Subtest: factory binds task identity to exact canonical action-plan bytes and target mapping
+ok 156 - factory binds task identity to exact canonical action-plan bytes and target mapping
+  ---
+  duration_ms: 3.825634
+  type: 'test'
+  ...
+# Subtest: factory derives source identity from exact sealed provenance bytes
+ok 157 - factory derives source identity from exact sealed provenance bytes
+  ---
+  duration_ms: 1.453103
+  type: 'test'
+  ...
+# Subtest: factory derives environment identity from exact canonical CaptureSpec bytes
+ok 158 - factory derives environment identity from exact canonical CaptureSpec bytes
+  ---
+  duration_ms: 9.420943
+  type: 'test'
+  ...
+# Subtest: verified fixture loader emits the exact reusable source-state artifact
+ok 159 - verified fixture loader emits the exact reusable source-state artifact
+  ---
+  duration_ms: 7.479899
+  type: 'test'
+  ...
+# Subtest: runtime provenance rejects unbranded sessions, caller targets, and mismatched IDs
+ok 160 - runtime provenance rejects unbranded sessions, caller targets, and mismatched IDs
+  ---
+  duration_ms: 380.975149
+  type: 'test'
+  ...
+# Subtest: session serializes operations so close cannot race an in-flight audit
+ok 161 - session serializes operations so close cannot race an in-flight audit
+  ---
+  duration_ms: 298.357487
+  type: 'test'
+  ...
+# Subtest: failed context cleanup poisons the owned capture environment
+ok 162 - failed context cleanup poisons the owned capture environment
+  ---
+  duration_ms: 814.218104
+  type: 'test'
+  ...
+# Subtest: session audit records external aborts and rejects internal network taint
+    # Subtest: external origin is aborted and reported
+    ok 1 - external origin is aborted and reported
+      ---
+      duration_ms: 319.356422
+      type: 'test'
+      ...
+    # Subtest: unknown same-origin resource taints close
+    ok 2 - unknown same-origin resource taints close
+      ---
+      duration_ms: 300.588631
+      type: 'test'
+      ...
+    # Subtest: removing the route cannot bypass the request audit
+    ok 3 - removing the route cannot bypass the request audit
+      ---
+      duration_ms: 311.033019
+      type: 'test'
+      ...
+    1..3
+ok 163 - session audit records external aborts and rejects internal network taint
+  ---
+  duration_ms: 932.125456
+  type: 'test'
+  ...
+# Subtest: CSP enforcement blocks unsafe inline style and taints the audited session
+ok 164 - CSP enforcement blocks unsafe inline style and taints the audited session
+  ---
+  duration_ms: 274.719043
+  type: 'test'
+  ...
+# Subtest: replacing the branded document invalidates the session provenance
+ok 165 - replacing the branded document invalidates the session provenance
+  ---
+  duration_ms: 286.830769
+  type: 'test'
+  ...
+# Subtest: replacing a retained fixture target inside the same document is rejected
+ok 166 - replacing a retained fixture target inside the same document is rejected
+  ---
+  duration_ms: 241.981857
+  type: 'test'
+  ...
+# Subtest: in-place critical content and CSSOM tampering are rejected
+    # Subtest: text tamper restored before probing is still audited
+    ok 1 - text tamper restored before probing is still audited
+      ---
+      duration_ms: 319.097706
+      type: 'test'
+      ...
+    # Subtest: persistent stylesheet rule mutation changes the integrity digest
+    ok 2 - persistent stylesheet rule mutation changes the integrity digest
+      ---
+      duration_ms: 304.281874
+      type: 'test'
+      ...
+    1..2
+ok 167 - in-place critical content and CSSOM tampering are rejected
+  ---
+  duration_ms: 624.104537
+  type: 'test'
+  ...
+# Subtest: palette mutation changes canonical pixels, restores exactly, and preserves the task
+ok 168 - palette mutation changes canonical pixels, restores exactly, and preserves the task
+  ---
+  duration_ms: 1745.812592
+  type: 'test'
+  ...
+# Subtest: active owned CSSOM tampering is detected before it can be reused
+ok 169 - active owned CSSOM tampering is detected before it can be reused
+  ---
+  duration_ms: 532.628616
+  type: 'test'
+  ...
+# Subtest: pointer interceptor preserves pixels and AX while blocking only the coordinate task
+ok 170 - pointer interceptor preserves pixels and AX while blocking only the coordinate task
+  ---
+  duration_ms: 1997.803398
+  type: 'test'
+  ...
+# Subtest: live re-probing rejects stale and overlapping applications without leaking ownership
+ok 171 - live re-probing rejects stale and overlapping applications without leaking ownership
+  ---
+  duration_ms: 680.469444
+  type: 'test'
+  ...
+# Subtest: failed verification rolls back the exact owned node and releases the page
+ok 172 - failed verification rolls back the exact owned node and releases the page
+  ---
+  duration_ms: 583.320607
+  type: 'test'
+  ...
+# Subtest: the actual market-basket manifest derives two exact canonical action plans
+ok 173 - the actual market-basket manifest derives two exact canonical action plans
+  ---
+  duration_ms: 37.353974
+  type: 'test'
+  ...
+# Subtest: action-plan artifacts expose immutable metadata and defensive byte copies
+ok 174 - action-plan artifacts expose immutable metadata and defensive byte copies
+  ---
+  duration_ms: 14.454937
+  type: 'test'
+  ...
+# Subtest: variable recipes map exactly into canonical action plans
+ok 175 - variable recipes map exactly into canonical action plans
+  ---
+  duration_ms: 24.4877
+  type: 'test'
+  ...
+# Subtest: the maximum Pilot recipe remains below the ActionPlan byte budget
+ok 176 - the maximum Pilot recipe remains below the ActionPlan byte budget
+  ---
+  duration_ms: 27.746739
+  type: 'test'
+  ...
+# Subtest: step identity commits independently to every authoring input
+ok 177 - step identity commits independently to every authoring input
+  ---
+  duration_ms: 7.4806
+  type: 'test'
+  ...
+# Subtest: action-plan construction rejects a noncanonical manifest digest
+ok 178 - action-plan construction rejects a noncanonical manifest digest
+  ---
+  duration_ms: 7.525832
+  type: 'test'
+  ...
+# Subtest: the canonical market-basket manifest binds the exact Pilot authoring slice
+ok 179 - the canonical market-basket manifest binds the exact Pilot authoring slice
+  ---
+  duration_ms: 8.290382
+  type: 'test'
+  ...
+# Subtest: manifest parsing requires duplicate-free RFC 8785 bytes
+ok 180 - manifest parsing requires duplicate-free RFC 8785 bytes
+  ---
+  duration_ms: 4.599505
+  type: 'test'
+  ...
+# Subtest: manifest root rejects missing, extra, outcome, identity, and reference fields
+ok 181 - manifest root rejects missing, extra, outcome, identity, and reference fields
+  ---
+  duration_ms: 7.352151
+  type: 'test'
+  ...
+# Subtest: manifest identities and catalog order are exact authoring bindings
+ok 182 - manifest identities and catalog order are exact authoring bindings
+  ---
+  duration_ms: 5.876347
+  type: 'test'
+  ...
+# Subtest: resource membership is safe, complete, unique, and strictly ordered
+ok 183 - resource membership is safe, complete, unique, and strictly ordered
+  ---
+  duration_ms: 8.751882
+  type: 'test'
+  ...
+# Subtest: CSP, environment, and readiness are exact
+ok 184 - CSP, environment, and readiness are exact
+  ---
+  duration_ms: 6.195887
+  type: 'test'
+  ...
+# Subtest: workflow ABI permits an independent focus entry but only the root may cross workflows
+ok 185 - workflow ABI permits an independent focus entry but only the root may cross workflows
+  ---
+  duration_ms: 4.433014
+  type: 'test'
+  ...
+# Subtest: workflow recipes admit 32 actions and reject a 33rd
+ok 186 - workflow recipes admit 32 actions and reject a 33rd
+  ---
+  duration_ms: 3.629803
+  type: 'test'
+  ...
+# Subtest: workflow control-state expectations are conditional and exact
+ok 187 - workflow control-state expectations are conditional and exact
+  ---
+  duration_ms: 8.402408
+  type: 'test'
+  ...
+# Subtest: workflow actions, checkpoints, predicates, and expectations are closed
+ok 188 - workflow actions, checkpoints, predicates, and expectations are closed
+  ---
+  duration_ms: 7.920478
+  type: 'test'
+  ...
+# Subtest: authoring package emits only frozen, non-official source and task artifacts
+ok 189 - authoring package emits only frozen, non-official source and task artifacts
+  ---
+  duration_ms: 56.421166
+  type: 'test'
+  ...
+# Subtest: public authoring artifacts own exact defensive byte backing stores
+ok 190 - public authoring artifacts own exact defensive byte backing stores
+  ---
+  duration_ms: 12.877865
+  type: 'test'
+  ...
+# Subtest: browser authoring resources come from one defensive audited byte snapshot
+ok 191 - browser authoring resources come from one defensive audited byte snapshot
+  ---
+  duration_ms: 20.562888
+  type: 'test'
+  ...
+# Subtest: market source, catalog, CSP, shared bytes, and near-duplicate budget stay closed
+ok 192 - market source, catalog, CSP, shared bytes, and near-duplicate budget stay closed
+  ---
+  duration_ms: 31.263935
+  type: 'test'
+  ...
+# Subtest: authoring loader rejects changed resource bytes
+ok 193 - authoring loader rejects changed resource bytes
+  ---
+  duration_ms: 21.041499
+  type: 'test'
+  ...
+# Subtest: authoring loader rejects unlisted, missing, and empty-directory membership
+ok 194 - authoring loader rejects unlisted, missing, and empty-directory membership
+  ---
+  duration_ms: 50.977668
+  type: 'test'
+  ...
+# Subtest: authoring loader rejects symbolic, hard-linked, and root aliases
+ok 195 - authoring loader rejects symbolic, hard-linked, and root aliases
+  ---
+  duration_ms: 25.375767
+  type: 'test'
+  ...
+# Subtest: Incident Command manifest is canonical and binds its frozen catalog slot
+ok 196 - Incident Command manifest is canonical and binds its frozen catalog slot
+  ---
+  duration_ms: 23.40195
+  type: 'test'
+  ...
+# Subtest: Incident Command package derives closed source and task identities
+ok 197 - Incident Command package derives closed source and task identities
+  ---
+  duration_ms: 45.903523
+  type: 'test'
+  ...
+# Subtest: Incident Command resource snapshot is exact and defensively copied
+ok 198 - Incident Command resource snapshot is exact and defensively copied
+  ---
+  duration_ms: 19.784078
+  type: 'test'
+  ...
+# Subtest: Incident Command data, application logic, and independent bytes stay closed
+ok 199 - Incident Command data, application logic, and independent bytes stay closed
+  ---
+  duration_ms: 41.665191
+  type: 'test'
+  ...
+# Subtest: Incident Command pointer authoring is exact across workflows and fresh attempts
+ok 200 - Incident Command pointer authoring is exact across workflows and fresh attempts
+  ---
+  duration_ms: 82020.764697
+  type: 'test'
+  ...
+# Subtest: Incident Command browser replay and source predicates stay application-generic
+ok 201 - Incident Command browser replay and source predicates stay application-generic
+  ---
+  duration_ms: 7103.322488
+  type: 'test'
+  ...
+# Subtest: Incident Command emits three byte-identical canonical capture attempts
+ok 202 - Incident Command emits three byte-identical canonical capture attempts
+  ---
+  duration_ms: 23993.412422
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects a self-consistent fixture above the CaptureSpec DOM-node budget
+ok 203 - Pilot replay rejects a self-consistent fixture above the CaptureSpec DOM-node budget
+  ---
+  duration_ms: 997.488879
+  type: 'test'
+  ...
+# Subtest: Pilot capture checkpoints reject forged constructor capabilities
+ok 204 - Pilot capture checkpoints reject forged constructor capabilities
+  ---
+  duration_ms: 2.314989
+  type: 'test'
+  ...
+# Subtest: Pilot capture emits deterministic canonical checkpoints for every authored workflow
+    # Subtest: add_bundle
+    ok 1 - add_bundle
+      ---
+      duration_ms: 12115.314783
+      type: 'test'
+      ...
+    # Subtest: choose_pickup
+    ok 2 - choose_pickup
+      ---
+      duration_ms: 12502.621045
+      type: 'test'
+      ...
+    1..2
+ok 205 - Pilot capture emits deterministic canonical checkpoints for every authored workflow
+  ---
+  duration_ms: 27010.066529
+  type: 'test'
+  ...
+# Subtest: Pilot authoring environment rejects forged capabilities
+ok 206 - Pilot authoring environment rejects forged capabilities
+  ---
+  duration_ms: 2.33151
+  type: 'test'
+  ...
+# Subtest: Pilot authoring environment owns one reusable verified browser capability
+ok 207 - Pilot authoring environment owns one reusable verified browser capability
+  ---
+  duration_ms: 680.262681
+  type: 'test'
+  ...
+# Subtest: Pilot authoring lease fails closed on a release-time browser disconnect
+ok 208 - Pilot authoring lease fails closed on a release-time browser disconnect
+  ---
+  duration_ms: 573.800076
+  type: 'test'
+  ...
+# Subtest: pointer-hit authoring emits deterministic fresh pairs for the complete Pilot slice
+ok 209 - pointer-hit authoring emits deterministic fresh pairs for the complete Pilot slice
+  ---
+  duration_ms: 74196.770334
+  type: 'test'
+  ...
+# Subtest: pointer-hit definition keys are exact and rejected before a browser context exists
+ok 210 - pointer-hit definition keys are exact and rejected before a browser context exists
+  ---
+  duration_ms: 7568.988838
+  type: 'test'
+  ...
+# Subtest: pointer-hit authoring rejects fixture collisions with its reserved DOM namespace
+ok 211 - pointer-hit authoring rejects fixture collisions with its reserved DOM namespace
+  ---
+  duration_ms: 4316.038166
+  type: 'test'
+  ...
+# Subtest: pointer-hit authoring rejects source CSS that paints its reserved pseudo surface
+ok 212 - pointer-hit authoring rejects source CSS that paints its reserved pseudo surface
+  ---
+  duration_ms: 4647.76993
+  type: 'test'
+  ...
+# Subtest: pointer-hit authoring detects temporary listener-registry drift during setup
+ok 213 - pointer-hit authoring detects temporary listener-registry drift during setup
+  ---
+  duration_ms: 5846.577607
+  type: 'test'
+  ...
+# Subtest: pointer selection binds the exact code-owned pair before runtime use
+ok 214 - pointer selection binds the exact code-owned pair before runtime use
+  ---
+  duration_ms: 2.49605
+  type: 'test'
+  ...
+# Subtest: pointer selection rejects aliases, non-pointer values, objects, and forgeries
+ok 215 - pointer selection rejects aliases, non-pointer values, objects, and forgeries
+  ---
+  duration_ms: 0.906138
+  type: 'test'
+  ...
+# Subtest: pointer predicate tuples are exact, defensive, and policy-bound
+ok 216 - pointer predicate tuples are exact, defensive, and policy-bound
+  ---
+  duration_ms: 1.135793
+  type: 'test'
+  ...
+# Subtest: pointer probe tuples retain exact source, installed, inverse, and cleanup order
+ok 217 - pointer probe tuples retain exact source, installed, inverse, and cleanup order
+  ---
+  duration_ms: 0.746588
+  type: 'test'
+  ...
+# Subtest: pointer probe tuples reject failed, reordered, extended, and forged evidence
+ok 218 - pointer probe tuples reject failed, reordered, extended, and forged evidence
+  ---
+  duration_ms: 0.495772
+  type: 'test'
+  ...
+# Subtest: Pilot predicate inputs reject active and ambiguous source-point objects
+ok 219 - Pilot predicate inputs reject active and ambiguous source-point objects
+  ---
+  duration_ms: 3.316374
+  type: 'test'
+  ...
+# Subtest: Pilot predicate evidence rejects malformed page projections
+ok 220 - Pilot predicate evidence rejects malformed page projections
+  ---
+  duration_ms: 1.436463
+  type: 'test'
+  ...
+# Subtest: Pilot predicate authoring measures every source workflow in fresh contexts
+ok 221 - Pilot predicate authoring measures every source workflow in fresh contexts
+  ---
+  duration_ms: 9032.04224
+  type: 'test'
+  ...
+# Subtest: Pilot predicates derive accessibility, containment, and contrast from Chromium
+    # Subtest: corner-only primary hit-test occlusion
+    ok 1 - corner-only primary hit-test occlusion
+      ---
+      duration_ms: 2582.769458
+      type: 'test'
+      ...
+    # Subtest: empty browser-computed primary name
+    ok 2 - empty browser-computed primary name
+      ---
+      duration_ms: 2402.058832
+      type: 'test'
+      ...
+    # Subtest: overflowing fixed content-pressure box
+    ok 3 - overflowing fixed content-pressure box
+      ---
+      duration_ms: 2398.80013
+      type: 'test'
+      ...
+    # Subtest: opaque low-contrast primary palette
+    ok 4 - opaque low-contrast primary palette
+      ---
+      duration_ms: 2323.042002
+      type: 'test'
+      ...
+    # Subtest: filtered primary is not admitted as a visible source
+    ok 5 - filtered primary is not admitted as a visible source
+      ---
+      duration_ms: 845.930102
+      type: 'test'
+      ...
+    # Subtest: predicate vector is withheld when the final oracle fails
+    ok 6 - predicate vector is withheld when the final oracle fails
+      ---
+      duration_ms: 2315.645928
+      type: 'test'
+      ...
+    # Subtest: fixture-side intrinsic replacements cannot forge evidence
+    ok 7 - fixture-side intrinsic replacements cannot forge evidence
+      ---
+      duration_ms: 2738.893953
+      type: 'test'
+      ...
+    1..7
+ok 222 - Pilot predicates derive accessibility, containment, and contrast from Chromium
+  ---
+  duration_ms: 15609.080182
+  type: 'test'
+  ...
+# Subtest: Pilot capture withholds checkpoints when the final oracle fails
+ok 223 - Pilot capture withholds checkpoints when the final oracle fails
+  ---
+  duration_ms: 2674.90204
+  type: 'test'
+  ...
+# Subtest: Pilot capture withholds checkpoints when its capture CDP session cannot detach
+ok 224 - Pilot capture withholds checkpoints when its capture CDP session cannot detach
+  ---
+  duration_ms: 1427.026704
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects unknown workflows before context creation and serves its launch snapshot
+ok 225 - Pilot replay rejects unknown workflows before context creation and serves its launch snapshot
+  ---
+  duration_ms: 1747.097178
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects credential-bearing same-origin fixture requests
+ok 226 - Pilot replay rejects credential-bearing same-origin fixture requests
+  ---
+  duration_ms: 769.982717
+  type: 'test'
+  ...
+# Subtest: Pilot replay revokes success when a browser event arrives during teardown
+ok 227 - Pilot replay revokes success when a browser event arrives during teardown
+  ---
+  duration_ms: 1037.994721
+  type: 'test'
+  ...
+# Subtest: Pilot replay detects an unsolicited page close after the terminal seal
+ok 228 - Pilot replay detects an unsolicited page close after the terminal seal
+  ---
+  duration_ms: 1161.34902
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects success text hidden inside undeclared element structure
+ok 229 - Pilot replay rejects success text hidden inside undeclared element structure
+  ---
+  duration_ms: 1092.915233
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects undeclared nodes beside the retained document element
+ok 230 - Pilot replay rejects undeclared nodes beside the retained document element
+  ---
+  duration_ms: 1078.911912
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects a self-consistent manifest with an unsealed readiness shape
+ok 231 - Pilot replay rejects a self-consistent manifest with an unsealed readiness shape
+  ---
+  duration_ms: 705.172716
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects a closed declarative author shadow root while admitting native-control UA roots
+ok 232 - Pilot replay rejects a closed declarative author shadow root while admitting native-control UA roots
+  ---
+  duration_ms: 816.602031
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects an over-budget closed shadow tree without piercing its descendants
+ok 233 - Pilot replay rejects an over-budget closed shadow tree without piercing its descendants
+  ---
+  duration_ms: 864.915312
+  type: 'test'
+  ...
+# Subtest: Pilot replay fingerprints live selectedness outside the active workflow
+ok 234 - Pilot replay fingerprints live selectedness outside the active workflow
+  ---
+  duration_ms: 1001.371899
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects duplicate-valued setup options before normalization
+ok 235 - Pilot replay rejects duplicate-valued setup options before normalization
+  ---
+  duration_ms: 883.896434
+  type: 'test'
+  ...
+# Subtest: Pilot replay fingerprints post-click element scroll state
+ok 236 - Pilot replay fingerprints post-click element scroll state
+  ---
+  duration_ms: 1044.168995
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects an undeclared open popover top-layer state
+ok 237 - Pilot replay rejects an undeclared open popover top-layer state
+  ---
+  duration_ms: 981.36059
+  type: 'test'
+  ...
+# Subtest: Pilot replay revokes success when the primary action opens a native file chooser
+ok 238 - Pilot replay revokes success when the primary action opens a native file chooser
+  ---
+  duration_ms: 1030.185044
+  type: 'test'
+  ...
+# Subtest: Pilot replay revokes success when a declared fixture request reports failure
+ok 239 - Pilot replay revokes success when a declared fixture request reports failure
+  ---
+  duration_ms: 1182.266276
+  type: 'test'
+  ...
+# Subtest: Pilot replay revokes success when the renderer crashes during teardown
+ok 240 - Pilot replay revokes success when the renderer crashes during teardown
+  ---
+  duration_ms: 1173.296488
+  type: 'test'
+  ...
+# Subtest: Pilot replay poisons the environment when context close resolves without destruction
+ok 241 - Pilot replay poisons the environment when context close resolves without destruction
+  ---
+  duration_ms: 1139.422338
+  type: 'test'
+  ...
+# Subtest: Pilot replay executes every declared select setup action
+ok 242 - Pilot replay executes every declared select setup action
+  ---
+  duration_ms: 1285.661493
+  type: 'test'
+  ...
+# Subtest: Pilot replay binds text entry and a distinct select as one closed workflow
+ok 243 - Pilot replay binds text entry and a distinct select as one closed workflow
+  ---
+  duration_ms: 1092.266022
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects a setup transition synthesized by blur
+ok 244 - Pilot replay rejects a setup transition synthesized by blur
+  ---
+  duration_ms: 941.455191
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects a setup transition synthesized by focus
+ok 245 - Pilot replay rejects a setup transition synthesized by focus
+  ---
+  duration_ms: 1120.849041
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects an author-owned select state accessor
+ok 246 - Pilot replay rejects an author-owned select state accessor
+  ---
+  duration_ms: 1003.132672
+  type: 'test'
+  ...
+# Subtest: Pilot terminal seal blocks every admitted late mutation path
+ok 247 - Pilot terminal seal blocks every admitted late mutation path
+  ---
+  duration_ms: 8608.714016
+  type: 'test'
+  ...
+# Subtest: Pilot replay verifies a native radio checked-state transition
+ok 248 - Pilot replay verifies a native radio checked-state transition
+  ---
+  duration_ms: 1026.626575
+  type: 'test'
+  ...
+# Subtest: Pilot replay rejects a checked transition on a radio group
+ok 249 - Pilot replay rejects a checked transition on a radio group
+  ---
+  duration_ms: 819.576553
+  type: 'test'
+  ...
+# Subtest: canonical PNG bytes depend on decoded pixels, not encoder choices
+ok 250 - canonical PNG bytes depend on decoded pixels, not encoder choices
+  ---
+  duration_ms: 9.064393
+  type: 'test'
+  ...
+# Subtest: palette and RGBA encodings of the same pixels converge
+ok 251 - palette and RGBA encodings of the same pixels converge
+  ---
+  duration_ms: 2.48734
+  type: 'test'
+  ...
+# Subtest: valid indexed transparency converges with the same RGBA pixels
+ok 252 - valid indexed transparency converges with the same RGBA pixels
+  ---
+  duration_ms: 1.887012
+  type: 'test'
+  ...
+# Subtest: invisible RGB values cannot carry a covert channel
+ok 253 - invisible RGB values cannot carry a covert channel
+  ---
+  duration_ms: 1.341016
+  type: 'test'
+  ...
+# Subtest: ancillary metadata and private chunks are removed
+ok 254 - ancillary metadata and private chunks are removed
+  ---
+  duration_ms: 5.545527
+  type: 'test'
+  ...
+# Subtest: malformed and active PNG structures fail closed
+ok 255 - malformed and active PNG structures fail closed
+  ---
+  duration_ms: 14.827595
+  type: 'test'
+  ...
+# Subtest: capture dimensions are bound to the canonical payload
+ok 256 - capture dimensions are bound to the canonical payload
+  ---
+  duration_ms: 0.963182
+  type: 'test'
+  ...
+# Subtest: CanonicalPng construction requires the module-private capability
+ok 257 - CanonicalPng construction requires the module-private capability
+  ---
+  duration_ms: 0.854276
+  type: 'test'
+  ...
+# Subtest: the production PNG codec canonicalizes and validates its bound dimensions
+ok 258 - the production PNG codec canonicalizes and validates its bound dimensions
+  ---
+  duration_ms: 1.86245
+  type: 'test'
+  ...
+# Subtest: the production PNG codec can bootstrap publication verification without dimensions
+ok 259 - the production PNG codec can bootstrap publication verification without dimensions
+  ---
+  duration_ms: 0.974563
+  type: 'test'
+  ...
+# Subtest: Pilot portfolio evidence is deterministic, repository-portable, fresh, and fail closed
+ok 260 - Pilot portfolio evidence is deterministic, repository-portable, fresh, and fail closed
+  ---
+  duration_ms: 113578.694309
+  type: 'test'
+  ...
+# Subtest: Pilot portfolio evidence CLI exposes path-free help
+ok 261 - Pilot portfolio evidence CLI exposes path-free help
+  ---
+  duration_ms: 1585.832421
+  type: 'test'
+  ...
+# Subtest: Pilot portfolio evidence CLI fails closed on malformed arguments
+    # Subtest: []
+    ok 1 - []
+      ---
+      duration_ms: 1484.170281
+      type: 'test'
+      ...
+    # Subtest: ["capture"]
+    ok 2 - ["capture"]
+      ---
+      duration_ms: 1465.981791
+      type: 'test'
+      ...
+    # Subtest: ["check"]
+    ok 3 - ["check"]
+      ---
+      duration_ms: 1197.299446
+      type: 'test'
+      ...
+    # Subtest: ["--unknown"]
+    ok 4 - ["--unknown"]
+      ---
+      duration_ms: 1195.778698
+      type: 'test'
+      ...
+    # Subtest: ["capture","--repository",".","--output"]
+    ok 5 - ["capture","--repository",".","--output"]
+      ---
+      duration_ms: 1251.060764
+      type: 'test'
+      ...
+    # Subtest: ["capture","--repository",".","--repository",".","--output","bundle"]
+    ok 6 - ["capture","--repository",".","--repository",".","--output","bundle"]
+      ---
+      duration_ms: 1182.694696
+      type: 'test'
+      ...
+    # Subtest: ["capture","--repository",".","--output","bundle","--help"]
+    ok 7 - ["capture","--repository",".","--output","bundle","--help"]
+      ---
+      duration_ms: 1215.38804
+      type: 'test'
+      ...
+    # Subtest: ["check","--output","bundle"]
+    ok 8 - ["check","--output","bundle"]
+      ---
+      duration_ms: 1224.816996
+      type: 'test'
+      ...
+    # Subtest: ["check","--repository",".","--repository",".","--output","bundle"]
+    ok 9 - ["check","--repository",".","--repository",".","--output","bundle"]
+      ---
+      duration_ms: 1185.478436
+      type: 'test'
+      ...
+    # Subtest: ["check","--output","first","--output","second"]
+    ok 10 - ["check","--output","first","--output","second"]
+      ---
+      duration_ms: 1213.605154
+      type: 'test'
+      ...
+    1..10
+ok 262 - Pilot portfolio evidence CLI fails closed on malformed arguments
+  ---
+  duration_ms: 12618.671135
+  type: 'test'
+  ...
+# Subtest: repository evidence files round-trip with fresh-checkout modes
+ok 263 - repository evidence files round-trip with fresh-checkout modes
+  ---
+  duration_ms: 37.744868
+  type: 'test'
+  ...
+# Subtest: repository evidence reads reject links and unsafe checkout permissions
+ok 264 - repository evidence reads reject links and unsafe checkout permissions
+  ---
+  duration_ms: 16.199652
+  type: 'test'
+  ...
+# Subtest: the package root exposes the capture, storage, mutation, and resolver API
+ok 265 - the package root exposes the capture, storage, mutation, and resolver API
+  ---
+  duration_ms: 2.266546
+  type: 'test'
+  ...
+# Subtest: paired publication commits bind both canonical record files
+ok 266 - paired publication commits bind both canonical record files
+  ---
+  duration_ms: 19.954745
+  type: 'test'
+  ...
+# Subtest: paired publication commits reject a false identity
+ok 267 - paired publication commits reject a false identity
+  ---
+  duration_ms: 3.222577
+  type: 'test'
+  ...
+# Subtest: paired publication commits reject record substitution after identity recomputation
+ok 268 - paired publication commits reject record substitution after identity recomputation
+  ---
+  duration_ms: 5.044705
+  type: 'test'
+  ...
+# Subtest: a genuine two-checkpoint 320x240 resolved evidence bundle validates
+ok 269 - a genuine two-checkpoint 320x240 resolved evidence bundle validates
+  ---
+  duration_ms: 857.75651
+  type: 'test'
+  ...
+# Subtest: resolved evidence rejects schedule count and swapped checkpoint bytes
+ok 270 - resolved evidence rejects schedule count and swapped checkpoint bytes
+  ---
+  duration_ms: 1064.213891
+  type: 'test'
+  ...
+# Subtest: resolved evidence binds PNG dimensions and checkpoint target provenance
+ok 271 - resolved evidence binds PNG dimensions and checkpoint target provenance
+  ---
+  duration_ms: 1886.9845
+  type: 'test'
+  ...
+# Subtest: resolved wrappers reject extra fields, sparse arrays, and oversized bytes
+ok 272 - resolved wrappers reject extra fields, sparse arrays, and oversized bytes
+  ---
+  duration_ms: 2071.443725
+  type: 'test'
+  ...
+# Subtest: resolved evidence rejects manifest and count failures before artifact snapshots
+ok 273 - resolved evidence rejects manifest and count failures before artifact snapshots
+  ---
+  duration_ms: 56.563461
+  type: 'test'
+  ...
+# Subtest: resolved evidence snapshots high-multiplicity repeated refs only once
+ok 274 - resolved evidence snapshots high-multiplicity repeated refs only once
+  ---
+  duration_ms: 301.903976
+  type: 'test'
+  ...
+# Subtest: resolved evidence rejects conflicting bytes for one repeated ref
+ok 275 - resolved evidence rejects conflicting bytes for one repeated ref
+  ---
+  duration_ms: 122.751533
+  type: 'test'
+  ...
+# Subtest: resolved intervention accepts canonical plan and precondition bytes
+ok 276 - resolved intervention accepts canonical plan and precondition bytes
+  ---
+  duration_ms: 550.440956
+  type: 'test'
+  ...
+# Subtest: resolved evidence records replay sealed outcome payloads
+ok 277 - resolved evidence records replay sealed outcome payloads
+  ---
+  duration_ms: 832.882629
+  type: 'test'
+  ...
+# Subtest: resolved evidence records reject a rehashed but false changed surface
+ok 278 - resolved evidence records reject a rehashed but false changed surface
+  ---
+  duration_ms: 807.033795
+  type: 'test'
+  ...
+# Subtest: resolved intervention rejects every manifest request binding tamper
+ok 279 - resolved intervention rejects every manifest request binding tamper
+  ---
+  duration_ms: 1558.862736
+  type: 'test'
+  ...
+# Subtest: resolved intervention rejects every sealed intervention binding tamper
+ok 280 - resolved intervention rejects every sealed intervention binding tamper
+  ---
+  duration_ms: 2640.9685
+  type: 'test'
+  ...
+# Subtest: resolved intervention binds the exact plan and precondition references
+ok 281 - resolved intervention binds the exact plan and precondition references
+  ---
+  duration_ms: 533.234588
+  type: 'test'
+  ...
+# Subtest: paired publication is concurrent, idempotent, and owns caller bytes
+ok 282 - paired publication is concurrent, idempotent, and owns caller bytes
+  ---
+  duration_ms: 19139.204998
+  type: 'test'
+  ...
+# Subtest: paired publication rejects incomplete input without filesystem residue
+ok 283 - paired publication rejects incomplete input without filesystem residue
+  ---
+  duration_ms: 565.166104
+  type: 'test'
+  ...
+# Subtest: paired publication rejects hostile input wrappers and artifact substitutions
+    # Subtest: accessor wrapper
+    ok 1 - accessor wrapper
+      ---
+      duration_ms: 1.403711
+      type: 'test'
+      ...
+    # Subtest: sparse array
+    ok 2 - sparse array
+      ---
+      duration_ms: 3.487514
+      type: 'test'
+      ...
+    # Subtest: duplicate artifact
+    ok 3 - duplicate artifact
+      ---
+      duration_ms: 4.224182
+      type: 'test'
+      ...
+    # Subtest: conflicting duplicate metadata
+    ok 4 - conflicting duplicate metadata
+      ---
+      duration_ms: 3.656485
+      type: 'test'
+      ...
+    # Subtest: unexpected sealed artifact
+    ok 5 - unexpected sealed artifact
+      ---
+      duration_ms: 3.357647
+      type: 'test'
+      ...
+    # Subtest: reference metadata substitution
+    ok 6 - reference metadata substitution
+      ---
+      duration_ms: 3.282171
+      type: 'test'
+      ...
+    # Subtest: shared backing memory
+    ok 7 - shared backing memory
+      ---
+      duration_ms: 3.324954
+      type: 'test'
+      ...
+    # Subtest: short artifact bytes
+    ok 8 - short artifact bytes
+      ---
+      duration_ms: 3.306633
+      type: 'test'
+      ...
+    # Subtest: same-length digest substitution
+    ok 9 - same-length digest substitution
+      ---
+      duration_ms: 9.440357
+      type: 'test'
+      ...
+    1..9
+ok 284 - paired publication rejects hostile input wrappers and artifact substitutions
+  ---
+  duration_ms: 578.139029
+  type: 'test'
+  ...
+# Subtest: paired publication remains atomic under a restrictive umask
+ok 285 - paired publication remains atomic under a restrictive umask
+  ---
+  duration_ms: 8661.492914
+  type: 'test'
+  ...
+# Subtest: publisher startup removes only a bounded owned staging tree
+ok 286 - publisher startup removes only a bounded owned staging tree
+  ---
+  duration_ms: 36.569494
+  type: 'test'
+  ...
+# Subtest: one visible identity cannot be rebound to another sealed record
+ok 287 - one visible identity cannot be rebound to another sealed record
+  ---
+  duration_ms: 9332.461771
+  type: 'test'
+  ...
+# Subtest: committed metadata tampering fails closed on reopen
+ok 288 - committed metadata tampering fails closed on reopen
+  ---
+  duration_ms: 6238.749073
+  type: 'test'
+  ...
+# Subtest: semantic staging failure rolls back completely and permits retry
+ok 289 - semantic staging failure rolls back completely and permits retry
+  ---
+  duration_ms: 11159.740556
+  type: 'test'
+  ...
+# Subtest: final release directory names are cryptographically bound
+ok 290 - final release directory names are cryptographically bound
+  ---
+  duration_ms: 6277.299119
+  type: 'test'
+  ...
+# Subtest: the four representative v1 manifests satisfy their schemas
+ok 291 - the four representative v1 manifests satisfy their schemas
+  ---
+  duration_ms: 11.528002
+  type: 'test'
+  ...
+# Subtest: visible evidence rejects direct label fields
+ok 292 - visible evidence rejects direct label fields
+  ---
+  duration_ms: 0.483552
+  type: 'test'
+  ...
+# Subtest: artifact references cannot carry paths or URIs
+ok 293 - artifact references cannot carry paths or URIs
+  ---
+  duration_ms: 0.195463
+  type: 'test'
+  ...
+# Subtest: candidate observations cannot include an execution trace
+ok 294 - candidate observations cannot include an execution trace
+  ---
+  duration_ms: 0.228755
+  type: 'test'
+  ...
+# Subtest: artifact digests are exact lowercase SHA-256 values
+ok 295 - artifact digests are exact lowercase SHA-256 values
+  ---
+  duration_ms: 0.178461
+  type: 'test'
+  ...
+# Subtest: capture roles cannot be swapped
+ok 296 - capture roles cannot be swapped
+  ---
+  duration_ms: 0.181252
+  type: 'test'
+  ...
+# Subtest: artifact size budgets are enforced by media type
+ok 297 - artifact size budgets are enforced by media type
+  ---
+  duration_ms: 0.188293
+  type: 'test'
+  ...
+# Subtest: one partition cannot contain the same evidence ID twice
+ok 298 - one partition cannot contain the same evidence ID twice
+  ---
+  duration_ms: 0.197813
+  type: 'test'
+  ...
+# Subtest: sealed evidence payloads are closed, canonical, and replayable
+ok 299 - sealed evidence payloads are closed, canonical, and replayable
+  ---
+  duration_ms: 9.93909
+  type: 'test'
+  ...
+# Subtest: sealed payloads reject semantic contradictions
+ok 300 - sealed payloads reject semantic contradictions
+  ---
+  duration_ms: 0.867946
+  type: 'test'
+  ...
+# Subtest: raw trace codec honors its declared multi-megabyte parser budget
+ok 301 - raw trace codec honors its declared multi-megabyte parser budget
+  ---
+  duration_ms: 109.776969
+  type: 'test'
+  ...
+# Subtest: source-state provenance is closed, canonical, and immutable
+ok 302 - source-state provenance is closed, canonical, and immutable
+  ---
+  duration_ms: 8.683119
+  type: 'test'
+  ...
+# Subtest: source packages reject ambiguous membership and unsafe paths
+ok 303 - source packages reject ambiguous membership and unsafe paths
+  ---
+  duration_ms: 1.461924
+  type: 'test'
+  ...
+# Subtest: raw fixture-manifest identity cannot be confused with canonical JSON
+ok 304 - raw fixture-manifest identity cannot be confused with canonical JSON
+  ---
+  duration_ms: 6.628386
+  type: 'test'
+  ...
+# Subtest: semantically consistent contract bundles validate
+ok 305 - semantically consistent contract bundles validate
+  ---
+  duration_ms: 18.870075
+  type: 'test'
+  ...
+# Subtest: paired checkpoints must have the same opaque identity
+ok 306 - paired checkpoints must have the same opaque identity
+  ---
+  duration_ms: 1.304884
+  type: 'test'
+  ...
+# Subtest: one capture identity cannot describe both roles
+ok 307 - one capture identity cannot describe both roles
+  ---
+  duration_ms: 0.786261
+  type: 'test'
+  ...
+# Subtest: one content digest cannot claim two artifact identities
+ok 308 - one content digest cannot claim two artifact identities
+  ---
+  duration_ms: 0.804072
+  type: 'test'
+  ...
+# Subtest: task-regression labels are derived from outcomes
+ok 309 - task-regression labels are derived from outcomes
+  ---
+  duration_ms: 0.77738
+  type: 'test'
+  ...
+# Subtest: invalid samples cannot retain benchmark targets
+ok 310 - invalid samples cannot retain benchmark targets
+  ---
+  duration_ms: 0.735868
+  type: 'test'
+  ...
+# Subtest: outcome success cannot carry a failed step
+ok 311 - outcome success cannot carry a failed step
+  ---
+  duration_ms: 0.759259
+  type: 'test'
+  ...
+# Subtest: visible and sealed stores cannot reference the same object
+ok 312 - visible and sealed stores cannot reference the same object
+  ---
+  duration_ms: 6.084192
+  type: 'test'
+  ...
+# Subtest: an evidence ID cannot cross assignment partitions
+ok 313 - an evidence ID cannot cross assignment partitions
+  ---
+  duration_ms: 0.329582
+  type: 'test'
+  ...
+# Subtest: split IDs are strictly sorted for canonical review
+ok 314 - split IDs are strictly sorted for canonical review
+  ---
+  duration_ms: 0.383354
+  type: 'test'
+  ...
+# Subtest: joint holdouts reject grouping overlap
+ok 315 - joint holdouts reject grouping overlap
+  ---
+  duration_ms: 0.711086
+  type: 'test'
+  ...
+# Subtest: the sealed audit must cover the exact visible membership
+ok 316 - the sealed audit must cover the exact visible membership
+  ---
+  duration_ms: 0.870966
+  type: 'test'
+  ...
+# Subtest: all four content-shaped root identities bind canonical bodies
+ok 317 - all four content-shaped root identities bind canonical bodies
+  ---
+  duration_ms: 2.494581
+  type: 'test'
+  ...
+# Subtest: visible routing identities cannot be chosen independently of evidence
+ok 318 - visible routing identities cannot be chosen independently of evidence
+  ---
+  duration_ms: 2.261416
+  type: 'test'
+  ...
+# Subtest: sealed labels bind the exact canonical visible manifest
+ok 319 - sealed labels bind the exact canonical visible manifest
+  ---
+  duration_ms: 2.263196
+  type: 'test'
+  ...
+# Subtest: source identity is resolved at the visible-sealed pair boundary
+ok 320 - source identity is resolved at the visible-sealed pair boundary
+  ---
+  duration_ms: 3.148423
+  type: 'test'
+  ...
+# Subtest: sealed grouping cannot disguise canonical source or mutation families
+ok 321 - sealed grouping cannot disguise canonical source or mutation families
+  ---
+  duration_ms: 4.82266
+  type: 'test'
+  ...
+# Subtest: sealed split metadata binds the exact canonical assignment
+ok 322 - sealed split metadata binds the exact canonical assignment
+  ---
+  duration_ms: 0.808492
+  type: 'test'
+  ...
+# Subtest: baseline_failed is accepted if and only if the baseline failed
+ok 323 - baseline_failed is accepted if and only if the baseline failed
+  ---
+  duration_ms: 0.975743
+  type: 'test'
+  ...
+# Subtest: different scalar outcomes require different sealed evidence
+ok 324 - different scalar outcomes require different sealed evidence
+  ---
+  duration_ms: 1.068619
+  type: 'test'
+  ...
+# Subtest: validators reject inherited and hidden JavaScript fields
+ok 325 - validators reject inherited and hidden JavaScript fields
+  ---
+  duration_ms: 0.446989
+  type: 'test'
+  ...
+# Subtest: multi-checkpoint evidence enforces symmetric order and identity
+ok 326 - multi-checkpoint evidence enforces symmetric order and identity
+  ---
+  duration_ms: 4.326108
+  type: 'test'
+  ...
+# Subtest: dataset validation binds split, records, groups, policies, and CAS stores
+ok 327 - dataset validation binds split, records, groups, policies, and CAS stores
+  ---
+  duration_ms: 17.55555
+  type: 'test'
+  ...
+# Subtest: dataset validation rejects an audit that lies about sealed grouping
+ok 328 - dataset validation rejects an audit that lies about sealed grouping
+  ---
+  duration_ms: 10.490955
+  type: 'test'
+  ...
+# Subtest: observation artifacts cannot be reused across split partitions
+ok 329 - observation artifacts cannot be reused across split partitions
+  ---
+  duration_ms: 9.882916
+  type: 'test'
+  ...
+# Subtest: global visible and sealed stores cannot overlap across different records
+ok 330 - global visible and sealed stores cannot overlap across different records
+  ---
+  duration_ms: 8.445634
+  type: 'test'
+  ...
+# Subtest: dataset membership is exact and label policy is uniform
+ok 331 - dataset membership is exact and label policy is uniform
+  ---
+  duration_ms: 14.141041
+  type: 'test'
+  ...
+# Subtest: dataset pair wrappers fail closed on non-data and sparse inputs
+ok 332 - dataset pair wrappers fail closed on non-data and sparse inputs
+  ---
+  duration_ms: 5.620942
+  type: 'test'
+  ...
+1..332
+# tests 388
+# suites 0
+# pass 388
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 674177.861505
+# start of coverage report
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# file                                           | line % | branch % | funcs % | uncovered lines
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# dist                                           |        |          |         | 
+#  src                                           |        |          |         | 
+#   artifacts                                    |        |          |         | 
+#    cas.js                                      |  78.74 |    75.40 |  100.00 | 33-34 40-43 69-72 78-83 85 89-90 104-105 110-111 116-117 123-124 127-128 154-155 168-169 180-181 195-196 200-206 219-222 234-235 243-270 284-285 299-300 310-311 325-326 331-332 337-338 379-380 409-410 416-419 421-422 447-448 457-458 463-464 474-477 485-486 500-501 511-514 528-529 539-542 547-548 568-571 616-624 631-632 636-640 644-650 686-687 702-703 709-710 724-725 730-731 743-744 762-763 767-768 779-780 784-785 818-819
+#    codecs.js                                   | 100.00 |   100.00 |  100.00 | 
+#    errors.js                                   | 100.00 |   100.00 |  100.00 | 
+#    png.js                                      |  85.02 |    83.20 |  100.00 | 20-21 26-29 50-51 61-62 81-82 86-87 108-109 128-129 132-133 139-140 181-182 188-189 192-193 206-207 209-210 228-229 245-246 260-261 270-273 285-286 303-304
+#   benchmark                                    |        |          |         | 
+#    application-catalog.js                      | 100.00 |   100.00 |  100.00 | 
+#    generation-plan-identity.js                 | 100.00 |   100.00 |  100.00 | 
+#    generation-plan-schema.js                   | 100.00 |   100.00 |  100.00 | 
+#    generation-plan-validate.js                 |  96.20 |    92.19 |  100.00 | 105-106 111-112 166-167 198-200
+#    identity.js                                 | 100.00 |   100.00 |  100.00 | 
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    pilot-v01.js                                | 100.00 |   100.00 |  100.00 | 
+#    schema.js                                   | 100.00 |   100.00 |  100.00 | 
+#    validate.js                                 |  80.65 |    62.50 |  100.00 | 19-20 38-39 43-44 47-48 50-51 54-55
+#   capture                                      |        |          |         | 
+#    chromium-fonts.js                           | 100.00 |   100.00 |  100.00 | 
+#    chromium-layout.js                          |  89.74 |    82.49 |  100.00 | 65-66 69-70 86-87 89-90 95-96 106-107 124-125 137-138 141-142 151-152 171-172 180-181 200-201 220-221 230-231 245-246 251-252 261-262 299-300 303-304 318-319 353-354 359-360 376-377 431-432 442-443
+#    identity.js                                 | 100.00 |   100.00 |  100.00 | 
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    limits.js                                   | 100.00 |   100.00 |  100.00 | 
+#    normalize-ax.js                             |  82.27 |    72.33 |  100.00 | 36-37 40-41 47-48 50-51 60-61 66-67 77-78 87-92 94-95 102-103 108-109 112-113 122-123 130 141-142 144-146 151-152 158-159 168-169 187-188 190-191 209-220 269-270 293-294 304-305 350-351 359-360 362-363 368-369 372-373 379-380 394-395 403-404 426-427 429-430 464-465
+#    normalize-layout.js                         |  86.54 |    76.70 |  100.00 | 34-35 38-39 45-46 48-49 54-55 57-58 65-66 83-84 89-90 115-116 123-124 149-150 207-208 211-212 217-218 221-222 224-225 243-244 257-258 260-261 284-285
+#    quantize.js                                 |  88.24 |    76.47 |  100.00 | 17-18 32-33 43-44
+#    schema.js                                   | 100.00 |   100.00 |  100.00 | 
+#    validate.js                                 |  90.98 |    86.08 |  100.00 | 55-56 58-59 67-68 102-103 113-114 118-119 121-122 132-135 161-162 175-176
+#   cli                                          |        |          |         | 
+#    development-release.js                      |  97.94 |    77.78 |  100.00 | 66-67
+#    pilot-portfolio-evidence.js                 |  98.13 |    80.00 |  100.00 | 75-76
+#   contracts                                    |        |          |         | 
+#    artifacts.js                                |  96.61 |    94.44 |  100.00 | 19-20
+#    byte-array.js                               |  83.56 |    60.00 |  100.00 | 10-11 45-46 57-58 64-67 69-70
+#    canonical.js                                |  91.73 |    90.67 |  100.00 | 28-29 37-38 196 204-206 210-211 262-263 265-266 298-299 302 315-316 335-336 352-363 373-374 379-380 416-417 445-448
+#    dataset.js                                  |  90.24 |    80.49 |  100.00 | 18-19 53-54 60-61 63-64 81-82 90-91
+#    errors.js                                   | 100.00 |   100.00 |  100.00 | 
+#    immutable-map.js                            |  89.47 |   100.00 |   90.00 | 30-33
+#    input.js                                    | 100.00 |    83.33 |  100.00 | 
+#    resolved-record.js                          |  83.20 |    65.52 |  100.00 | 12-13 16-17 22-23 29-30 37-38 40-41 47-48 52-53 64-65 69-75 99-100 103-104 114-115 130-131 136-137 142-143 150-151 165-166
+#    resolved.js                                 |  85.50 |    76.63 |  100.00 | 37-38 68-70 75-77 86-88 93-94 100-102 114-115 135-137 155-156 166-167 180-181 213-214 221-222 234-235 258-260 262-264 267-269 275-276 282-284 297-299 305-307 334-335 385-386 396-397 407-408 411-412 428-429 440-441 445-447 458-459 463-464 483-484 488-489 558-559 569-570 580-581 589-590 596-597
+#    schema.js                                   | 100.00 |   100.00 |  100.00 | 
+#    validate.js                                 |  90.21 |    84.62 |  100.00 | 32-33 35-36 38-39 58-59 62-63 81-82 110-111 113-114 121-122 125-126 128-129 179-180 203-204 250-251
+#   generation                                   |        |          |         | 
+#    assembler.js                                |  80.97 |    64.41 |   92.31 | 18-19 27-28 30-31 44-47 68-69 71-72 77-78 85-92 101-102 135-137 150-151 157-158 174-175 181-182 188-189 196-197 249-250 256-265 272-273
+#    derive.js                                   |  88.37 |    64.63 |   96.43 | 14-16 26-27 32-33 41-42 44-45 49-50 56-57 80-81 86-87 102-103 111-112 114-115 120-121 126-127 131-132 148-149 153-154 177-178 187-188 197-198 270-271 287-288 324-325 330-331 347-348 430-431 485-488
+#    errors.js                                   | 100.00 |   100.00 |  100.00 | 
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    policy.js                                   | 100.00 |   100.00 |  100.00 | 
+#   index.js                                     | 100.00 |   100.00 |  100.00 | 
+#   mutations                                    |        |          |         | 
+#    catalog                                     |        |          |         | 
+#     identity.js                                | 100.00 |   100.00 |  100.00 | 
+#     index.js                                   | 100.00 |   100.00 |  100.00 | 
+#     pilot-v01.js                               | 100.00 |   100.00 |  100.00 | 
+#     schema.js                                  | 100.00 |   100.00 |  100.00 | 
+#     spec.js                                    | 100.00 |   100.00 |  100.00 | 
+#     validate.js                                |  90.48 |    88.57 |  100.00 | 35-38 70-71 118-121 142-143 147-148 166-167 178-179
+#    compiler.js                                 |  96.70 |    92.16 |  100.00 | 117-118 120-121 129-130 177-178 309-310 361-362 415-416
+#    environment.js                              |  83.17 |    64.76 |  100.00 | 74-75 79-85 90-91 96-97 110-111 128-129 133-134 144-145 158-159 168-169 184-185 188-189 201-202 209-210 217-218 228-229 235-236 238-243 245-246 253-254 260-261 271-272 281-282 308-309 317-318 325-326 336-337 446-447 479-480 488-489 506-507 529-551 563-564 566-567 575-577
+#    errors.js                                   | 100.00 |   100.00 |  100.00 | 
+#    identity.js                                 | 100.00 |   100.00 |  100.00 | 
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    palette.js                                  | 100.00 |   100.00 |  100.00 | 
+#    provenance-files.js                         |  89.03 |    83.33 |  100.00 | 41-42 64-65 78-79 101-102 122-123 147-148 154-155 161-162 167-168 183-184 187-188 197-198 211-212
+#    runtime.js                                  |  72.05 |    75.24 |   83.94 | 251-252 286-287 308-309 315-316 322-323 342-343 350-351 357-358 434-435 451-454 463-464 492-493 509-510 518-519 522-528 539-540 575-576 578-579 583-584 601-603 609-611 617-618 626-627 632-633 639-640 645-723 740-858 862-863 868-884 895-896 903-906 909-911 926-928 935-937 949-952 962-964 970-971 980-981 985-986 995-997 1004-1006 1018-1019 1030-1031 1039-1040 1064-1065 1067-1068 1070-1071 1082-1083 1088-1089 1094-1095 1100-1101 1111-1112 1122-1123 1125-1126 1215-1218 1256 1260-1261 1265-1266 1274-1275 1284-1285 1293-1294 1297-1298 1308-1309 1316-1317 1329-1330 1422-1423 1431-1446 1450-1451 1479-1480 1512-1513 1516-1517 1522-1523 1526-1527 1541-1542 1550-1551 1564-1565 1571-1572 1581-1582 1589-1590 1666-1667 1677-1678 1695-1696 1706-1707 1709-1710 1728-1729 1732-1733 1739-1774 1778-1781 1807-1808 1810-1812 1815-1816 1827-1828 1881-1938 1954-1955 1960-1964 1966-1968 2019-2021 2043-2044 2068-2072 2076-2078 2085-2123 2127-2130 2137-2138 2147-2148 2159-2160 2204-2212 2216-2218 2233-2237 2240-2284 2288-2291 2300-2301 2305-2308 2310-2311 2332-2333 2337-2338 2358-2361 2408-2410 2416-2418 2431-2433 2440-2441 2453-2454 2460-2461 2467-2468 2483-2484
+#    schema.js                                   | 100.00 |   100.00 |  100.00 | 
+#   pilot                                        |        |          |         | 
+#    fixture                                     |        |          |         | 
+#     action-plan.js                             | 100.00 |   100.00 |  100.00 | 
+#     identity.js                                | 100.00 |   100.00 |  100.00 | 
+#     index.js                                   | 100.00 |   100.00 |  100.00 | 
+#     package.js                                 |  93.83 |    86.36 |  100.00 | 44 78-79 90-91 156-157 180-181 199-200 206-209
+#     schema.js                                  | 100.00 |   100.00 |  100.00 | 
+#     validate.js                                |  94.17 |    91.45 |  100.00 | 55-56 73-74 106-107 121-122 131-132 142-143 164-165 234-235 273-274
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    runtime                                     |        |          |         | 
+#     capture.js                                 | 100.00 |   100.00 |  100.00 | 
+#     checkpoint.js                              |  88.52 |    72.00 |   95.45 | 18-19 24-25 29-30 38-39 52-53 59-60 69-70 76-77 169-170 172-173 178-179 201-202 214-215 217-218
+#     environment.js                             |  81.50 |    78.57 |   93.75 | 35-36 50-51 63-64 66-80 106-107 117-119 133-134 140-141 162-163 169-170 172-173 185-187 205-207
+#     errors.js                                  | 100.00 |   100.00 |  100.00 | 
+#     index.js                                   | 100.00 |   100.00 |  100.00 | 
+#     pointer-authoring.js                       | 100.00 |   100.00 |  100.00 | 
+#     pointer-intervention.js                    |  91.51 |    78.38 |   76.47 | 11-12 17-18 26-27 49-50 143-144 169-170 174-175 193-194 204-205
+#     pointer-operator.js                        |  92.83 |    87.50 |  100.00 | 34-35 41-42 75-76 79-80 87-88 116-117 134-135 167-168 223-224
+#     predicate-authoring.js                     | 100.00 |   100.00 |  100.00 | 
+#     predicates.js                              |  91.88 |    86.15 |   94.44 | 126-127 129-130 138-139 142-143 147-148 154-155 158-159 164-165
+#     replay.js                                  | 100.00 |   100.00 |  100.00 | 
+#     session.js                                 |  83.10 |    79.61 |   73.21 | 37-38 43-45 51-52 74-75 84-85 95-96 105-106 111-112 125-126 137-138 147-148 155-156 166-167 173-174 186-187 191-192 253-255 268-271 277-280 282-285 333-334 355-356 365-368 373-374 2541-2542 2561-2562 2565-2566 2582-2583 2628-2726 2768-2769 2781-2782 2787-3159 3193-3194 3200-3201 3204-3205 3211-3212 3216-3232 3236-3237 3239-3240 3262-3263 3270-3271 3273-3274 3282-3283 3287-3288 3290-3291 3294-3295 3300-3301 3311-3316 3334-3335 3352-3353 3362-3384 3423-3424 3436-3437 3454-3455 3472-3473 3544-3546 3558-3559 3564-3565 3606-3607 3643-3644 3661 3674-3675 3682-3683 3690-3691 3695-3696 3770-3773 3855-3856 3923-3924 3953-3955 3957-3958 3961-3962 3967-3968 3973-3974 3980-3981 3987-3988 3990-3991 3997-3998 4000-4001 4013-4014 4039-4040 4043-4044 4056-4057 4064-4065 4083-4085 4125-4127 4136-4138 4140-4142 4144-4146 4160-4162 4174-4175 4190-4191 4196-4197 4215-4216 4219-4220
+#   portfolio-evidence                           |        |          |         | 
+#    capture.js                                  |  85.34 |    58.14 |   90.48 | 13-15 31-37 44-45 55-56 81-82 90-91 110-111 131-132 143-144 152-153 190-191 208-209 212-213 232-238 257-258 266-267 282-283 286-287 338-340
+#    errors.js                                   | 100.00 |   100.00 |  100.00 | 
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    publication.js                              |  85.80 |    70.31 |  100.00 | 29-30 36 41-43 50-51 54-55 85-86 97-98 102-103 110-111 133-134 142-143 154-155 162-163 171-172 187-188 194-195 209-210 214-217 229-230 264-265 278-279 299-300 306-307 313-314 354-355 361-362 381-382 390-391 420-421 424-425 431-432 444-445 504-510
+#    repository-filesystem.js                    |  74.67 |    57.14 |   96.00 | 15-16 22-23 77-78 89-90 108-111 113-122 130-131 138-139 143-144 170-172 185-186 189-191 198-199 212-213 222-223 230-231 236-238 241-242 252-253 260-261 273-274 279-280 284-285 292-295 305 309-311 318-319 327-328 348-349 359-360 367-368 371-373 378-386 394-395 408-424 430-431 437-438 445-446
+#    schema.js                                   | 100.00 |   100.00 |  100.00 | 
+#    source-identity.js                          |  84.66 |    65.67 |  100.00 | 29-30 37-40 42-43 54-55 59-65 71-72 96-97 107-108 119-120 158-159 164-165 182-183 186-190 205-206 216-217 232-233 269-270 283-284 296-297 321-322 336-337
+#    validate.js                                 |  89.61 |    67.35 |  100.00 | 19-20 32-33 38-39 43-44 51-52 66-67 77-78 174-175 178-179 193-194 196-197 223-224 230-231 235-236 241-242 280-281
+#   publication                                  |        |          |         | 
+#    codecs.js                                   |  93.33 |    75.00 |  100.00 | 26-27
+#    errors.js                                   | 100.00 |   100.00 |  100.00 | 
+#    filesystem.js                               |  67.98 |    48.87 |   96.77 | 30-31 36-37 42-43 53-54 86-87 89-90 100-103 105-114 126-127 134-135 139-140 165-167 180-181 184-189 198-199 223-224 232-262 279 284-288 292-293 295-296 298-299 303-304 306-307 309-310 312-313 318-319 326-327 333-334 339-340 346-347 371-372 379-380 383-388 391-392 394-403 413-414 421-422 434-435 441-442 446-447 451-456 469-470 484-485 494-495 502-503 508-513 516-517 523-524 526-527 530-531 537-538 546-547 554-555 563-564 574-575 583-584 591-592 597-602 612-613 615-616 624-629 634-635 638-639 641-642 647-648 652-657
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    input.js                                    |  84.81 |    70.27 |  100.00 | 22 26-27 35-36 38-39 43-44 52-53 65-66 76-77 79-80 89-90 106-107 111-112 128-129 137-138 144-145 212-213 219-220 222-223 242-243 248-249 260-261
+#    publisher.js                                |  85.25 |    75.34 |  100.00 | 22-23 35-38 46-47 63-64 67-68 78-81 83-84 88-89 94-95 183-184 192-193 221-222 224-225 233-235 240-242 246-247 251-253
+#    schema.js                                   | 100.00 |   100.00 |  100.00 | 
+#    validate.js                                 | 100.00 |   100.00 |  100.00 | 
+#    verify.js                                   |  95.63 |    83.78 |  100.00 | 23-24 33-34 61-62 146-147 225-226
+#   sealed                                       |        |          |         | 
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    schema.js                                   | 100.00 |   100.00 |  100.00 | 
+#    validate.js                                 |  83.54 |    76.19 |  100.00 | 44-45 50-52 55-58 60-61 67-68
+#   source                                       |        |          |         | 
+#    index.js                                    | 100.00 |   100.00 |  100.00 | 
+#    schema.js                                   | 100.00 |   100.00 |  100.00 | 
+#    validate.js                                 |  97.10 |    94.44 |  100.00 | 48-49
+#  test                                          |        |          |         | 
+#   benchmark                                    |        |          |         | 
+#    application-catalog.test.js                 | 100.00 |   100.00 |  100.00 | 
+#    generation-plan.test.js                     |  99.51 |   100.00 |   96.08 | 399-400
+#    pilot-protocol.test.js                      |  98.85 |    95.74 |   90.00 | 34 251-252
+#   canonical.test.js                            |  98.43 |   100.00 |   97.22 | 117-118
+#   capture                                      |        |          |         | 
+#    chromium-fonts.test.js                      | 100.00 |    92.31 |  100.00 | 
+#    chromium-layout.test.js                     | 100.00 |   100.00 |   97.96 | 
+#    normalizers.test.js                         | 100.00 |   100.00 |  100.00 | 
+#    schema.test.js                              | 100.00 |   100.00 |  100.00 | 
+#   cas.test.js                                  |  99.20 |    94.81 |   86.57 | 20-21 57-58 567
+#   cli                                          |        |          |         | 
+#    development-release.test.js                 | 100.00 |   100.00 |  100.00 | 
+#   fixtures.js                                  | 100.00 |   100.00 |  100.00 | 
+#   generation                                   |        |          |         | 
+#    assembler.test.js                           |  97.12 |   100.00 |   81.82 | 11 22-23
+#    policy.test.js                              | 100.00 |   100.00 |  100.00 | 
+#   mutations                                    |        |          |         | 
+#    catalog-identity.test.js                    | 100.00 |   100.00 |  100.00 | 
+#    compiler.test.js                            | 100.00 |    97.98 |  100.00 | 
+#    environment.test.js                         | 100.00 |    93.75 |  100.00 | 
+#    pilot-operator-catalog.test.js              |  99.38 |   100.00 |   97.47 | 581-582 593-594
+#    provenance-files.test.js                    | 100.00 |   100.00 |  100.00 | 
+#    runtime-artifact.test.js                    |  97.44 |   100.00 |   50.00 | 6
+#    runtime.test.js                             |  94.85 |    92.52 |   78.26 | 189-190 755-763 774-777 785 794-796 804-807 844-847 865-866 888-889 914-928 933-935
+#   pilot                                        |        |          |         | 
+#    action-plans.test.js                        |  99.69 |    95.92 |  100.00 | 41
+#    fixture-manifest.test.js                    | 100.00 |   100.00 |  100.00 | 
+#    fixture-package.test.js                     | 100.00 |    95.52 |  100.00 | 
+#    incident-command-fixture.test.js            | 100.00 |    92.11 |  100.00 | 
+#    incident-command-pointer-authoring.test.js  |  96.34 |    96.30 |  100.00 | 182-188
+#    incident-command-runtime.test.js            |  92.39 |    91.30 |  100.00 | 94-100 175-181
+#    runtime-bounded-integrity.test.js           | 100.00 |   100.00 |  100.00 | 
+#    runtime-capture.test.js                     |  92.72 |    85.37 |   96.30 | 54-55 88-90 109-110 127-129 133-134 252-258
+#    runtime-environment.test.js                 |  78.77 |    71.43 |  100.00 | 100-106 108-114 142-144 154-160 162-168 170-176
+#    runtime-pointer-authoring.test.js           |  93.20 |    92.31 |  100.00 | 189-191 219-225 259-265 299-305
+#    runtime-pointer-operator.test.js            |  99.03 |   100.00 |   94.74 | 155-156
+#    runtime-predicate-validation.test.js        | 100.00 |   100.00 |   88.89 | 
+#    runtime-predicates.test.js                  |  92.76 |    92.68 |  100.00 | 55-61 78-79 111-117
+#    runtime-replay-adversarial.test.js          |  89.64 |    86.21 |  100.00 | 291-297 373-375 380-387 425-427 434-442 526-532 549-555 592-594 601-602 660-662 669-670 687-693 710-716 733-739 840-842 847-849 857-865
+#    runtime-variable-workflows.test.js          |  89.70 |    95.89 |   98.28 | 73-79 105-111 153-189 432-438
+#   png.test.js                                  |  98.89 |    94.12 |  100.00 | 44 60 87
+#   portfolio-evidence                           |        |          |         | 
+#    capture-publication.test.js                 | 100.00 |    98.31 |   95.56 | 
+#    cli.test.js                                 | 100.00 |   100.00 |  100.00 | 
+#    repository-filesystem.test.js               | 100.00 |   100.00 |  100.00 | 
+#   public-api.test.js                           |  99.02 |   100.00 |   50.00 | 4
+#   publication                                  |        |          |         | 
+#    schema.test.js                              | 100.00 |   100.00 |  100.00 | 
+#   resolved.test.js                             |  99.15 |    96.80 |   98.89 | 514-515 645-646 677-682
+#   schema.test.js                               | 100.00 |   100.00 |  100.00 | 
+#   sealed                                       |        |          |         | 
+#    payloads.test.js                            | 100.00 |   100.00 |  100.00 | 
+#   source                                       |        |          |         | 
+#    state.test.js                               | 100.00 |   100.00 |  100.00 | 
+#   validate.test.js                             | 100.00 |   100.00 |  100.00 | 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# all files                                      |  90.83 |    83.46 |   95.59 | 
+# ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+# end of coverage report

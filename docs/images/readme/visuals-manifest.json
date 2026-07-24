@@ -1,0 +1,573 @@
+{
+  "contract": "impactdiff.readme-visuals",
+  "version": 1,
+  "generated_by": "tools/render-readme-visuals.mjs",
+  "deterministic": true,
+  "network_access": false,
+  "evidence": {
+    "directory": "docs/images/pilot-portfolio-evidence",
+    "manifest_sha256": "da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae",
+    "official": false,
+    "file_count": 50,
+    "checkpoint_count": 12
+  },
+  "quality": {
+    "manifest": "docs/quality/verified-run.json",
+    "manifest_sha256": "3e441890ef7fb97e69ba1d64c307e59ab27d4b8f4e6fe2d424f1c473acafda31",
+    "source_revision": "752115fe535d164db951c4f57c426923619998d1",
+    "official": false,
+    "test_count": 388,
+    "raw_log_count": 2
+  },
+  "artifact_types": ["captured", "source-derived", "mixed"],
+  "artifacts": [
+    {
+      "file": "architecture-contours.svg",
+      "type": "source-derived",
+      "title": "Implemented and planned ImpactDiff architecture",
+      "sha256": "27fed54e50d65c53c6f4bb33e5c35c476a33753fc96faa9d7841ef78cd2cedb2",
+      "byte_length": 9321,
+      "sources": [
+        {
+          "path": "docs/pilot-v0.1-application-catalog.md",
+          "sha256": "a0d42ee59f10d3b90e82d2183d228c82f6938eb6750d6159610ddac4ab0741f0",
+          "byte_length": 20975
+        },
+        {
+          "path": "docs/pilot-v0.1-protocol.md",
+          "sha256": "ff4418ef430bfa128a6728f7c42336039a89260c7a351231949c273156cf5975",
+          "byte_length": 17051
+        },
+        {
+          "path": "src/benchmark/application-catalog.ts",
+          "sha256": "b9c42841cdef5f9e8a867a40bd6e504467703fe48f7ebcae7e07f8bb70265198",
+          "byte_length": 6581
+        },
+        {
+          "path": "src/portfolio-evidence/publication.ts",
+          "sha256": "4cad0be21944647a780e3428ee50968f644a991da287f5f069269e9db9a3c227",
+          "byte_length": 28198
+        },
+        {
+          "path": "src/portfolio-evidence/schema.ts",
+          "sha256": "8ad93cffb6137e4de03ad4d2972c79a3c830226c957b472bfc251d33a1405c04",
+          "byte_length": 9522
+        }
+      ]
+    },
+    {
+      "file": "evidence-trust-chain.svg",
+      "type": "source-derived",
+      "title": "Evidence trust chain and byte bindings",
+      "sha256": "c0da7bec3e6341c44f36e1ceafd4dd8bca0160ffa0d54d884505ea748cef1947",
+      "byte_length": 6495,
+      "sources": [
+        {
+          "path": "src/portfolio-evidence/capture.ts",
+          "sha256": "723236e6ea5c5023b0dc67b148d1cb4c4783e525a840a6172bd741451ac5a495",
+          "byte_length": 19163
+        },
+        {
+          "path": "src/portfolio-evidence/publication.ts",
+          "sha256": "4cad0be21944647a780e3428ee50968f644a991da287f5f069269e9db9a3c227",
+          "byte_length": 28198
+        },
+        {
+          "path": "src/portfolio-evidence/repository-filesystem.ts",
+          "sha256": "723b0d8c5d18e427922cb69d4e261a8070b6d8d4016bdfce4fd58c674825450c",
+          "byte_length": 19871
+        },
+        {
+          "path": "src/portfolio-evidence/source-identity.ts",
+          "sha256": "7c939c8bc41d1918738ae5f087f0f4af4c22100ddf09249cef0a2a2d7d7c8c21",
+          "byte_length": 17198
+        },
+        {
+          "path": "src/portfolio-evidence/schema.ts",
+          "sha256": "8ad93cffb6137e4de03ad4d2972c79a3c830226c957b472bfc251d33a1405c04",
+          "byte_length": 9522
+        }
+      ]
+    },
+    {
+      "file": "atomic-publication.svg",
+      "type": "source-derived",
+      "title": "Manifest-last atomic evidence publication",
+      "sha256": "cf502ba00ce108bb402e9cba6acb1664fa329a3613ef94bbaae075be7feaba64",
+      "byte_length": 8216,
+      "sources": [
+        {
+          "path": "src/portfolio-evidence/publication.ts",
+          "sha256": "4cad0be21944647a780e3428ee50968f644a991da287f5f069269e9db9a3c227",
+          "byte_length": 28198
+        },
+        {
+          "path": "src/portfolio-evidence/repository-filesystem.ts",
+          "sha256": "723b0d8c5d18e427922cb69d4e261a8070b6d8d4016bdfce4fd58c674825450c",
+          "byte_length": 19871
+        }
+      ]
+    },
+    {
+      "file": "pilot-implementation-grid.svg",
+      "type": "source-derived",
+      "title": "Pilot v0.1 implementation coverage",
+      "sha256": "70a4af63f7952f7d1d736f30638195caf5527a99f34d52da98fbdc9154296055",
+      "byte_length": 19155,
+      "sources": [
+        {
+          "path": "docs/pilot-v0.1-protocol.md",
+          "sha256": "ff4418ef430bfa128a6728f7c42336039a89260c7a351231949c273156cf5975",
+          "byte_length": 17051
+        },
+        {
+          "path": "src/benchmark/application-catalog.ts",
+          "sha256": "b9c42841cdef5f9e8a867a40bd6e504467703fe48f7ebcae7e07f8bb70265198",
+          "byte_length": 6581
+        },
+        {
+          "path": "src/mutations/catalog/spec.ts",
+          "sha256": "e0325c2fb2f6a01f14f9c179d468b2a8c0d086ae04a179f009de893973f30626",
+          "byte_length": 12821
+        },
+        {
+          "path": "src/pilot/runtime/pointer-operator.ts",
+          "sha256": "a800a610739145b1aa455aa912f9bf61150e4304bfb055831013547a6f8ef84a",
+          "byte_length": 17270
+        },
+        {
+          "path": "src/portfolio-evidence/schema.ts",
+          "sha256": "8ad93cffb6137e4de03ad4d2972c79a3c830226c957b472bfc251d33a1405c04",
+          "byte_length": 9522
+        }
+      ]
+    },
+    {
+      "file": "checkpoint-modalities.svg",
+      "type": "captured",
+      "title": "Accessibility and layout nodes by checkpoint",
+      "sha256": "c56efc65a5d02f0c49c24097119b67954e17aeecca66292d23446d04318b0151",
+      "byte_length": 10255,
+      "sources": [
+        {
+          "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
+          "sha256": "da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae",
+          "byte_length": 18508
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--initial-state--accessibility.json",
+          "sha256": "b0fe3f455e96efddc0dfd63e746e2a7ed30cd7a2c75dd705e8c367d5dd815981",
+          "byte_length": 29084
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--initial-state--layout.json",
+          "sha256": "78dc87b2619380be8c4a52ff85daf627eb03cddcea1e2003fc41973f1a184cba",
+          "byte_length": 58417
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action--accessibility.json",
+          "sha256": "48232e74855e4d7ecc34894b6b8d0e14b806582a5033ea3ae4f70d17d1e7121f",
+          "byte_length": 29285
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action--layout.json",
+          "sha256": "85709ba6ab8253ce75b4a57d41730343ff6fe0d4cd31a499dc2c257a8a631de1",
+          "byte_length": 58419
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--pre-primary-action--accessibility.json",
+          "sha256": "597b2ba8417ff50d05163e9d362e0b4c9c1d7e050e21ad078c7271cb84885c3f",
+          "byte_length": 29097
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--pre-primary-action--layout.json",
+          "sha256": "78dc87b2619380be8c4a52ff85daf627eb03cddcea1e2003fc41973f1a184cba",
+          "byte_length": 58417
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--initial-state--accessibility.json",
+          "sha256": "b0fe3f455e96efddc0dfd63e746e2a7ed30cd7a2c75dd705e8c367d5dd815981",
+          "byte_length": 29084
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--initial-state--layout.json",
+          "sha256": "c3607029e1d3b0eb108764ccc709c967dc52918a082b8d68c73e7faa39c7632a",
+          "byte_length": 58417
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--post-primary-action--accessibility.json",
+          "sha256": "aaa0f4b313836c57095b4bd9a6e912743f86970cd0deee74bd0371503c457011",
+          "byte_length": 29098
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--post-primary-action--layout.json",
+          "sha256": "962fa87cb01ad0154079a300b14b12f7c59bbd9c5f46beda8c05b13de4735397",
+          "byte_length": 58418
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--pre-primary-action--accessibility.json",
+          "sha256": "f1a26d53c75ba113b31a4a7b46971f7db6ad9cbb19c2c30d04d216ec7acb89e2",
+          "byte_length": 29090
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--pre-primary-action--layout.json",
+          "sha256": "c3607029e1d3b0eb108764ccc709c967dc52918a082b8d68c73e7faa39c7632a",
+          "byte_length": 58417
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--initial-state--accessibility.json",
+          "sha256": "55261295351ac179266ffc74f02ac00ae66fa3741aaef25e352ad556b7ff23dd",
+          "byte_length": 19612
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--initial-state--layout.json",
+          "sha256": "8ea41a21488391db91743daa52fb35266b853a448091ecca6aa8171a61335e1a",
+          "byte_length": 38131
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action--accessibility.json",
+          "sha256": "8c2abd699aafb090c9f566a4b22a3b9331ca7813f082e92106d04818a92e9a19",
+          "byte_length": 19655
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action--layout.json",
+          "sha256": "15ed115af7c1cece6ea1f54c5992869eca01bf91feca4daafe6ee2507af33d2e",
+          "byte_length": 38132
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--pre-primary-action--accessibility.json",
+          "sha256": "7c480380d69f1feab54b39447bae0298d97c1afdddfe88ed94d1e0516959f5da",
+          "byte_length": 19623
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--pre-primary-action--layout.json",
+          "sha256": "8ea41a21488391db91743daa52fb35266b853a448091ecca6aa8171a61335e1a",
+          "byte_length": 38131
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--initial-state--accessibility.json",
+          "sha256": "55261295351ac179266ffc74f02ac00ae66fa3741aaef25e352ad556b7ff23dd",
+          "byte_length": 19612
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--initial-state--layout.json",
+          "sha256": "0a1fb92a6c2cb63d1e2c33cb1c0f608a56cead8713adc6f65986dbee8a13e1ad",
+          "byte_length": 38131
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--post-primary-action--accessibility.json",
+          "sha256": "728085b279f277f6ecee82407955bbc61c52c89e415a91637794a8fc228796f4",
+          "byte_length": 19678
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--post-primary-action--layout.json",
+          "sha256": "4e32762ed8b555afb9fb03325b9c070993b27fb6f757bf9a1ddf1cf6328fec7b",
+          "byte_length": 38132
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--pre-primary-action--accessibility.json",
+          "sha256": "6f5c268784d19c4672d37545d4e3f116f07d80bd94042be16f8b4a63a40bca78",
+          "byte_length": 19620
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--pre-primary-action--layout.json",
+          "sha256": "0a1fb92a6c2cb63d1e2c33cb1c0f608a56cead8713adc6f65986dbee8a13e1ad",
+          "byte_length": 38131
+        }
+      ]
+    },
+    {
+      "file": "evidence-bundle-overview.svg",
+      "type": "captured",
+      "title": "Pilot portfolio evidence bundle receipt",
+      "sha256": "672f93b512dbdbfd802ad4d62eeb08559d635f375fdca261d95f21a14b7f740b",
+      "byte_length": 6323,
+      "sources": [
+        {
+          "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
+          "sha256": "da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae",
+          "byte_length": 18508
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/capture-spec.json",
+          "sha256": "1bd8a2851bbae8b39776ba141c796e3262ff5da8bfdd222adf965a7838301547",
+          "byte_length": 2035
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--action-plan.json",
+          "sha256": "15c1be30ee6bfe383875c6c04558b3d424b5ba5c83e93fe58189b37ca06db169",
+          "byte_length": 1025
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--initial-state--accessibility.json",
+          "sha256": "b0fe3f455e96efddc0dfd63e746e2a7ed30cd7a2c75dd705e8c367d5dd815981",
+          "byte_length": 29084
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--initial-state--layout.json",
+          "sha256": "78dc87b2619380be8c4a52ff85daf627eb03cddcea1e2003fc41973f1a184cba",
+          "byte_length": 58417
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--initial-state.png",
+          "sha256": "41c1a07c4390e2fb38636e443a8004f38da45005bae6c129ea4e868f96a1760f",
+          "byte_length": 109460
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action--accessibility.json",
+          "sha256": "48232e74855e4d7ecc34894b6b8d0e14b806582a5033ea3ae4f70d17d1e7121f",
+          "byte_length": 29285
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action--layout.json",
+          "sha256": "85709ba6ab8253ce75b4a57d41730343ff6fe0d4cd31a499dc2c257a8a631de1",
+          "byte_length": 58419
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action.png",
+          "sha256": "354dddadd5f87931801dfda1197a690b67a7fd32bfd269a67bb3a5e5d6cbcbdf",
+          "byte_length": 111507
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--pre-primary-action--accessibility.json",
+          "sha256": "597b2ba8417ff50d05163e9d362e0b4c9c1d7e050e21ad078c7271cb84885c3f",
+          "byte_length": 29097
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--pre-primary-action--layout.json",
+          "sha256": "78dc87b2619380be8c4a52ff85daf627eb03cddcea1e2003fc41973f1a184cba",
+          "byte_length": 58417
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--pre-primary-action.png",
+          "sha256": "22d9c8130baaf3cb2493b46cc1112113a1510a48c9af506ae5d4ddd07c763715",
+          "byte_length": 109805
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--workflow-audit.json",
+          "sha256": "095a812082a7307acb5181469a15edfee2e42148ab6cc2c940c8c45521cc75dc",
+          "byte_length": 859
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--action-plan.json",
+          "sha256": "6a7684322dd8cbc2345989f00a3a30aa8b15a74b1f587a3c098c5648de739eed",
+          "byte_length": 1025
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--initial-state--accessibility.json",
+          "sha256": "b0fe3f455e96efddc0dfd63e746e2a7ed30cd7a2c75dd705e8c367d5dd815981",
+          "byte_length": 29084
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--initial-state--layout.json",
+          "sha256": "c3607029e1d3b0eb108764ccc709c967dc52918a082b8d68c73e7faa39c7632a",
+          "byte_length": 58417
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--initial-state.png",
+          "sha256": "41c1a07c4390e2fb38636e443a8004f38da45005bae6c129ea4e868f96a1760f",
+          "byte_length": 109460
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--post-primary-action--accessibility.json",
+          "sha256": "aaa0f4b313836c57095b4bd9a6e912743f86970cd0deee74bd0371503c457011",
+          "byte_length": 29098
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--post-primary-action--layout.json",
+          "sha256": "962fa87cb01ad0154079a300b14b12f7c59bbd9c5f46beda8c05b13de4735397",
+          "byte_length": 58418
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--post-primary-action.png",
+          "sha256": "c395b013e054cf3ea0f0262fd9228bd93ac98454f6a216b9dfd6cddd25759382",
+          "byte_length": 109421
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--pre-primary-action--accessibility.json",
+          "sha256": "f1a26d53c75ba113b31a4a7b46971f7db6ad9cbb19c2c30d04d216ec7acb89e2",
+          "byte_length": 29090
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--pre-primary-action--layout.json",
+          "sha256": "c3607029e1d3b0eb108764ccc709c967dc52918a082b8d68c73e7faa39c7632a",
+          "byte_length": 58417
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--pre-primary-action.png",
+          "sha256": "35a3dfb669df5bb140daf46572ad79fc4070621678655341f55bda49a97e425c",
+          "byte_length": 109198
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--workflow-audit.json",
+          "sha256": "885d7cafc7040b870717ba2fca6c213d6e2181cf2e055c0ec5b29dd135f99174",
+          "byte_length": 858
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--fixture-manifest.json",
+          "sha256": "5455f0881475c4a9db92a364f7aea7e5dfe2ae670ff819b97b50a3c1f21ecce5",
+          "byte_length": 6677
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/incident-command--source-state.json",
+          "sha256": "d3286a6dd8bf12f5e11a9af2b97029694da2a0ec77e996a01a0a294aae4e9f23",
+          "byte_length": 1739
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--action-plan.json",
+          "sha256": "bb03cf5b90f3fa7a09526e0f5dbe7eac5ffe026d36f0202a93bdff27229d5bed",
+          "byte_length": 1025
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--initial-state--accessibility.json",
+          "sha256": "55261295351ac179266ffc74f02ac00ae66fa3741aaef25e352ad556b7ff23dd",
+          "byte_length": 19612
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--initial-state--layout.json",
+          "sha256": "8ea41a21488391db91743daa52fb35266b853a448091ecca6aa8171a61335e1a",
+          "byte_length": 38131
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--initial-state.png",
+          "sha256": "17948b509ccc17a0078b4316cf6f276f5ddef8bdf1c8afee0e7f8decf1538e81",
+          "byte_length": 99012
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action--accessibility.json",
+          "sha256": "8c2abd699aafb090c9f566a4b22a3b9331ca7813f082e92106d04818a92e9a19",
+          "byte_length": 19655
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action--layout.json",
+          "sha256": "15ed115af7c1cece6ea1f54c5992869eca01bf91feca4daafe6ee2507af33d2e",
+          "byte_length": 38132
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action.png",
+          "sha256": "86251b71bdad124df3f7d41bbf4bcfe4c29b80cbe6b80985a25aea1f20cd4991",
+          "byte_length": 100653
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--pre-primary-action--accessibility.json",
+          "sha256": "7c480380d69f1feab54b39447bae0298d97c1afdddfe88ed94d1e0516959f5da",
+          "byte_length": 19623
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--pre-primary-action--layout.json",
+          "sha256": "8ea41a21488391db91743daa52fb35266b853a448091ecca6aa8171a61335e1a",
+          "byte_length": 38131
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--pre-primary-action.png",
+          "sha256": "b30aee7a79241858f17a81bd3125d446321125ce47f1b5745de7a0b9fa7197af",
+          "byte_length": 98972
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--workflow-audit.json",
+          "sha256": "3ca6bd06255bbf1cfeba9733eaa34c83769ec56ff2d9d50ed0ac5d37809c3cb5",
+          "byte_length": 844
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--action-plan.json",
+          "sha256": "665dee6a357c2ea8f746924ca19ac0c191a4e8d72597bb271dc52a0aeecdd567",
+          "byte_length": 1025
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--initial-state--accessibility.json",
+          "sha256": "55261295351ac179266ffc74f02ac00ae66fa3741aaef25e352ad556b7ff23dd",
+          "byte_length": 19612
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--initial-state--layout.json",
+          "sha256": "0a1fb92a6c2cb63d1e2c33cb1c0f608a56cead8713adc6f65986dbee8a13e1ad",
+          "byte_length": 38131
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--initial-state.png",
+          "sha256": "17948b509ccc17a0078b4316cf6f276f5ddef8bdf1c8afee0e7f8decf1538e81",
+          "byte_length": 99012
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--post-primary-action--accessibility.json",
+          "sha256": "728085b279f277f6ecee82407955bbc61c52c89e415a91637794a8fc228796f4",
+          "byte_length": 19678
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--post-primary-action--layout.json",
+          "sha256": "4e32762ed8b555afb9fb03325b9c070993b27fb6f757bf9a1ddf1cf6328fec7b",
+          "byte_length": 38132
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--post-primary-action.png",
+          "sha256": "9a7d809ccda220d516bdb9e7f1509a08777da8c5b1102b2cca25ed7830ba5575",
+          "byte_length": 101838
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--pre-primary-action--accessibility.json",
+          "sha256": "6f5c268784d19c4672d37545d4e3f116f07d80bd94042be16f8b4a63a40bca78",
+          "byte_length": 19620
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--pre-primary-action--layout.json",
+          "sha256": "0a1fb92a6c2cb63d1e2c33cb1c0f608a56cead8713adc6f65986dbee8a13e1ad",
+          "byte_length": 38131
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--pre-primary-action.png",
+          "sha256": "acb0a67e9a5ba26ba736217a3c0cfbaa774a77b6329484b373fe7859c5b2cab2",
+          "byte_length": 98892
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--workflow-audit.json",
+          "sha256": "70b6f56a9fe9422e2dbd2f731710fe192dbd8d8aeef2bdece5b9a3e32f1a7d6a",
+          "byte_length": 847
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--fixture-manifest.json",
+          "sha256": "8747c81b2aa1f6771ac0b0cc7ef25f4d3a103a0e14e0fedb4904003442f9df94",
+          "byte_length": 6521
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/market-basket--source-state.json",
+          "sha256": "f260bb51821ad99c7ab13df7570b365ffe82104af0f08f8418b01a316144dc86",
+          "byte_length": 1731
+        }
+      ]
+    },
+    {
+      "file": "quality-verification.svg",
+      "type": "mixed",
+      "title": "Verified tests and loaded-JavaScript coverage",
+      "sha256": "faa873214c9f1aba8db235fdd95590b63075f6e34e4eaacc9d9590ddc0874735",
+      "byte_length": 6454,
+      "sources": [
+        {
+          "path": "docs/quality/verified-run.json",
+          "sha256": "3e441890ef7fb97e69ba1d64c307e59ab27d4b8f4e6fe2d424f1c473acafda31",
+          "byte_length": 2125
+        },
+        {
+          "path": "docs/quality/full-test.tap",
+          "sha256": "5a28b5bd31c6bf335e2a3b28118b6a831b00bc1077a07724788f0d2ef15d1c4f",
+          "byte_length": 76812
+        },
+        {
+          "path": "docs/quality/full-coverage.tap",
+          "sha256": "788ba66eaf674fb13112872c111637b6ac447c0a2aa774c1226c2bd7617c8872",
+          "byte_length": 103960
+        },
+        {
+          "path": ".node-version",
+          "sha256": "7d2df647f25529bd87500319c41564e032e2be642e565350fa6136d7a1ec4d10",
+          "byte_length": 8
+        },
+        {
+          "path": "package.json",
+          "sha256": "7ba859b27d1e5651fb07f41959f97203fb0f3197897bf79600a249b7a4519570",
+          "byte_length": 1666
+        }
+      ]
+    }
+  ]
+}

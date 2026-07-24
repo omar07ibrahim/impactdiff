@@ -6,3 +6,4 @@ datasets/generated/
 checkpoints/
 fixtures/pilot-market-basket-v1/fixture.json
 fixtures/pilot-incident-command-v1/fixture.json
+docs/images/pilot-portfolio-evidence/
