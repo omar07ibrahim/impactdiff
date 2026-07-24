@@ -49,6 +49,14 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Verify committed Pilot evidence
+        if: matrix.node == '22.23.1'
+        run: npm run --silent evidence:pilot:check
+
+      - name: Verify README visuals
+        if: matrix.node == '22.23.1'
+        run: node tools/render-readme-visuals.mjs check
+
       - name: Measure coverage
         if: matrix.node == 24
         run: npm run coverage
