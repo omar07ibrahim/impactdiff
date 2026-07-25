@@ -47,7 +47,7 @@ the capture and mutation pipeline. Its present scope is deliberately explicit:
 The committed evidence bundle contains 50 exact files: 12 screenshots, their
 accessibility and layout payloads, fixture/task metadata, runtime provenance, and one
 canonical manifest. Its manifest SHA-256 is
-`da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae`.
+`9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56`.
 
 There is **no released dataset, trained model, official pair, benchmark result, or
 accuracy claim**. The full implemented capability inventory and qualifications live in
@@ -80,21 +80,24 @@ These checks rebuild the TypeScript CLI, validate every bound file and current s
 identity, and then verify that the README visuals still match their declared inputs:
 
 ```bash
-npm run evidence:pilot:check
+npm run --silent evidence:pilot:check
 node tools/render-readme-visuals.mjs check
 ```
 
-The primary evidence check returns this path-free receipt:
+The primary evidence check returns this exact path-free, LF-terminated receipt:
 
-```json
-{
-  "official": false,
-  "manifest_sha256": "da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae",
-  "fixture_count": 2,
-  "workflow_count": 4,
-  "checkpoint_count": 12
-}
+```text
+{"official":false,"manifest_sha256":"9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56","fixture_count":2,"workflow_count":4,"checkpoint_count":12}
 ```
+
+![Recorded CLI verification receipt](docs/images/readme/cli-evidence-verification.svg)
+
+**Mixed — recorded CLI verification receipt.** The figure renders a committed clean-run
+stdout artifact and strict run record, then independently derives the same receipt from
+the current Pilot manifest. Seven allowlisted input identities and the Node 22.23.1
+runtime are bound explicitly. This establishes local-authoring evidence verification,
+not an official dataset, fresh browser capture, model result, or benchmark result. The
+Node 24 compatibility lane intentionally skips this exact-runtime replay.
 
 To capture a fresh bundle, use exact Node.js 22.23.1 on Linux x64 with ABI 127, start
 from a clean worktree, create a private parent, and choose an absent final leaf. The
@@ -337,7 +340,7 @@ npm run check
 npm test
 npm run coverage
 npm run coverage:check
-npm run evidence:pilot:check
+npm run --silent evidence:pilot:check
 node tools/render-readme-visuals.mjs check
 ```
 

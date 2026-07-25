@@ -28,6 +28,26 @@
       "function_percent_minimum": 95
     }
   },
+  "cli_verification": {
+    "run_record": "docs/quality/pilot-evidence-check-run.json",
+    "run_record_sha256": "667dcac8c40b4df063fd7b9c997254df457bb0e9063224a4d44d28fb14069cfa",
+    "stdout": "docs/quality/pilot-evidence-check.stdout",
+    "stdout_sha256": "5002ded371aebf52796a1294623bcb1daabbc6fffdc104cd52e7930bec3e02e8",
+    "source_revision": "6d8cd5d43b82a441a8e6e8c3df281aa73bdbf293",
+    "command_argv": ["npm", "run", "--silent", "evidence:pilot:check"],
+    "runtime": {
+      "node": "22.23.1",
+      "node_module_abi": "127",
+      "npm": "10.9.8",
+      "platform": "linux",
+      "architecture": "x64"
+    },
+    "exit_code": 0,
+    "stderr_byte_length": 0,
+    "manifest_sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+    "official": false,
+    "input_count": 7
+  },
   "artifact_types": ["captured", "source-derived", "mixed"],
   "artifacts": [
     {
@@ -61,6 +81,11 @@
           "path": "src/portfolio-evidence/schema.ts",
           "sha256": "8ad93cffb6137e4de03ad4d2972c79a3c830226c957b472bfc251d33a1405c04",
           "byte_length": 9522
+        },
+        {
+          "path": "tools/render-readme-visuals.mjs",
+          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
+          "byte_length": 93485
         }
       ]
     },
@@ -95,6 +120,11 @@
           "path": "src/portfolio-evidence/schema.ts",
           "sha256": "8ad93cffb6137e4de03ad4d2972c79a3c830226c957b472bfc251d33a1405c04",
           "byte_length": 9522
+        },
+        {
+          "path": "tools/render-readme-visuals.mjs",
+          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
+          "byte_length": 93485
         }
       ]
     },
@@ -114,6 +144,11 @@
           "path": "src/portfolio-evidence/repository-filesystem.ts",
           "sha256": "723b0d8c5d18e427922cb69d4e261a8070b6d8d4016bdfce4fd58c674825450c",
           "byte_length": 19871
+        },
+        {
+          "path": "tools/render-readme-visuals.mjs",
+          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
+          "byte_length": 93485
         }
       ]
     },
@@ -148,6 +183,11 @@
           "path": "src/portfolio-evidence/schema.ts",
           "sha256": "8ad93cffb6137e4de03ad4d2972c79a3c830226c957b472bfc251d33a1405c04",
           "byte_length": 9522
+        },
+        {
+          "path": "tools/render-readme-visuals.mjs",
+          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
+          "byte_length": 93485
         }
       ]
     },
@@ -282,6 +322,11 @@
           "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--pre-primary-action--layout.json",
           "sha256": "0a1fb92a6c2cb63d1e2c33cb1c0f608a56cead8713adc6f65986dbee8a13e1ad",
           "byte_length": 38131
+        },
+        {
+          "path": "tools/render-readme-visuals.mjs",
+          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
+          "byte_length": 93485
         }
       ]
     },
@@ -541,6 +586,11 @@
           "path": "docs/images/pilot-portfolio-evidence/market-basket--source-state.json",
           "sha256": "f260bb51821ad99c7ab13df7570b365ffe82104af0f08f8418b01a316144dc86",
           "byte_length": 1731
+        },
+        {
+          "path": "tools/render-readme-visuals.mjs",
+          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
+          "byte_length": 93485
         }
       ]
     },
@@ -568,8 +618,8 @@
         },
         {
           "path": ".github/workflows/ci.yml",
-          "sha256": "7341f15e8d394801056309654d8f72875d6cd329f4e7c2d44bd0f95828c49c4e",
-          "byte_length": 1523
+          "sha256": "001bf883e100311de3e508aab7300937cc5785672aeb4d2dc57b55183a110642",
+          "byte_length": 1838
         },
         {
           "path": ".node-version",
@@ -580,6 +630,75 @@
           "path": "package.json",
           "sha256": "b6dbea4be8a98e1aa74e2ff3e6b19ad8367c696af068876d98a7fb2e95307d0c",
           "byte_length": 1877
+        },
+        {
+          "path": "tools/render-readme-visuals.mjs",
+          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
+          "byte_length": 93485
+        }
+      ]
+    },
+    {
+      "file": "cli-evidence-verification.svg",
+      "type": "mixed",
+      "title": "Recorded CLI verification receipt",
+      "sha256": "e5034624f369ac258c442db15a8491ff23e47d7bf7ce55e93f6a517c7e5ee864",
+      "byte_length": 6135,
+      "sources": [
+        {
+          "path": "docs/quality/pilot-evidence-check.stdout",
+          "sha256": "5002ded371aebf52796a1294623bcb1daabbc6fffdc104cd52e7930bec3e02e8",
+          "byte_length": 163
+        },
+        {
+          "path": "docs/quality/pilot-evidence-check-run.json",
+          "sha256": "667dcac8c40b4df063fd7b9c997254df457bb0e9063224a4d44d28fb14069cfa",
+          "byte_length": 2658
+        },
+        {
+          "path": ".node-version",
+          "sha256": "7d2df647f25529bd87500319c41564e032e2be642e565350fa6136d7a1ec4d10",
+          "byte_length": 8
+        },
+        {
+          "path": "package.json",
+          "sha256": "b6dbea4be8a98e1aa74e2ff3e6b19ad8367c696af068876d98a7fb2e95307d0c",
+          "byte_length": 1877
+        },
+        {
+          "path": "package-lock.json",
+          "sha256": "372dcff1777c7d89060eb9c33c7fd664047265cd0ef5b01801964f8b3d5a1e5c",
+          "byte_length": 8191
+        },
+        {
+          "path": "tsconfig.json",
+          "sha256": "37fded8a7b1c2208a416748d11ab3d56351b4b40ab36b152c4bf4ad46faf121b",
+          "byte_length": 680
+        },
+        {
+          "path": "src/cli/pilot-portfolio-evidence.ts",
+          "sha256": "f33734eaa5aaba6d9a77fd5b48dc6861395df2ff51f8492156ef9850d61880a5",
+          "byte_length": 4140
+        },
+        {
+          "path": "src/portfolio-evidence/publication.ts",
+          "sha256": "4cad0be21944647a780e3428ee50968f644a991da287f5f069269e9db9a3c227",
+          "byte_length": 28198
+        },
+        {
+          "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
+          "sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+          "byte_length": 18508
+        },
+        {
+          "path": ".github/workflows/ci.yml",
+          "sha256": "001bf883e100311de3e508aab7300937cc5785672aeb4d2dc57b55183a110642",
+          "byte_length": 1838
+        },
+        {
+          "path": "tools/render-readme-visuals.mjs",
+          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
+          "byte_length": 93485
         }
       ]
     }

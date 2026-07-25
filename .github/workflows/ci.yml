@@ -54,9 +54,16 @@ jobs:
         if: matrix.node == '24'
         run: npm test
 
-      - name: Verify committed Pilot evidence
+      - name: Reproduce recorded Pilot CLI receipt
         if: matrix.node == '22.23.1'
-        run: npm run --silent evidence:pilot:check
+        shell: bash
+        run: |
+          set -euo pipefail
+          stdout="${RUNNER_TEMP}/pilot-evidence-check.stdout"
+          stderr="${RUNNER_TEMP}/pilot-evidence-check.stderr"
+          npm run --silent evidence:pilot:check >"${stdout}" 2>"${stderr}"
+          test ! -s "${stderr}"
+          cmp docs/quality/pilot-evidence-check.stdout "${stdout}"
 
       - name: Verify README visuals
         if: matrix.node == '22.23.1'

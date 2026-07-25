@@ -123,6 +123,78 @@ const currentCoverageGate = Object.freeze({
   }),
 });
 
+const expectedCliRun = Object.freeze({
+  sourceRevision: "6d8cd5d43b82a441a8e6e8c3df281aa73bdbf293",
+  sourceTree: "5a045d788b418a0ec835ad45eaad6037f18d363f",
+  argv: Object.freeze(["npm", "run", "--silent", "evidence:pilot:check"]),
+  runtime: Object.freeze({
+    node: "22.23.1",
+    nodeModuleAbi: "127",
+    npm: "10.9.8",
+    platform: "linux",
+    architecture: "x64",
+  }),
+  stdout: Object.freeze({
+    file: "pilot-evidence-check.stdout",
+    mediaType: "application/jsonl; charset=utf-8",
+    sha256: "5002ded371aebf52796a1294623bcb1daabbc6fffdc104cd52e7930bec3e02e8",
+    byteLength: 163,
+    lineCount: 1,
+  }),
+  stderr: Object.freeze({
+    sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    byteLength: 0,
+  }),
+  inputs: Object.freeze([
+    Object.freeze({
+      path: ".node-version",
+      sha256: "7d2df647f25529bd87500319c41564e032e2be642e565350fa6136d7a1ec4d10",
+      byteLength: 8,
+    }),
+    Object.freeze({
+      path: "package.json",
+      sha256: "b6dbea4be8a98e1aa74e2ff3e6b19ad8367c696af068876d98a7fb2e95307d0c",
+      byteLength: 1877,
+    }),
+    Object.freeze({
+      path: "package-lock.json",
+      sha256: "372dcff1777c7d89060eb9c33c7fd664047265cd0ef5b01801964f8b3d5a1e5c",
+      byteLength: 8191,
+    }),
+    Object.freeze({
+      path: "tsconfig.json",
+      sha256: "37fded8a7b1c2208a416748d11ab3d56351b4b40ab36b152c4bf4ad46faf121b",
+      byteLength: 680,
+    }),
+    Object.freeze({
+      path: "src/cli/pilot-portfolio-evidence.ts",
+      sha256: "f33734eaa5aaba6d9a77fd5b48dc6861395df2ff51f8492156ef9850d61880a5",
+      byteLength: 4140,
+    }),
+    Object.freeze({
+      path: "src/portfolio-evidence/publication.ts",
+      sha256: "4cad0be21944647a780e3428ee50968f644a991da287f5f069269e9db9a3c227",
+      byteLength: 28198,
+    }),
+    Object.freeze({
+      path: "docs/images/pilot-portfolio-evidence/MANIFEST.json",
+      sha256: "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+      byteLength: 18508,
+    }),
+  ]),
+  establishes: Object.freeze([
+    "one successful exact-runtime verification of the committed local-authoring Pilot evidence",
+    "path-free stdout exactly matches the independently derived committed-manifest receipt",
+    "the allowlisted source and manifest inputs have the recorded byte identities",
+  ]),
+  doesNotEstablish: Object.freeze([
+    "official dataset release",
+    "model quality or benchmark performance",
+    "fresh browser capture or production-browser compatibility",
+    "execution on any runtime other than the recorded Node.js 22.23.1",
+  ]),
+});
+
 const outputCatalog = Object.freeze([
   Object.freeze({
     file: "architecture-contours.svg",
@@ -159,9 +231,15 @@ const outputCatalog = Object.freeze([
     type: "mixed",
     title: "Verified tests and loaded-JavaScript coverage",
   }),
+  Object.freeze({
+    file: "cli-evidence-verification.svg",
+    type: "mixed",
+    title: "Recorded CLI verification receipt",
+  }),
 ]);
 
 const sourceCatalog = Object.freeze({
+  generator: Object.freeze(["tools/render-readme-visuals.mjs"]),
   architecture: Object.freeze([
     "docs/pilot-v0.1-application-catalog.md",
     "docs/pilot-v0.1-protocol.md",
@@ -188,6 +266,7 @@ const sourceCatalog = Object.freeze({
     "src/portfolio-evidence/schema.ts",
   ]),
   quality: Object.freeze([".github/workflows/ci.yml", ".node-version", "package.json"]),
+  cli: Object.freeze([".github/workflows/ci.yml"]),
 });
 
 function fail(message) {
@@ -943,6 +1022,192 @@ async function loadQuality() {
   });
 }
 
+async function loadCliReceipt() {
+  const runPath = `${qualityRelative}/pilot-evidence-check-run.json`;
+  const stdoutPath = `${qualityRelative}/${expectedCliRun.stdout.file}`;
+  const [runBytes, stdoutBytes] = await Promise.all([
+    readBounded(runPath, 128 * 1024),
+    readBounded(stdoutPath, 4 * 1024),
+  ]);
+  const runText = runBytes.toString("utf8");
+  if (
+    !Buffer.from(runText, "utf8").equals(runBytes) ||
+    runText.includes("\r") ||
+    !runText.endsWith("\n")
+  ) {
+    fail(`${runPath} must be LF-terminated UTF-8 without carriage returns`);
+  }
+  const record = parseJsonDocument(runBytes, runPath);
+  assertExactKeys(
+    record,
+    [
+      "contract",
+      "version",
+      "official",
+      "source",
+      "command",
+      "runtime",
+      "result",
+      "inputs",
+      "evidence_boundary",
+    ],
+    runPath,
+  );
+  assertExactKeys(record.source, ["git_revision", "git_tree"], "CLI run source");
+  assertExactKeys(record.command, ["argv"], "CLI run command");
+  assertExactKeys(
+    record.runtime,
+    ["node", "node_module_abi", "npm", "platform", "architecture"],
+    "CLI run runtime",
+  );
+  assertExactKeys(record.result, ["exit_code", "stdout", "stderr"], "CLI run result");
+  assertExactKeys(
+    record.result?.stdout,
+    ["file", "media_type", "sha256", "byte_length", "line_count"],
+    "CLI run stdout",
+  );
+  assertExactKeys(record.result?.stderr, ["sha256", "byte_length"], "CLI run stderr");
+  assertExactKeys(
+    record.evidence_boundary,
+    ["establishes", "does_not_establish"],
+    "CLI run evidence boundary",
+  );
+  if (
+    record.contract !== "impactdiff.pilot-evidence-cli-run" ||
+    record.version !== 1 ||
+    record.official !== false ||
+    record.source?.git_revision !== expectedCliRun.sourceRevision ||
+    record.source?.git_tree !== expectedCliRun.sourceTree ||
+    JSON.stringify(record.command?.argv) !== JSON.stringify(expectedCliRun.argv) ||
+    record.runtime?.node !== expectedCliRun.runtime.node ||
+    record.runtime?.node_module_abi !== expectedCliRun.runtime.nodeModuleAbi ||
+    record.runtime?.npm !== expectedCliRun.runtime.npm ||
+    record.runtime?.platform !== expectedCliRun.runtime.platform ||
+    record.runtime?.architecture !== expectedCliRun.runtime.architecture ||
+    record.result?.exit_code !== 0 ||
+    record.result?.stdout?.file !== expectedCliRun.stdout.file ||
+    record.result?.stdout?.media_type !== expectedCliRun.stdout.mediaType ||
+    record.result?.stdout?.sha256 !== expectedCliRun.stdout.sha256 ||
+    record.result?.stdout?.byte_length !== expectedCliRun.stdout.byteLength ||
+    record.result?.stdout?.line_count !== expectedCliRun.stdout.lineCount ||
+    record.result?.stderr?.sha256 !== expectedCliRun.stderr.sha256 ||
+    record.result?.stderr?.byte_length !== expectedCliRun.stderr.byteLength
+  ) {
+    fail("CLI run record differs from the reviewed exact-runtime execution");
+  }
+  if (
+    JSON.stringify(record.evidence_boundary?.establishes) !==
+      JSON.stringify(expectedCliRun.establishes) ||
+    JSON.stringify(record.evidence_boundary?.does_not_establish) !==
+      JSON.stringify(expectedCliRun.doesNotEstablish)
+  ) {
+    fail("CLI run claim boundary differs from the reviewed execution");
+  }
+  if (
+    !Array.isArray(record.inputs) ||
+    record.inputs.length !== expectedCliRun.inputs.length
+  ) {
+    fail("CLI run input allowlist differs from the reviewed execution");
+  }
+
+  const inputSources = [];
+  const inputBytesByPath = new Map();
+  for (const [index, expected] of expectedCliRun.inputs.entries()) {
+    const input = record.inputs[index];
+    assertExactKeys(input, ["path", "sha256", "byte_length"], `CLI input ${index}`);
+    if (
+      input.path !== expected.path ||
+      input.sha256 !== expected.sha256 ||
+      input.byte_length !== expected.byteLength
+    ) {
+      fail(`CLI input ${index} differs from the reviewed allowlist`);
+    }
+    const bytes = await readBounded(expected.path);
+    if (bytes.byteLength !== expected.byteLength || sha256(bytes) !== expected.sha256) {
+      fail(`${expected.path} differs from its recorded CLI input identity`);
+    }
+    inputBytesByPath.set(expected.path, bytes);
+    inputSources.push(byteIdentity(expected.path, bytes));
+  }
+
+  if (
+    stdoutBytes.byteLength !== expectedCliRun.stdout.byteLength ||
+    sha256(stdoutBytes) !== expectedCliRun.stdout.sha256
+  ) {
+    fail("recorded CLI stdout differs from its reviewed byte identity");
+  }
+  const stdoutText = stdoutBytes.toString("utf8");
+  const stdoutPayload = stdoutText.slice(0, -1);
+  if (
+    !Buffer.from(stdoutText, "utf8").equals(stdoutBytes) ||
+    !stdoutText.endsWith("\n") ||
+    stdoutText.indexOf("\n") !== stdoutText.length - 1 ||
+    /[\u0000-\u001f\u007f-\u009f]/u.test(stdoutPayload) ||
+    stdoutPayload.includes("/") ||
+    stdoutPayload.includes("\\") ||
+    stdoutPayload.includes("@") ||
+    /[A-Za-z]:/u.test(stdoutPayload)
+  ) {
+    fail(
+      "recorded CLI stdout must be one path-free, prompt-free, control-free JSON line",
+    );
+  }
+  const stdoutReceipt = assertCanonicalJson(stdoutBytes, stdoutPath);
+  assertExactKeys(
+    stdoutReceipt,
+    [
+      "official",
+      "manifest_sha256",
+      "fixture_count",
+      "workflow_count",
+      "checkpoint_count",
+    ],
+    "CLI stdout receipt",
+  );
+
+  const manifestPath = `${evidenceRelative}/MANIFEST.json`;
+  const manifestBytes = inputBytesByPath.get(manifestPath);
+  if (manifestBytes === undefined) {
+    fail("CLI input allowlist omitted the Pilot evidence manifest");
+  }
+  const manifest = assertCanonicalJson(manifestBytes, manifestPath);
+  assertManifestShape(manifest);
+  const derivedReceipt = Object.freeze({
+    official: manifest.official,
+    manifest_sha256: sha256(manifestBytes),
+    fixture_count: manifest.fixtures.length,
+    workflow_count: manifest.fixtures.reduce(
+      (sum, fixture) => sum + fixture.workflows.length,
+      0,
+    ),
+    checkpoint_count: manifest.fixtures.reduce(
+      (sum, fixture) =>
+        sum +
+        fixture.workflows.reduce(
+          (workflowSum, workflow) => workflowSum + workflow.checkpoints.length,
+          0,
+        ),
+      0,
+    ),
+  });
+  const derivedBytes = Buffer.from(`${JSON.stringify(derivedReceipt)}\n`, "utf8");
+  if (!stdoutBytes.equals(derivedBytes)) {
+    fail("recorded CLI stdout differs from the independently derived manifest receipt");
+  }
+
+  return Object.freeze({
+    record,
+    receipt: derivedReceipt,
+    stdoutText: stdoutPayload,
+    runRecordSha256: sha256(runBytes),
+    sources: Object.freeze([
+      byteIdentity(stdoutPath, stdoutBytes),
+      byteIdentity(runPath, runBytes),
+      ...inputSources,
+    ]),
+  });
+}
+
 async function loadSources() {
   const allPaths = [...new Set(Object.values(sourceCatalog).flat())].sort(
     compareCodeUnits,
@@ -1062,6 +1327,16 @@ async function loadSources() {
   const currentNodeStep = `      - name: Test current Node.js
         if: matrix.node == '24'
         run: npm test`;
+  const cliReceiptStep = `      - name: Reproduce recorded Pilot CLI receipt
+        if: matrix.node == '22.23.1'
+        shell: bash
+        run: |
+          set -euo pipefail
+          stdout="\${RUNNER_TEMP}/pilot-evidence-check.stdout"
+          stderr="\${RUNNER_TEMP}/pilot-evidence-check.stderr"
+          npm run --silent evidence:pilot:check >"\${stdout}" 2>"\${stderr}"
+          test ! -s "\${stderr}"
+          cmp docs/quality/pilot-evidence-check.stdout "\${stdout}"`;
   if (
     nodeVersion !== expectedQuality.runtime.node ||
     packageManifest?.packageManager !== `npm@${expectedQuality.runtime.npm}` ||
@@ -1073,10 +1348,11 @@ async function loadSources() {
     JSON.stringify(coverageCommands) !==
       JSON.stringify([currentCoverageGate.command]) ||
     !continuousIntegration.includes(coverageStep) ||
-    !continuousIntegration.includes(currentNodeStep)
+    !continuousIntegration.includes(currentNodeStep) ||
+    !continuousIntegration.includes(cliReceiptStep)
   ) {
     fail(
-      "quality commands, coverage gate, CI matrix, or pinned Node/npm configuration changed",
+      "quality commands, coverage gate, CLI receipt replay, CI matrix, or pinned runtime changed",
     );
   }
 
@@ -2060,6 +2336,96 @@ function renderBundleOverview(evidence) {
   });
 }
 
+function renderCliVerification(cli) {
+  const { record, receipt } = cli;
+  const monospace =
+    'style="font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"';
+  const rawMonospace =
+    'style="font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:11px"';
+  const body = [
+    text(64, 68, "Recorded CLI verification receipt", "title"),
+    text(
+      64,
+      101,
+      "Exact clean-run stdout rendered as a receipt — this is not a terminal screenshot.",
+      "subtitle",
+    ),
+    pill(
+      64,
+      126,
+      204,
+      `SOURCE ${record.source.git_revision.slice(0, 12)}…`,
+      palette.blueSoft,
+      palette.blue,
+    ),
+    pill(
+      286,
+      126,
+      226,
+      `NODE ${record.runtime.node} · NPM ${record.runtime.npm}`,
+      palette.greySoft,
+      palette.muted,
+    ),
+    pill(530, 126, 86, "EXIT 0", palette.tealSoft, palette.teal),
+    pill(634, 126, 112, "STDERR 0 B", palette.tealSoft, palette.teal),
+    pill(764, 126, 178, "OFFICIAL: FALSE", palette.redSoft, palette.red),
+    rect(64, 178, 1312, 94, palette.surface, palette.blue, 20),
+    text(92, 209, "EXACT SILENT COMMAND", "eyebrow"),
+    text(92, 246, record.command.argv.join(" "), "node-title", monospace),
+    rect(64, 298, 1312, 136, palette.surface, palette.teal, 20),
+    text(92, 329, "EXACT STDOUT · ONE LF-TERMINATED JSON LINE", "eyebrow"),
+    text(92, 374, cli.stdoutText, "tiny", rawMonospace),
+    text(
+      92,
+      408,
+      `163 bytes · SHA-256 ${record.result.stdout.sha256}`,
+      "tiny",
+      monospace,
+    ),
+    rect(64, 460, 1312, 128, palette.surface, palette.border, 20),
+    text(92, 493, "COMMITTED MANIFEST SHA-256", "eyebrow"),
+    text(92, 532, receipt.manifest_sha256, "body", monospace),
+    text(
+      92,
+      563,
+      "Derived independently from current MANIFEST.json, then compared byte-for-byte with recorded stdout.",
+      "small",
+    ),
+    rect(64, 614, 290, 116, palette.surface, palette.red, 18),
+    text(88, 650, "official", "metric-label"),
+    text(88, 696, String(receipt.official), "metric"),
+    rect(382, 614, 290, 116, palette.surface, palette.blue, 18),
+    text(406, 650, "fixtures", "metric-label"),
+    text(406, 696, String(receipt.fixture_count), "metric"),
+    rect(700, 614, 290, 116, palette.surface, palette.teal, 18),
+    text(724, 650, "workflows", "metric-label"),
+    text(724, 696, String(receipt.workflow_count), "metric"),
+    rect(1018, 614, 358, 116, palette.surface, palette.violet, 18),
+    text(1042, 650, "checkpoints", "metric-label"),
+    text(1042, 696, String(receipt.checkpoint_count), "metric"),
+    rect(64, 756, 1312, 116, palette.surface, palette.border, 20),
+    pill(92, 782, 206, "7 ALLOWLISTED INPUTS", palette.blueSoft, palette.blue),
+    pill(316, 782, 202, "LOCAL AUTHORING ONLY", palette.amberSoft, palette.amber),
+    pill(536, 782, 226, "NOT A BENCHMARK RESULT", palette.redSoft, palette.red),
+    text(
+      92,
+      844,
+      `Run record SHA-256 ${cli.runRecordSha256} · no prompt, host, path, cwd, or timestamp captured`,
+      "tiny",
+      monospace,
+    ),
+  ].join("");
+  return svgDocument({
+    id: "cli-evidence-verification",
+    width: 1440,
+    height: 910,
+    title: "Recorded CLI verification receipt",
+    description:
+      "A mixed evidence receipt shows the exact silent verification command, exact path-free stdout, successful recorded runtime, committed manifest identity, local-authoring counts, and explicit non-benchmark boundary.",
+    body,
+  });
+}
+
 function renderQualityVerification(quality) {
   const { record } = quality;
   const test = record.runs.test;
@@ -2210,7 +2576,7 @@ function sourceSet(paths, source) {
   return source.identitiesFor(paths);
 }
 
-async function buildManifest(outputs, artifactSources, evidence, quality) {
+async function buildManifest(outputs, artifactSources, evidence, quality, cli) {
   const artifacts = outputCatalog.map((entry) => {
     const bytes = outputs.get(entry.file);
     if (bytes === undefined) fail(`renderer omitted ${entry.file}`);
@@ -2258,6 +2624,26 @@ async function buildManifest(outputs, artifactSources, evidence, quality) {
         function_percent_minimum: currentCoverageGate.thresholds.functionPercent,
       },
     },
+    cli_verification: {
+      run_record: `${qualityRelative}/pilot-evidence-check-run.json`,
+      run_record_sha256: cli.runRecordSha256,
+      stdout: `${qualityRelative}/${expectedCliRun.stdout.file}`,
+      stdout_sha256: expectedCliRun.stdout.sha256,
+      source_revision: cli.record.source.git_revision,
+      command_argv: cli.record.command.argv,
+      runtime: {
+        node: cli.record.runtime.node,
+        node_module_abi: cli.record.runtime.node_module_abi,
+        npm: cli.record.runtime.npm,
+        platform: cli.record.runtime.platform,
+        architecture: cli.record.runtime.architecture,
+      },
+      exit_code: cli.record.result.exit_code,
+      stderr_byte_length: cli.record.result.stderr.byte_length,
+      manifest_sha256: cli.receipt.manifest_sha256,
+      official: cli.receipt.official,
+      input_count: cli.record.inputs.length,
+    },
     artifact_types: ["captured", "source-derived", "mixed"],
     artifacts,
   };
@@ -2274,10 +2660,11 @@ async function buildManifest(outputs, artifactSources, evidence, quality) {
 }
 
 async function renderAll() {
-  const [evidence, source, quality] = await Promise.all([
+  const [evidence, source, quality, cli] = await Promise.all([
     loadEvidence(),
     loadSources(),
     loadQuality(),
+    loadCliReceipt(),
   ]);
   const strings = new Map([
     ["architecture-contours.svg", renderArchitecture()],
@@ -2287,33 +2674,58 @@ async function renderAll() {
     ["checkpoint-modalities.svg", renderCheckpointModalities(evidence)],
     ["evidence-bundle-overview.svg", renderBundleOverview(evidence)],
     ["quality-verification.svg", renderQualityVerification(quality)],
+    ["cli-evidence-verification.svg", renderCliVerification(cli)],
   ]);
   const outputs = new Map(
     [...strings].map(([name, value]) => [name, Buffer.from(value, "utf8")]),
   );
+  const generatorSources = sourceSet(sourceCatalog.generator, source);
   const artifactSources = new Map([
-    ["architecture-contours.svg", sourceSet(sourceCatalog.architecture, source)],
-    ["evidence-trust-chain.svg", sourceSet(sourceCatalog.trust, source)],
-    ["atomic-publication.svg", sourceSet(sourceCatalog.publication, source)],
-    ["pilot-implementation-grid.svg", sourceSet(sourceCatalog.implementation, source)],
+    [
+      "architecture-contours.svg",
+      [...sourceSet(sourceCatalog.architecture, source), ...generatorSources],
+    ],
+    [
+      "evidence-trust-chain.svg",
+      [...sourceSet(sourceCatalog.trust, source), ...generatorSources],
+    ],
+    [
+      "atomic-publication.svg",
+      [...sourceSet(sourceCatalog.publication, source), ...generatorSources],
+    ],
+    [
+      "pilot-implementation-grid.svg",
+      [...sourceSet(sourceCatalog.implementation, source), ...generatorSources],
+    ],
     [
       "checkpoint-modalities.svg",
-      evidence.sources.filter(
-        ({ path }) =>
-          path.endsWith("--accessibility.json") ||
-          path.endsWith("--layout.json") ||
-          path.endsWith("/MANIFEST.json"),
-      ),
+      [
+        ...evidence.sources.filter(
+          ({ path }) =>
+            path.endsWith("--accessibility.json") ||
+            path.endsWith("--layout.json") ||
+            path.endsWith("/MANIFEST.json"),
+        ),
+        ...generatorSources,
+      ],
     ],
-    ["evidence-bundle-overview.svg", evidence.sources],
+    ["evidence-bundle-overview.svg", [...evidence.sources, ...generatorSources]],
     [
       "quality-verification.svg",
-      [...quality.sources, ...sourceSet(sourceCatalog.quality, source)],
+      [
+        ...quality.sources,
+        ...sourceSet(sourceCatalog.quality, source),
+        ...generatorSources,
+      ],
+    ],
+    [
+      "cli-evidence-verification.svg",
+      [...cli.sources, ...sourceSet(sourceCatalog.cli, source), ...generatorSources],
     ],
   ]);
   outputs.set(
     manifestName,
-    await buildManifest(outputs, artifactSources, evidence, quality),
+    await buildManifest(outputs, artifactSources, evidence, quality, cli),
   );
   return outputs;
 }
