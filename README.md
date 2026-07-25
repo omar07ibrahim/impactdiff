@@ -81,6 +81,7 @@ identity, and then verify that the README visuals still match their declared inp
 
 ```bash
 npm run --silent evidence:pilot:check
+node tools/render-pilot-workflow-gif.mjs check
 node tools/render-readme-visuals.mjs check
 ```
 
@@ -132,6 +133,30 @@ npm run evidence:pilot -- check --repository . --output ../impactdiff-evidence-o
 
 The committed bundle can be inspected directly in
 [`docs/images/pilot-portfolio-evidence/`](docs/images/pilot-portfolio-evidence/MANIFEST.json).
+
+## One workflow, replayed
+
+<p align="center">
+  <a href="docs/images/pilot-workflow-demo/incident-command--acknowledge-alert.gif">
+    <img src="docs/images/pilot-workflow-demo/incident-command--acknowledge-alert.gif" alt="Three-frame replay of the Nightwatch Relay acknowledge-alert workflow from initial state through focused action to acknowledgement receipt" width="800" />
+  </a>
+</p>
+
+This GIF is a deterministic replay of three real committed Chromium checkpoints, not a
+new screen recording. It preserves the original 800 × 600 frames with no scaling or
+caption overlay, then applies one documented fixed RGB332 palette. The
+[replay manifest](docs/images/pilot-workflow-demo/MANIFEST.json) binds the checkpoint
+IDs, source PNG byte identities, frame delays, generator commit, locked dependency
+identities, and final GIF SHA-256
+`04517d956daffa7187d93ac3c847af5d7cc060be972240d721173c41e3c9f97e`.
+
+The replay is `official: false` and establishes sequencing and byte reproducibility
+only. It is not a fresh browser run, model result, benchmark, or production-browser
+claim. Re-run its read-only verifier with exact Node.js 22.23.1 on Linux x64:
+
+```bash
+node tools/render-pilot-workflow-gif.mjs check
+```
 
 ## Real workflow captures
 

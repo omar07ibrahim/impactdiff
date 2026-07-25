@@ -13,6 +13,7 @@ score, or production-browser compatibility result is created anywhere on this pa
 | Portfolio assembly      | The fixed two-fixture, four-workflow catalog                 | 49 named data artifacts and one canonical `official: false` manifest            | Any audit, cardinality, codec, source, or capture-environment mismatch aborts the whole capture                |
 | Publication             | A verified in-memory capture and an absent output leaf       | One complete 50-file directory                                                  | Artifacts go to an owned same-parent stage, the manifest is written last, and only a verified stage is renamed |
 | Repository verification | The committed bundle plus the current checkout               | A path-free five-field receipt                                                  | Exact membership, byte bindings, semantic bindings, and scoped source freshness must all pass                  |
+| Workflow replay         | Three committed PNG checkpoints and their evidence manifest  | One three-frame GIF plus a canonical replay manifest                            | Source blobs, installed dependency trees, frame pixels, GIF structure, and output membership must all match    |
 | Terminal evidence       | One recorded execution of the read-only repository check     | Raw transcript, two SVGs, and a separate evidence manifest                      | The recording is source-bound and explicit about what the single execution did not observe or establish        |
 
 ## 1. Authored fixture boundary
@@ -97,7 +98,40 @@ Implementation: [CLI entry point](../src/cli/pilot-portfolio-evidence.ts),
 [bundle verification](../src/portfolio-evidence/publication.ts), and
 [repository freshness verification](../src/portfolio-evidence/source-identity.ts).
 
-## 6. Evidence about the verifier
+## 6. Deterministic workflow replay
+
+The README animation does not launch Chromium or claim a fresh recording. It reads the
+three committed Nightwatch Relay `acknowledge_alert` PNG checkpoints in manifest order,
+checks their exact byte and checkpoint identities, decodes them at 800 × 600, and maps
+opaque pixels to one fixed RGB332 palette without dithering, scaling, or overlays.
+
+The encoder emits a deliberately simple GIF89a stream. Independent test code parses its
+screen descriptor, palette, loop extension, frame delays, image descriptors, and bounded
+literal-only LZW stream, then compares every decoded palette index with an independent
+quantization of the source PNGs.
+
+Production write mode requires a clean committed generator and an absent output
+directory. Its canonical manifest binds:
+
+- the capture commit/tree and ten committed generator, test, lockfile, manifest, and PNG
+  byte identities;
+- exact Node.js 22.23.1, module ABI 127, Linux x64, lockfile integrity fields, and
+  bounded installed file-tree digests for `canonicalize` and `pngjs`;
+- the three checkpoint IDs, phases, source hashes, and 1.20 s / 0.90 s / 2.20 s frame
+  delays; and
+- the 1,635,354-byte GIF identity and explicit `official: false` claim boundary.
+
+Read-only check mode proves that the current committed source blobs still equal the
+capture identities and reconstructs the GIF byte for byte. It does not require the old
+capture commit to remain an ancestor after a squash or rebase. Dependency changes, extra
+files, symlinks, source mutations, output corruption, and unknown output members fail
+closed.
+
+Implementation: [workflow replay encoder](../tools/render-pilot-workflow-gif.mjs),
+[independent GIF tests](../test/portfolio-evidence/workflow-gif.test.ts), and
+[replay manifest](images/pilot-workflow-demo/MANIFEST.json).
+
+## 7. Evidence about the verifier
 
 The terminal layer recorded one successful exact Node.js 22.23.1 execution of that
 read-only check. Its [raw transcript](images/terminal-evidence/pilot-evidence-check.txt)
