@@ -6,7 +6,7 @@
   "network_access": false,
   "evidence": {
     "directory": "docs/images/pilot-portfolio-evidence",
-    "manifest_sha256": "da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae",
+    "manifest_sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
     "official": false,
     "file_count": 50,
     "checkpoint_count": 12
@@ -160,7 +160,7 @@
       "sources": [
         {
           "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
-          "sha256": "da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae",
+          "sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
           "byte_length": 18508
         },
         {
@@ -289,12 +289,12 @@
       "file": "evidence-bundle-overview.svg",
       "type": "captured",
       "title": "Pilot portfolio evidence bundle receipt",
-      "sha256": "672f93b512dbdbfd802ad4d62eeb08559d635f375fdca261d95f21a14b7f740b",
+      "sha256": "ed66c00f6abd1b07e58017ee65ffeb7bf3ef9dbf4e7573bfbf51fb6aa163361c",
       "byte_length": 6323,
       "sources": [
         {
           "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
-          "sha256": "da2e6c55ee8fbc86ca8e8a6ba7b477eaa417d095daf20644ace71c0d349f53ae",
+          "sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
           "byte_length": 18508
         },
         {
