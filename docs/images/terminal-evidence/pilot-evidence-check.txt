@@ -1,0 +1,2 @@
+$ npm run --silent evidence:pilot:check
+{"official":false,"manifest_sha256":"9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56","fixture_count":2,"workflow_count":4,"checkpoint_count":12}
