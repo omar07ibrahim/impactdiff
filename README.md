@@ -90,14 +90,35 @@ The primary evidence check returns this exact path-free, LF-terminated receipt:
 {"official":false,"manifest_sha256":"9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56","fixture_count":2,"workflow_count":4,"checkpoint_count":12}
 ```
 
-![Recorded CLI verification receipt](docs/images/readme/cli-evidence-verification.svg)
+<table>
+  <tr>
+    <td width="58%">
+      <a href="docs/images/terminal-evidence/pilot-evidence-check.svg">
+        <img src="docs/images/terminal-evidence/pilot-evidence-check.svg" alt="Recorded terminal execution of the read-only Pilot evidence check" />
+      </a>
+    </td>
+    <td width="42%">
+      <a href="docs/images/terminal-evidence/evidence-boundary.svg">
+        <img src="docs/images/terminal-evidence/evidence-boundary.svg" alt="Evidence boundary derived from the recorded Pilot verification receipt" />
+      </a>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Recorded terminal run.</strong> At the recorded commit, one exact Node.js 22.23.1 invocation exited 0, wrote the receipt above to stdout, and wrote zero stderr bytes. The output is <code>official: false</code> and is not independently authenticated.</td>
+    <td><strong>Recorded claim boundary.</strong> The receipt verifies 2 fixtures, 4 workflows, and 12 checkpoints. Network behavior was not observed; no fresh browser capture or browser-suite rerun is claimed.</td>
+  </tr>
+</table>
 
-**Mixed — recorded CLI verification receipt.** The figure renders a committed clean-run
-stdout artifact and strict run record, then independently derives the same receipt from
-the current Pilot manifest. Seven allowlisted input identities and the Node 22.23.1
-runtime are bound explicitly. This establishes local-authoring evidence verification,
-not an official dataset, fresh browser capture, model result, or benchmark result. The
-Node 24 compatibility lane intentionally skips this exact-runtime replay.
+The committed [raw transcript](docs/images/terminal-evidence/pilot-evidence-check.txt)
+and [terminal-evidence manifest](docs/images/terminal-evidence/MANIFEST.json) bind the
+command, runtime, source revision and tree, ten allowlisted source byte identities,
+stdout, and both SVGs. The manifest records one invocation and
+`network_observation: "not_observed"`; it does not claim network isolation. This run
+establishes one successful exact-runtime verification of the committed local-authoring
+bundle at its recorded commit. The output is commit-bound, `official: false`, and not
+independently authenticated. It is not a fresh browser capture or browser-suite rerun,
+official dataset release, model result, benchmark result, production-browser
+compatibility result, or claim about another runtime.
 
 To capture a fresh bundle, use exact Node.js 22.23.1 on Linux x64 with ABI 127, start
 from a clean worktree, create a private parent, and choose an absent final leaf. The
@@ -195,6 +216,25 @@ evidence volume, not model quality.
 bundle, captured runtime identity, and explicit `official: false` boundary.
 
 ## Architecture and trust boundary
+
+The implemented Pilot path is deliberately narrower than the planned research pipeline:
+
+1. Two manifest-bound fixture packages expose four closed ActionPlans and audited source
+   bytes.
+2. The exact-runtime capture path replays each workflow in a fresh Chromium context and
+   withholds all three checkpoints until the success oracle and owned lifecycle close.
+3. The portfolio assembler accepts only the fixed 2-fixture/4-workflow matrix, binds
+   each PNG, accessibility tree, layout graph, audit, fixture identity, action plan, and
+   capture environment, and produces 49 data artifacts plus one canonical manifest.
+4. Publication writes into an owned same-parent stage, writes the manifest last,
+   verifies the complete stage, and exposes it with one rename.
+5. The read-only repository verifier checks exact membership, byte identities, codecs,
+   cross-modal graph bindings, and freshness of the current scoped source before it
+   emits the five-field receipt shown above.
+
+The [source-level Pilot evidence architecture tour](docs/pilot-evidence-architecture.md)
+maps each boundary to its implementation and distinguishes browser capture, committed
+bundle verification, and recorded terminal evidence.
 
 The planned benchmark input is a matched before/after capture containing screenshots,
 accessibility trees, bounded layout graphs, and a fixed action plan. Pilot v0.1 narrows
@@ -299,6 +339,9 @@ reflow, copy edits, and other controlled changes.
   development label policy, and non-claims.
 - [Paired publication](docs/paired-publication.md) — commit point, recovery rules, and
   unsupported filesystem adversaries.
+- [Pilot evidence architecture](docs/pilot-evidence-architecture.md) — the implemented
+  fixture-to-checkpoint path, publication boundary, repository verifier, and terminal
+  evidence layer.
 - [Market-basket authoring](docs/pilot-v0.1-market-basket-authoring.md) and
   [incident-command authoring](docs/pilot-v0.1-incident-command-authoring.md) — exact
   fixture/task identities, deterministic replay, predicates, and current pointer slice.
@@ -324,6 +367,8 @@ reflow, copy edits, and other controlled changes.
 - `src/cli/` — bounded development-release and portfolio-evidence commands.
 - `fixtures/` — the checkout development fixture and two independently authored Pilot
   applications.
+- `docs/images/terminal-evidence/` — one manifest-bound read-only verification
+  transcript and its two generated explanatory SVGs.
 - `tools/render-readme-visuals.mjs` — deterministic, network-free README visual
   generation and verification.
 
