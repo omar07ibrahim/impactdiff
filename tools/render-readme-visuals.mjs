@@ -76,7 +76,8 @@ const checkpointCatalog = Object.freeze([
 ]);
 
 const expectedQuality = Object.freeze({
-  sourceRevision: "752115fe535d164db951c4f57c426923619998d1",
+  sourceRevision: "49bde81f4f8e1b93bc9ba4a86460e787cde17cc7",
+  sourceTree: "4a4c4fd6e3b0c40c91526e84d7dc5aa1ce029f11",
   runtime: Object.freeze({
     node: "22.23.1",
     nodeModuleAbi: "127",
@@ -90,22 +91,22 @@ const expectedQuality = Object.freeze({
     command: "npm test",
     tests: 388,
     passed: 388,
-    durationMs: 256853.061961,
+    durationMs: 261978.061552,
     logFile: "full-test.tap",
-    logSha256: "5a28b5bd31c6bf335e2a3b28118b6a831b00bc1077a07724788f0d2ef15d1c4f",
-    logBytes: 76812,
+    logSha256: "dcd4e6c2cdb3c80f315a6a42b5c4bd076d5dd7ece60e88e48f71b8078c47b43b",
+    logBytes: 76809,
   }),
   coverage: Object.freeze({
-    command: "npm run coverage",
+    command: "npm run coverage:check",
     tests: 388,
     passed: 388,
-    durationMs: 674177.861505,
-    linePercent: 90.83,
-    branchPercent: 83.46,
+    durationMs: 669256.84105,
+    linePercent: 90.8,
+    branchPercent: 83.4,
     functionPercent: 95.59,
     logFile: "full-coverage.tap",
-    logSha256: "788ba66eaf674fb13112872c111637b6ac447c0a2aa774c1226c2bd7617c8872",
-    logBytes: 103960,
+    logSha256: "cc840933d18c17869526c2190167949ecb1b932980207be5361ce5e01ac40a98",
+    logBytes: 104094,
   }),
 });
 
@@ -701,6 +702,11 @@ function assertZeroRunOutcomes(run, label) {
 }
 
 function assertQualityLogReference(reference, expected, label) {
+  assertExactKeys(
+    reference,
+    ["file", "media_type", "sha256", "byte_length"],
+    `${label} raw log reference`,
+  );
   if (
     reference?.file !== expected.logFile ||
     reference?.media_type !== "text/plain; charset=utf-8" ||
@@ -728,12 +734,32 @@ async function loadQuality() {
     ],
     manifestPath,
   );
+  assertExactKeys(record.source, ["git_revision", "git_tree"], "quality source");
+  assertExactKeys(
+    record.runtime,
+    [
+      "node",
+      "node_module_abi",
+      "npm",
+      "platform",
+      "architecture",
+      "playwright",
+      "browser",
+    ],
+    "quality runtime",
+  );
+  assertExactKeys(record.runs, ["test", "coverage"], "quality runs");
+  assertExactKeys(
+    record.evidence_boundary,
+    ["establishes", "does_not_establish"],
+    "quality evidence boundary",
+  );
   if (
     record.contract !== "impactdiff.quality-run-evidence" ||
     record.version !== 1 ||
     record.official !== false ||
     record.source?.git_revision !== expectedQuality.sourceRevision ||
-    !/^[0-9a-f]{40}$/u.test(record.source?.git_tree)
+    record.source?.git_tree !== expectedQuality.sourceTree
   ) {
     fail("quality run has an unsupported contract, source revision, or claim");
   }
@@ -751,6 +777,21 @@ async function loadQuality() {
   }
 
   const test = record.runs?.test;
+  assertExactKeys(
+    test,
+    [
+      "command",
+      "tests",
+      "passed",
+      "failed",
+      "skipped",
+      "cancelled",
+      "todo",
+      "duration_ms",
+      "log",
+    ],
+    "quality test result",
+  );
   if (
     test?.command !== expectedQuality.test.command ||
     test?.tests !== expectedQuality.test.tests ||
@@ -763,6 +804,33 @@ async function loadQuality() {
   assertQualityLogReference(test.log, expectedQuality.test, "quality test result");
 
   const coverage = record.runs?.coverage;
+  assertExactKeys(
+    coverage,
+    [
+      "command",
+      "tests",
+      "passed",
+      "failed",
+      "skipped",
+      "cancelled",
+      "todo",
+      "duration_ms",
+      "line_percent",
+      "branch_percent",
+      "function_percent",
+      "scope",
+      "excludes",
+      "minimum_thresholds_configured",
+      "minimum_thresholds",
+      "log",
+    ],
+    "coverage test result",
+  );
+  assertExactKeys(
+    coverage.minimum_thresholds,
+    ["line_percent", "branch_percent", "function_percent"],
+    "coverage minimum thresholds",
+  );
   if (
     coverage?.command !== expectedQuality.coverage.command ||
     coverage?.tests !== expectedQuality.coverage.tests ||
@@ -779,7 +847,13 @@ async function loadQuality() {
         "non-JavaScript assets",
         "modules not loaded by the test run",
       ]) ||
-    coverage?.minimum_thresholds_configured !== false
+    coverage?.minimum_thresholds_configured !== true ||
+    coverage?.minimum_thresholds?.line_percent !==
+      currentCoverageGate.thresholds.linePercent ||
+    coverage?.minimum_thresholds?.branch_percent !==
+      currentCoverageGate.thresholds.branchPercent ||
+    coverage?.minimum_thresholds?.function_percent !==
+      currentCoverageGate.thresholds.functionPercent
   ) {
     fail("coverage totals or declared scope differ from the verified run");
   }
@@ -790,11 +864,22 @@ async function loadQuality() {
     "coverage test result",
   );
   if (
+    JSON.stringify(record.evidence_boundary?.establishes) !==
+    JSON.stringify([
+      "one successful complete test run",
+      "one successful complete coverage-instrumented test run",
+      "captured Node coverage totals for the declared loaded-module scope",
+      "the coverage run passed configured 90% line, 83% branch, and 95% function floors",
+    ])
+  ) {
+    fail("quality evidence claim boundary differs from the verified run");
+  }
+  if (
     JSON.stringify(record.evidence_boundary?.does_not_establish) !==
     JSON.stringify([
-      "minimum coverage enforcement",
       "production browser compatibility",
       "model quality or benchmark performance",
+      "equal coverage totals across Node.js major versions",
     ])
   ) {
     fail("quality evidence non-claim boundary is incomplete");
@@ -822,7 +907,7 @@ async function loadQuality() {
     "# cancelled 0",
     "# skipped 0",
     "# todo 0",
-    "# duration_ms 256853.061961",
+    "# duration_ms 261978.061552",
   ].join("\n")}\n`;
   const coverageSummary = `${[
     "# tests 388",
@@ -832,7 +917,7 @@ async function loadQuality() {
     "# cancelled 0",
     "# skipped 0",
     "# todo 0",
-    "# duration_ms 674177.861505",
+    "# duration_ms 669256.84105",
   ].join("\n")}\n`;
   const testText = testLogBytes.toString("utf8");
   const coverageText = coverageLogBytes.toString("utf8");
@@ -2006,7 +2091,7 @@ function renderQualityVerification(quality) {
     text(
       64,
       101,
-      "Historical totals are byte-bound; current Node 22 coverage floors are source-bound.",
+      "Recorded totals and enforced Node 22 coverage floors are byte- and source-bound.",
       "subtitle",
     ),
     pill(
@@ -2035,7 +2120,7 @@ function renderQualityVerification(quality) {
     text(282, 324, `${formatDecimal(test.duration_ms)} ms`, "small"),
     text(92, 336, `log ${test.log.sha256}`, "tiny"),
     rect(748, 182, 628, 166, palette.surface, palette.teal, 22),
-    pill(776, 208, 164, "npm run coverage", palette.tealSoft, palette.teal),
+    pill(776, 208, 210, "npm run coverage:check", palette.tealSoft, palette.teal),
     text(776, 276, `${coverage.passed}/${coverage.tests}`, "metric"),
     text(776, 307, "tests passed", "metric-label"),
     text(966, 267, "0 failed · 0 skipped", "body"),
@@ -2092,8 +2177,8 @@ function renderQualityVerification(quality) {
       92,
       798,
       [
-        "Bars: recorded Node 22.23.1 run; its immutable receipt configured no minimum threshold.",
-        "Markers: current Node 22.23.1 CI floors over the same loaded dist/src + dist/test scope.",
+        "Bars: recorded Node 22.23.1 coverage:check totals; raw TAP is bound by SHA-256.",
+        "Markers: enforced 90% line, 83% branch, and 95% function minimums.",
       ],
       "small",
       28,
@@ -2116,7 +2201,7 @@ function renderQualityVerification(quality) {
     height: 900,
     title: "Verified tests and loaded-JavaScript coverage",
     description:
-      "A source-backed verification figure separates one historical no-floor Node 22.23.1 receipt with 388 passing tests and exact loaded-JavaScript coverage totals from the current Node 22.23.1 CI floors of 90 percent lines, 83 percent branches, and 95 percent functions.",
+      "A source-backed verification figure shows one coverage-gated Node 22.23.1 receipt with 388 passing tests, exact loaded-JavaScript coverage totals, and enforced minimums of 90 percent lines, 83 percent branches, and 95 percent functions.",
     body,
   });
 }

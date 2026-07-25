@@ -3,8 +3,8 @@
   "version": 1,
   "official": false,
   "source": {
-    "git_revision": "752115fe535d164db951c4f57c426923619998d1",
-    "git_tree": "be82918e73950ca49228f10e4e2811e8f12517af"
+    "git_revision": "49bde81f4f8e1b93bc9ba4a86460e787cde17cc7",
+    "git_tree": "4a4c4fd6e3b0c40c91526e84d7dc5aa1ce029f11"
   },
   "runtime": {
     "node": "22.23.1",
@@ -24,25 +24,25 @@
       "skipped": 0,
       "cancelled": 0,
       "todo": 0,
-      "duration_ms": 256853.061961,
+      "duration_ms": 261978.061552,
       "log": {
         "file": "full-test.tap",
         "media_type": "text/plain; charset=utf-8",
-        "sha256": "5a28b5bd31c6bf335e2a3b28118b6a831b00bc1077a07724788f0d2ef15d1c4f",
-        "byte_length": 76812
+        "sha256": "dcd4e6c2cdb3c80f315a6a42b5c4bd076d5dd7ece60e88e48f71b8078c47b43b",
+        "byte_length": 76809
       }
     },
     "coverage": {
-      "command": "npm run coverage",
+      "command": "npm run coverage:check",
       "tests": 388,
       "passed": 388,
       "failed": 0,
       "skipped": 0,
       "cancelled": 0,
       "todo": 0,
-      "duration_ms": 674177.861505,
-      "line_percent": 90.83,
-      "branch_percent": 83.46,
+      "duration_ms": 669256.84105,
+      "line_percent": 90.8,
+      "branch_percent": 83.4,
       "function_percent": 95.59,
       "scope": "All loaded JavaScript emitted under dist, including dist/src and dist/test.",
       "excludes": [
@@ -50,12 +50,17 @@
         "non-JavaScript assets",
         "modules not loaded by the test run"
       ],
-      "minimum_thresholds_configured": false,
+      "minimum_thresholds_configured": true,
+      "minimum_thresholds": {
+        "line_percent": 90,
+        "branch_percent": 83,
+        "function_percent": 95
+      },
       "log": {
         "file": "full-coverage.tap",
         "media_type": "text/plain; charset=utf-8",
-        "sha256": "788ba66eaf674fb13112872c111637b6ac447c0a2aa774c1226c2bd7617c8872",
-        "byte_length": 103960
+        "sha256": "cc840933d18c17869526c2190167949ecb1b932980207be5361ce5e01ac40a98",
+        "byte_length": 104094
       }
     }
   },
@@ -63,12 +68,13 @@
     "establishes": [
       "one successful complete test run",
       "one successful complete coverage-instrumented test run",
-      "captured Node coverage totals for the declared loaded-module scope"
+      "captured Node coverage totals for the declared loaded-module scope",
+      "the coverage run passed configured 90% line, 83% branch, and 95% function floors"
     ],
     "does_not_establish": [
-      "minimum coverage enforcement",
       "production browser compatibility",
-      "model quality or benchmark performance"
+      "model quality or benchmark performance",
+      "equal coverage totals across Node.js major versions"
     ]
   }
 }

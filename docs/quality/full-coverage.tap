@@ -1,6 +1,6 @@
 
-> impactdiff@0.0.0 coverage
-> npm run build && node --test --test-concurrency=1 --experimental-test-coverage 'dist/test/**/*.test.js'
+> impactdiff@0.0.0 coverage:check
+> npm run build && node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=83 --test-coverage-functions=95 'dist/test/**/*.test.js'
 
 
 > impactdiff@0.0.0 build
@@ -10,2341 +10,2341 @@ TAP version 13
 # Subtest: Pilot v0.1 catalog freezes 20 applications, 40 workflows, and four balanced blocks
 ok 1 - Pilot v0.1 catalog freezes 20 applications, 40 workflows, and four balanced blocks
   ---
-  duration_ms: 1.773734
+  duration_ms: 1.766252
   type: 'test'
   ...
 # Subtest: catalog keys, fixture keys, and full workflow keys are unique and internally mapped
 ok 2 - catalog keys, fixture keys, and full workflow keys are unique and internally mapped
   ---
-  duration_ms: 0.333142
+  duration_ms: 0.344962
   type: 'test'
   ...
 # Subtest: the code-owned catalog has a stable canonical identity and is deeply frozen
 ok 3 - the code-owned catalog has a stable canonical identity and is deeply frozen
   ---
-  duration_ms: 4.411413
+  duration_ms: 3.587509
   type: 'test'
   ...
 # Subtest: the reviewer-facing Markdown table matches the code-owned catalog
 ok 4 - the reviewer-facing Markdown table matches the code-owned catalog
   ---
-  duration_ms: 12.475459
+  duration_ms: 13.091062
   type: 'test'
   ...
 # Subtest: a complete Pilot generation plan binds 20 apps and exactly 640 cells
 ok 5 - a complete Pilot generation plan binds 20 apps and exactly 640 cells
   ---
-  duration_ms: 5.052984
+  duration_ms: 4.817986
   type: 'test'
   ...
 # Subtest: the exported Pilot catalogs cannot be mutated between validations
 ok 6 - the exported Pilot catalogs cannot be mutated between validations
   ---
-  duration_ms: 0.242476
+  duration_ms: 0.563606
   type: 'test'
   ...
 # Subtest: the plan, split, and workflow identities are stable canonical commitments
 ok 7 - the plan, split, and workflow identities are stable canonical commitments
   ---
-  duration_ms: 58.647065
+  duration_ms: 53.6143
   type: 'test'
   ...
 # Subtest: Pilot family identities preserve the separate legacy runtime identities
 ok 8 - Pilot family identities preserve the separate legacy runtime identities
   ---
-  duration_ms: 0.253076
+  duration_ms: 0.239785
   type: 'test'
   ...
 # Subtest: canonical plan bytes parse and noncanonical bytes are rejected
 ok 9 - canonical plan bytes parse and noncanonical bytes are rejected
   ---
-  duration_ms: 389.558354
+  duration_ms: 264.415298
   type: 'test'
   ...
 # Subtest: a stale plan identity and a substituted protocol identity are rejected
 ok 10 - a stale plan identity and a substituted protocol identity are rejected
   ---
-  duration_ms: 397.15837
+  duration_ms: 318.094523
   type: 'test'
   ...
 # Subtest: application and workflow catalogs reject key, fixture, and order substitutions
 ok 11 - application and workflow catalogs reject key, fixture, and order substitutions
   ---
-  duration_ms: 504.346413
+  duration_ms: 343.335128
   type: 'test'
   ...
 # Subtest: application-group identities cannot be selected independently
 ok 12 - application-group identities cannot be selected independently
   ---
-  duration_ms: 126.81354
+  duration_ms: 77.236012
   type: 'test'
   ...
 # Subtest: application and workflow identities must remain globally unique
 ok 13 - application and workflow identities must remain globally unique
   ---
-  duration_ms: 405.151262
+  duration_ms: 265.682369
   type: 'test'
   ...
 # Subtest: source, task, and workflow identities cannot be independently substituted
 ok 14 - source, task, and workflow identities cannot be independently substituted
   ---
-  duration_ms: 338.763061
+  duration_ms: 300.637742
   type: 'test'
   ...
 # Subtest: one source state cannot be reassigned to another application
 ok 15 - one source state cannot be reassigned to another application
   ---
-  duration_ms: 87.795132
+  duration_ms: 82.85616
   type: 'test'
   ...
 # Subtest: family and global operator catalogs reject identity and relation confounds
 ok 16 - family and global operator catalogs reject identity and relation confounds
   ---
-  duration_ms: 697.64148
+  duration_ms: 637.331537
   type: 'test'
   ...
 # Subtest: the exact ordered matrix rejects source, operator, relation, and order changes
 ok 17 - the exact ordered matrix rejects source, operator, relation, and order changes
   ---
-  duration_ms: 332.885615
+  duration_ms: 300.466522
   type: 'test'
   ...
 # Subtest: application blocks must equal the catalog key-to-block mapping
 ok 18 - application blocks must equal the catalog key-to-block mapping
   ---
-  duration_ms: 144.901178
+  duration_ms: 111.149779
   type: 'test'
   ...
 # Subtest: the exact fold schedule rejects a different valid-looking rotation
 ok 19 - the exact fold schedule rejects a different valid-looking rotation
   ---
-  duration_ms: 54.402143
+  duration_ms: 48.094528
   type: 'test'
   ...
 # Subtest: audit payloads must be three distinct canonical commitments
 ok 20 - audit payloads must be three distinct canonical commitments
   ---
-  duration_ms: 450.368597
+  duration_ms: 428.388277
   type: 'test'
   ...
 # Subtest: matrix counts and closed relation-only cells fail closed
 ok 21 - matrix counts and closed relation-only cells fail closed
   ---
-  duration_ms: 75.525806
+  duration_ms: 72.055914
   type: 'test'
   ...
 # Subtest: non-JSON, cyclic, accessor, and exotic inputs fail before schema use
 ok 22 - non-JSON, cyclic, accessor, and exotic inputs fail before schema use
   ---
-  duration_ms: 19.566343
+  duration_ms: 19.426665
   type: 'test'
   ...
 # Subtest: Pilot v0.1 freezes the complete 640-pair grouped-outer design
 ok 23 - Pilot v0.1 freezes the complete 640-pair grouped-outer design
   ---
-  duration_ms: 2.250824
+  duration_ms: 2.478038
   type: 'test'
   ...
 # Subtest: the exported protocol has a stable canonical identity and is deeply frozen
 ok 24 - the exported protocol has a stable canonical identity and is deeply frozen
   ---
-  duration_ms: 11.961476
+  duration_ms: 18.259421
   type: 'test'
   ...
 # Subtest: a syntactically valid substituted protocol identity is rejected
 ok 25 - a syntactically valid substituted protocol identity is rejected
   ---
-  duration_ms: 3.644913
+  duration_ms: 9.850307
   type: 'test'
   ...
 # Subtest: every frozen protocol leaf rejects mutation even with a recomputed identity
 ok 26 - every frozen protocol leaf rejects mutation even with a recomputed identity
   ---
-  duration_ms: 557.003125
+  duration_ms: 1096.802673
   type: 'test'
   ...
 # Subtest: missing and unknown fields fail closed
 ok 27 - missing and unknown fields fail closed
   ---
-  duration_ms: 2.112395
+  duration_ms: 3.491722
   type: 'test'
   ...
 # Subtest: non-JSON, cyclic, accessor, symbolic, and exotic inputs fail closed
 ok 28 - non-JSON, cyclic, accessor, symbolic, and exotic inputs fail closed
   ---
-  duration_ms: 2.642449
+  duration_ms: 4.925594
   type: 'test'
   ...
 # Subtest: canonical JSON is stable across object insertion order
 ok 29 - canonical JSON is stable across object insertion order
   ---
-  duration_ms: 2.544033
+  duration_ms: 3.188253
   type: 'test'
   ...
 # Subtest: strict decoding rejects ambiguous JSON representations
 ok 30 - strict decoding rejects ambiguous JSON representations
   ---
-  duration_ms: 1.064148
+  duration_ms: 1.122681
   type: 'test'
   ...
 # Subtest: strict decoding rejects invalid Unicode and UTF-8
 ok 31 - strict decoding rejects invalid Unicode and UTF-8
   ---
-  duration_ms: 0.983203
+  duration_ms: 0.405846
   type: 'test'
   ...
 # Subtest: contract numbers are exact safe integers
 ok 32 - contract numbers are exact safe integers
   ---
-  duration_ms: 0.205613
+  duration_ms: 0.236895
   type: 'test'
   ...
 # Subtest: decoder resource limits fail closed
 ok 33 - decoder resource limits fail closed
   ---
-  duration_ms: 0.338031
+  duration_ms: 1.210397
   type: 'test'
   ...
 # Subtest: decoder rejects malformed resource-limit overrides
 ok 34 - decoder rejects malformed resource-limit overrides
   ---
-  duration_ms: 0.440319
+  duration_ms: 0.513672
   type: 'test'
   ...
 # Subtest: SHA-256 snapshots fixed byte views and rejects unstable backing memory
 ok 35 - SHA-256 snapshots fixed byte views and rejects unstable backing memory
   ---
-  duration_ms: 0.257127
+  duration_ms: 0.295029
   type: 'test'
   ...
 # Subtest: domain-separated identities bind their canonical bodies
 ok 36 - domain-separated identities bind their canonical bodies
   ---
-  duration_ms: 1.665966
+  duration_ms: 2.341449
   type: 'test'
   ...
 # Subtest: canonical encoder rejects values outside the JSON data model
 ok 37 - canonical encoder rejects values outside the JSON data model
   ---
-  duration_ms: 0.396526
+  duration_ms: 0.46771
   type: 'test'
   ...
 # Subtest: canonical encoder and decoder apply the same Unicode rules to keys
 ok 38 - canonical encoder and decoder apply the same Unicode rules to keys
   ---
-  duration_ms: 0.203363
+  duration_ms: 0.235055
   type: 'test'
   ...
 # Subtest: closed Chromium font audit accepts only rendered custom-family glyphs
 ok 39 - closed Chromium font audit accepts only rendered custom-family glyphs
   ---
-  duration_ms: 2.368602
+  duration_ms: 3.020392
   type: 'test'
   ...
 # Subtest: closed Chromium font audit rejects fallback and empty glyph usage
     # Subtest: platform fallback
     ok 1 - platform fallback
       ---
-      duration_ms: 0.883737
+      duration_ms: 1.141753
       type: 'test'
       ...
     # Subtest: no rendered glyphs
     ok 2 - no rendered glyphs
       ---
-      duration_ms: 0.277638
+      duration_ms: 0.376104
       type: 'test'
       ...
     1..2
 ok 40 - closed Chromium font audit rejects fallback and empty glyph usage
   ---
-  duration_ms: 1.709229
+  duration_ms: 2.168899
   type: 'test'
   ...
 # Subtest: closed Chromium font audit aggregates probing and detach failures
 ok 41 - closed Chromium font audit aggregates probing and detach failures
   ---
-  duration_ms: 0.367444
+  duration_ms: 0.457989
   type: 'test'
   ...
 # Subtest: closed Chromium font audit types a CDP session initialization failure
 ok 42 - closed Chromium font audit types a CDP session initialization failure
   ---
-  duration_ms: 0.289308
+  duration_ms: 0.335841
   type: 'test'
   ...
 # Subtest: closed Chromium font audit reports a detach-only failure
 ok 43 - closed Chromium font audit reports a detach-only failure
   ---
-  duration_ms: 0.288679
+  duration_ms: 0.532474
   type: 'test'
   ...
 # Subtest: the Chromium style request order is closed and immutable
 ok 44 - the Chromium style request order is closed and immutable
   ---
-  duration_ms: 1.812897
+  duration_ms: 2.997131
   type: 'test'
   ...
 # Subtest: adapter collapses non-layout parents and excludes complete pseudo subtrees
 ok 45 - adapter collapses non-layout parents and excludes complete pseudo subtrees
   ---
-  duration_ms: 4.413892
+  duration_ms: 6.457561
   type: 'test'
   ...
 # Subtest: bounds use viewport coordinates while overflow clips translate local client rects
 ok 46 - bounds use viewport coordinates while overflow clips translate local client rects
   ---
-  duration_ms: 0.627
+  duration_ms: 0.865795
   type: 'test'
   ...
 # Subtest: text rows never establish overflow clips
 ok 47 - text rows never establish overflow clips
   ---
-  duration_ms: 0.558486
+  duration_ms: 0.932259
   type: 'test'
   ...
 # Subtest: a resolved target may be absent from layout after becoming hidden
 ok 48 - a resolved target may be absent from layout after becoming hidden
   ---
-  duration_ms: 0.513223
+  duration_ms: 0.657882
   type: 'test'
   ...
 # Subtest: adapter binds one exact fixture document and viewport
 ok 49 - adapter binds one exact fixture document and viewport
   ---
-  duration_ms: 1.059657
+  duration_ms: 1.411779
   type: 'test'
   ...
 # Subtest: adapter binds each closed document profile to its exact fixture URL
 ok 50 - adapter binds each closed document profile to its exact fixture URL
   ---
-  duration_ms: 1.300274
+  duration_ms: 1.023445
   type: 'test'
   ...
 # Subtest: adapter rejects malformed indexes, styles, rectangles, and parallel tables
 ok 51 - adapter rejects malformed indexes, styles, rectangles, and parallel tables
   ---
-  duration_ms: 1.121302
+  duration_ms: 2.243482
   type: 'test'
   ...
 # Subtest: adapter rejects ambiguous DOM, layout, pseudo, and target identities
 ok 52 - adapter rejects ambiguous DOM, layout, pseudo, and target identities
   ---
-  duration_ms: 1.304853
+  duration_ms: 1.987507
   type: 'test'
   ...
 # Subtest: adapter enforces raw node limits and rejects active input objects
 ok 53 - adapter enforces raw node limits and rejects active input objects
   ---
-  duration_ms: 1.669197
+  duration_ms: 2.644908
   type: 'test'
   ...
 # Subtest: Q64 quantization uses nearest ties-to-even for positive and negative values
 ok 54 - Q64 quantization uses nearest ties-to-even for positive and negative values
   ---
-  duration_ms: 1.426832
+  duration_ms: 1.56412
   type: 'test'
   ...
 # Subtest: Q64 quantization rejects non-finite and out-of-range geometry
 ok 55 - Q64 quantization rejects non-finite and out-of-range geometry
   ---
-  duration_ms: 0.784461
+  duration_ms: 0.880606
   type: 'test'
   ...
 # Subtest: layout normalization is stable under input shuffling and emits preorder
 ok 56 - layout normalization is stable under input shuffling and emits preorder
   ---
-  duration_ms: 9.99937
+  duration_ms: 23.857047
   type: 'test'
   ...
 # Subtest: layout output strips browser identities, selectors, classes, paths and attributes
 ok 57 - layout output strips browser identities, selectors, classes, paths and attributes
   ---
-  duration_ms: 0.352212
+  duration_ms: 0.473661
   type: 'test'
   ...
 # Subtest: layout normalization rejects duplicate, dangling and cyclic identities
 ok 58 - layout normalization rejects duplicate, dangling and cyclic identities
   ---
-  duration_ms: 0.494611
+  duration_ms: 0.766689
   type: 'test'
   ...
 # Subtest: layout normalization rejects ambiguous ordering and invalid geometry
 ok 59 - layout normalization rejects ambiguous ordering and invalid geometry
   ---
-  duration_ms: 0.475951
+  duration_ms: 0.625159
   type: 'test'
   ...
 # Subtest: accessibility normalization is stable under raw CDP array shuffling
 ok 60 - accessibility normalization is stable under raw CDP array shuffling
   ---
-  duration_ms: 6.485946
+  duration_ms: 24.860652
   type: 'test'
   ...
 # Subtest: accessibility normalization preserves Pilot landmarks and native select semantics
 ok 61 - accessibility normalization preserves Pilot landmarks and native select semantics
   ---
-  duration_ms: 1.432322
+  duration_ms: 1.175775
   type: 'test'
   ...
 # Subtest: accessibility output contains only normalized allowlisted fields
 ok 62 - accessibility output contains only normalized allowlisted fields
   ---
-  duration_ms: 0.436668
+  duration_ms: 0.409156
   type: 'test'
   ...
 # Subtest: accessibility normalization rejects cycles, dangling and duplicate IDs
 ok 63 - accessibility normalization rejects cycles, dangling and duplicate IDs
   ---
-  duration_ms: 0.554215
+  duration_ms: 0.509572
   type: 'test'
   ...
 # Subtest: accessibility backend links remain partial for non-rendered DOM nodes
 ok 64 - accessibility backend links remain partial for non-rendered DOM nodes
   ---
-  duration_ms: 0.443468
+  duration_ms: 0.371874
   type: 'test'
   ...
 # Subtest: normalizers enforce the 4096-node and 64-edge budgets
 ok 65 - normalizers enforce the 4096-node and 64-edge budgets
   ---
-  duration_ms: 2.327289
+  duration_ms: 1.990107
   type: 'test'
   ...
 # Subtest: all four payload schemas close every object boundary
 ok 66 - all four payload schemas close every object boundary
   ---
-  duration_ms: 2.597717
+  duration_ms: 2.923686
   type: 'test'
   ...
 # Subtest: canonical v1 payloads parse into frozen typed data
 ok 67 - canonical v1 payloads parse into frozen typed data
   ---
-  duration_ms: 47.201602
+  duration_ms: 33.237634
   type: 'test'
   ...
 # Subtest: action plan rejects branching and browser-control canaries
 ok 68 - action plan rejects branching and browser-control canaries
   ---
-  duration_ms: 14.21844
+  duration_ms: 9.315682
   type: 'test'
   ...
 # Subtest: action plan enforces exact variants, identities, and ordering
 ok 69 - action plan enforces exact variants, identities, and ordering
   ---
-  duration_ms: 7.084673
+  duration_ms: 5.837672
   type: 'test'
   ...
 # Subtest: capture spec pins software, display, timeouts, and forbids machine paths
 ok 70 - capture spec pins software, display, timeouts, and forbids machine paths
   ---
-  duration_ms: 22.911387
+  duration_ms: 15.168705
   type: 'test'
   ...
 # Subtest: capture spec names the complete Playwright closure and live browser identity
 ok 71 - capture spec names the complete Playwright closure and live browser identity
   ---
-  duration_ms: 32.752497
+  duration_ms: 22.232144
   type: 'test'
   ...
 # Subtest: capture spec separates honest host execution from attested OCI execution
 ok 72 - capture spec separates honest host execution from attested OCI execution
   ---
-  duration_ms: 6.617484
+  duration_ms: 6.084767
   type: 'test'
   ...
 # Subtest: capture spec defines a complete, sorted font file set
 ok 73 - capture spec defines a complete, sorted font file set
   ---
-  duration_ms: 7.02667
+  duration_ms: 7.533929
   type: 'test'
   ...
 # Subtest: capture spec keeps v1 only as an explicit pre-release reset
 ok 74 - capture spec keeps v1 only as an explicit pre-release reset
   ---
-  duration_ms: 1.87242
+  duration_ms: 2.063542
   type: 'test'
   ...
 # Subtest: capture spec byte budget is enforced before schema validation
 ok 75 - capture spec byte budget is enforced before schema validation
   ---
-  duration_ms: 3.615202
+  duration_ms: 3.719827
   type: 'test'
   ...
 # Subtest: accessibility graph rejects raw CDP canaries and unsorted state
 ok 76 - accessibility graph rejects raw CDP canaries and unsorted state
   ---
-  duration_ms: 6.378589
+  duration_ms: 6.313752
   type: 'test'
   ...
 # Subtest: accessibility graph rejects dangling, reopened, and overdeep trees
 ok 77 - accessibility graph rejects dangling, reopened, and overdeep trees
   ---
-  duration_ms: 11.24972
+  duration_ms: 12.637993
   type: 'test'
   ...
 # Subtest: layout graph rejects raw DOM canaries and ambiguous targets
 ok 78 - layout graph rejects raw DOM canaries and ambiguous targets
   ---
-  duration_ms: 16.081829
+  duration_ms: 17.91287
   type: 'test'
   ...
 # Subtest: cross-graph binding permits dynamic targets but rejects undeclared IDs and dangling AX links
 ok 79 - cross-graph binding permits dynamic targets but rejects undeclared IDs and dangling AX links
   ---
-  duration_ms: 10.896078
+  duration_ms: 10.508448
   type: 'test'
   ...
 # Subtest: fractional and noncanonical JSON never reach a payload schema
 ok 80 - fractional and noncanonical JSON never reach a payload schema
   ---
-  duration_ms: 1.437112
+  duration_ms: 1.053447
   type: 'test'
   ...
 # Subtest: production capture codecs preserve only strict canonical payloads
 ok 81 - production capture codecs preserve only strict canonical payloads
   ---
-  duration_ms: 13.024694
+  duration_ms: 18.202408
   type: 'test'
   ...
 # Subtest: put canonicalizes before hashing and publishes exact private modes
 ok 82 - put canonicalizes before hashing and publishes exact private modes
   ---
-  duration_ms: 37.812811
+  duration_ms: 59.59996
   type: 'test'
   ...
 # Subtest: CAS directory creation repairs a maximally restrictive umask
 ok 83 - CAS directory creation repairs a maximally restrictive umask
   ---
-  duration_ms: 16.673668
+  duration_ms: 19.634879
   type: 'test'
   ...
 # Subtest: writes are serialized and concurrent same-digest puts converge
 ok 84 - writes are serialized and concurrent same-digest puts converge
   ---
-  duration_ms: 44.688841
+  duration_ms: 68.772305
   type: 'test'
   ...
 # Subtest: only the codec registered at open can authorize an artifact
 ok 85 - only the codec registered at open can authorize an artifact
   ---
-  duration_ms: 1.820026
+  duration_ms: 2.016229
   type: 'test'
   ...
 # Subtest: manifest-driven reads select only the codec registered for the media type
 ok 86 - manifest-driven reads select only the codec registered for the media type
   ---
-  duration_ms: 14.839471
+  duration_ms: 23.031275
   type: 'test'
   ...
 # Subtest: resolver rejects path-like digests and non-data references
 ok 87 - resolver rejects path-like digests and non-data references
   ---
-  duration_ms: 15.584898
+  duration_ms: 21.006096
   type: 'test'
   ...
 # Subtest: length, hash, hardlink, and symlink tampering fail closed
     # Subtest: appended bytes
     ok 1 - appended bytes
       ---
-      duration_ms: 15.907199
+      duration_ms: 17.505184
       type: 'test'
       ...
     # Subtest: same-length replacement
     ok 2 - same-length replacement
       ---
-      duration_ms: 16.86753
+      duration_ms: 20.217465
       type: 'test'
       ...
     # Subtest: hardlink
     ok 3 - hardlink
       ---
-      duration_ms: 15.117437
+      duration_ms: 17.510633
       type: 'test'
       ...
     # Subtest: symlink leaf
     ok 4 - symlink leaf
       ---
-      duration_ms: 14.885713
+      duration_ms: 17.006772
       type: 'test'
       ...
     # Subtest: symlink shard
     ok 5 - symlink shard
       ---
-      duration_ms: 15.370784
+      duration_ms: 27.581695
       type: 'test'
       ...
     1..5
 ok 88 - length, hash, hardlink, and symlink tampering fail closed
   ---
-  duration_ms: 79.390423
+  duration_ms: 101.422641
   type: 'test'
   ...
 # Subtest: exact root, directory, and leaf modes are enforced on every read and audit
     # Subtest: root 0755
     ok 1 - root 0755
       ---
-      duration_ms: 1.325555
+      duration_ms: 4.72407
       type: 'test'
       ...
     # Subtest: root changed to 0755
     ok 2 - root changed to 0755
       ---
-      duration_ms: 16.729011
+      duration_ms: 16.229622
       type: 'test'
       ...
     # Subtest: shard 0755
     ok 3 - shard 0755
       ---
-      duration_ms: 16.323905
+      duration_ms: 17.536745
       type: 'test'
       ...
     # Subtest: leaf 0444
     ok 4 - leaf 0444
       ---
-      duration_ms: 16.55334
+      duration_ms: 18.002995
       type: 'test'
       ...
     1..4
 ok 89 - exact root, directory, and leaf modes are enforced on every read and audit
   ---
-  duration_ms: 51.670079
+  duration_ms: 57.429753
   type: 'test'
   ...
 # Subtest: store roots reject symbolic aliases and nesting
 ok 90 - store roots reject symbolic aliases and nesting
   ---
-  duration_ms: 3.628882
+  duration_ms: 2.466847
   type: 'test'
   ...
 # Subtest: audit rejects abandoned temp files and enforces exact membership
 ok 91 - audit rejects abandoned temp files and enforces exact membership
   ---
-  duration_ms: 34.157858
+  duration_ms: 38.478458
   type: 'test'
   ...
 # Subtest: audit requires exact digest-directory topology
     # Subtest: extra empty shard
     ok 1 - extra empty shard
       ---
-      duration_ms: 16.790046
+      duration_ms: 17.29322
       type: 'test'
       ...
     # Subtest: digest directory in an empty store
     ok 2 - digest directory in an empty store
       ---
-      duration_ms: 1.898522
+      duration_ms: 2.050971
       type: 'test'
       ...
     1..2
 ok 92 - audit requires exact digest-directory topology
   ---
-  duration_ms: 19.20529
+  duration_ms: 19.827831
   type: 'test'
   ...
 # Subtest: audit bounds hostile directory enumeration before materializing it
 ok 93 - audit bounds hostile directory enumeration before materializing it
   ---
-  duration_ms: 15.335562
+  duration_ms: 15.704139
   type: 'test'
   ...
 # Subtest: a crash-style temp never exposes a final artifact and audit rejects it
 ok 94 - a crash-style temp never exposes a final artifact and audit rejects it
   ---
-  duration_ms: 17.153088
+  duration_ms: 17.677624
   type: 'test'
   ...
 # Subtest: noncanonical bytes with a matching digest are rejected by resolve and audit
 ok 95 - noncanonical bytes with a matching digest are rejected by resolve and audit
   ---
-  duration_ms: 3.927841
+  duration_ms: 7.724871
   type: 'test'
   ...
 # Subtest: a raw PNG cannot bypass its codec by using a matching raw-byte digest
 ok 96 - a raw PNG cannot bypass its codec by using a matching raw-byte digest
   ---
-  duration_ms: 10.563627
+  duration_ms: 16.134066
   type: 'test'
   ...
 # Subtest: malformed raw and stored artifacts are rejected by the registered codec
     # Subtest: put
     ok 1 - put
       ---
-      duration_ms: 1.220098
+      duration_ms: 2.845851
       type: 'test'
       ...
     # Subtest: resolve and audit
     ok 2 - resolve and audit
       ---
-      duration_ms: 3.936982
+      duration_ms: 8.80794
       type: 'test'
       ...
     1..2
 ok 97 - malformed raw and stored artifacts are rejected by the registered codec
   ---
-  duration_ms: 5.556166
+  duration_ms: 12.26399
   type: 'test'
   ...
 # Subtest: pair audit detects copied canonical bytes across visible and sealed stores
 ok 98 - pair audit detects copied canonical bytes across visible and sealed stores
   ---
-  duration_ms: 31.70881
+  duration_ms: 39.698795
   type: 'test'
   ...
 # Subtest: resolve validates the verified buffer even if its path is replaced
 ok 99 - resolve validates the verified buffer even if its path is replaced
   ---
-  duration_ms: 15.835114
+  duration_ms: 16.535292
   type: 'test'
   ...
 # Subtest: media type and codec-specific byte budgets are enforced
 ok 100 - media type and codec-specific byte budgets are enforced
   ---
-  duration_ms: 14.272224
+  duration_ms: 15.453853
   type: 'test'
   ...
 # Subtest: byte budgets use intrinsic typed-array lengths before copying
 ok 101 - byte budgets use intrinsic typed-array lengths before copying
   ---
-  duration_ms: 1.283572
+  duration_ms: 1.279061
   type: 'test'
   ...
 # Subtest: store root and aggregate byte budget are runtime immutable
 ok 102 - store root and aggregate byte budget are runtime immutable
   ---
-  duration_ms: 1.237799
+  duration_ms: 1.242599
   type: 'test'
   ...
 # Subtest: a successful audit seals publication and exposes no mutable map
 ok 103 - a successful audit seals publication and exposes no mutable map
   ---
-  duration_ms: 16.049938
+  duration_ms: 17.360635
   type: 'test'
   ...
 # Subtest: development release CLI prints help without starting generation
 ok 104 - development release CLI prints help without starting generation
   ---
-  duration_ms: 44.526881
+  duration_ms: 49.214641
   type: 'test'
   ...
 # Subtest: development release CLI rejects unknown, duplicate, and missing arguments
     # Subtest: []
     ok 1 - []
       ---
-      duration_ms: 41.276493
+      duration_ms: 43.293954
       type: 'test'
       ...
     # Subtest: ["--unknown"]
     ok 2 - ["--unknown"]
       ---
-      duration_ms: 41.193118
+      duration_ms: 43.23854
       type: 'test'
       ...
     # Subtest: ["positional"]
     ok 3 - ["positional"]
       ---
-      duration_ms: 43.73006
+      duration_ms: 43.961336
       type: 'test'
       ...
     # Subtest: ["--root"]
     ok 4 - ["--root"]
       ---
-      duration_ms: 44.520561
+      duration_ms: 43.24532
       type: 'test'
       ...
     # Subtest: ["--root","--help"]
     ok 5 - ["--root","--help"]
       ---
-      duration_ms: 41.762324
+      duration_ms: 42.836674
       type: 'test'
       ...
     # Subtest: ["--root","first","--root","second"]
     ok 6 - ["--root","first","--root","second"]
       ---
-      duration_ms: 40.316541
+      duration_ms: 44.046401
       type: 'test'
       ...
     # Subtest: ["--help","--help"]
     ok 7 - ["--help","--help"]
       ---
-      duration_ms: 39.655639
+      duration_ms: 42.028334
       type: 'test'
       ...
     # Subtest: ["--root","publication","--help"]
     ok 8 - ["--root","publication","--help"]
       ---
-      duration_ms: 44.03152
+      duration_ms: 41.105184
       type: 'test'
       ...
     1..8
 ok 105 - development release CLI rejects unknown, duplicate, and missing arguments
   ---
-  duration_ms: 338.164613
+  duration_ms: 345.677737
   type: 'test'
   ...
 # Subtest: development release CLI exposes only a safe publication preflight code
 ok 106 - development release CLI exposes only a safe publication preflight code
   ---
-  duration_ms: 1140.147364
+  duration_ms: 1303.093064
   type: 'test'
   ...
 # Subtest: development release CLI publishes and strictly reopens one real pair
 ok 107 - development release CLI publishes and strictly reopens one real pair
   ---
-  duration_ms: 27569.032736
+  duration_ms: 27539.738753
   type: 'test'
   ...
 # Subtest: fresh-pair options reject accessors and unknown fields synchronously
 ok 108 - fresh-pair options reject accessors and unknown fields synchronously
   ---
-  duration_ms: 1.71614
+  duration_ms: 1.793354
   type: 'test'
   ...
 # Subtest: publication topology is checked before Chromium launch
 ok 109 - publication topology is checked before Chromium launch
   ---
-  duration_ms: 6.411461
+  duration_ms: 6.396206
   type: 'test'
   ...
 # Subtest: one-shot generation publishes real pointer and palette pairs
 ok 110 - one-shot generation publishes real pointer and palette pairs
   ---
-  duration_ms: 77252.737845
+  duration_ms: 75058.539728
   type: 'test'
   ...
 # Subtest: development grouping and policy identities are deterministic and separated
 ok 111 - development grouping and policy identities are deterministic and separated
   ---
-  duration_ms: 3.27425
+  duration_ms: 4.325855
   type: 'test'
   ...
 # Subtest: development labels close baseline-invalid, pass, and primary-block branches
 ok 112 - development labels close baseline-invalid, pass, and primary-block branches
   ---
-  duration_ms: 0.293619
+  duration_ms: 0.331331
   type: 'test'
   ...
 # Subtest: Pilot mutation identities retain their frozen domain-separated values
 ok 113 - Pilot mutation identities retain their frozen domain-separated values
   ---
-  duration_ms: 3.43452
+  duration_ms: 3.401736
   type: 'test'
   ...
 # Subtest: pair and catalog identities project only their non-circular inputs
 ok 114 - pair and catalog identities project only their non-circular inputs
   ---
-  duration_ms: 1.048787
+  duration_ms: 0.93893
   type: 'test'
   ...
 # Subtest: palette compilation is canonical, deterministic, and reversible
 ok 115 - palette compilation is canonical, deterministic, and reversible
   ---
-  duration_ms: 31.099261
+  duration_ms: 29.520914
   type: 'test'
   ...
 # Subtest: pointer compilation binds exact fixed-point bounds and a breaking descriptor
 ok 116 - pointer compilation binds exact fixed-point bounds and a breaking descriptor
   ---
-  duration_ms: 4.405922
+  duration_ms: 4.402589
   type: 'test'
   ...
 # Subtest: instance identity and seed change only with the pre-outcome request
 ok 117 - instance identity and seed change only with the pre-outcome request
   ---
-  duration_ms: 6.262971
+  duration_ms: 6.354003
   type: 'test'
   ...
 # Subtest: failed preconditions return an explicit result without fallback or a plan
 ok 118 - failed preconditions return an explicit result without fallback or a plan
   ---
-  duration_ms: 2.701443
+  duration_ms: 2.625017
   type: 'test'
   ...
 # Subtest: palette safety is a compile-time precondition
 ok 119 - palette safety is a compile-time precondition
   ---
-  duration_ms: 7.713094
+  duration_ms: 11.153579
   type: 'test'
   ...
 # Subtest: compiler rejects a probe from another immutable source
 ok 120 - compiler rejects a probe from another immutable source
   ---
-  duration_ms: 2.070002
+  duration_ms: 2.21893
   type: 'test'
   ...
 # Subtest: source probes cannot be reused after any request identity change
 ok 121 - source probes cannot be reused after any request identity change
   ---
-  duration_ms: 2.607176
+  duration_ms: 2.641888
   type: 'test'
   ...
 # Subtest: request and plan schemas reject extension and code injection surfaces
 ok 122 - request and plan schemas reject extension and code injection surfaces
   ---
-  duration_ms: 6.668698
+  duration_ms: 6.299211
   type: 'test'
   ...
 # Subtest: source probes bind their bytes and reject ambiguous selected targets
 ok 123 - source probes bind their bytes and reject ambiguous selected targets
   ---
-  duration_ms: 9.20425
+  duration_ms: 2.688211
   type: 'test'
   ...
 # Subtest: precondition reports require unique sorted checks and derived applicability
 ok 124 - precondition reports require unique sorted checks and derived applicability
   ---
-  duration_ms: 12.609917
+  duration_ms: 10.174736
   type: 'test'
   ...
 # Subtest: plan semantics bind descriptor, target, inverse, seed, and opcode
 ok 125 - plan semantics bind descriptor, target, inverse, seed, and opcode
   ---
-  duration_ms: 8.317623
+  duration_ms: 7.723911
   type: 'test'
   ...
 # Subtest: compilation bundle rejects swapped or tampered sealed evidence
 ok 126 - compilation bundle rejects swapped or tampered sealed evidence
   ---
-  duration_ms: 24.152767
+  duration_ms: 24.25315
   type: 'test'
   ...
 # Subtest: production mutation codecs bind canonical plans and preconditions
 ok 127 - production mutation codecs bind canonical plans and preconditions
   ---
-  duration_ms: 14.464036
+  duration_ms: 13.441814
   type: 'test'
   ...
 # Subtest: owned capture environment seals exact package, browser, launch, and font bytes
 ok 128 - owned capture environment seals exact package, browser, launch, and font bytes
   ---
-  duration_ms: 632.352076
+  duration_ms: 625.022336
   type: 'test'
   ...
 # Subtest: capture environment rejects forged capabilities and changed font bytes
 ok 129 - capture environment rejects forged capabilities and changed font bytes
   ---
-  duration_ms: 12.274846
+  duration_ms: 12.350594
   type: 'test'
   ...
 # Subtest: Pilot v0.1 definitions freeze the exact ordered 8 x 2 catalog
 ok 130 - Pilot v0.1 definitions freeze the exact ordered 8 x 2 catalog
   ---
-  duration_ms: 2.126506
+  duration_ms: 2.183639
   type: 'test'
   ...
 # Subtest: installed predicate policies freeze the exact 16-row causal matrix
 ok 131 - installed predicate policies freeze the exact 16-row causal matrix
   ---
-  duration_ms: 0.738577
+  duration_ms: 0.766058
   type: 'test'
   ...
 # Subtest: installed predicate policies reject malformed rows and semantic rebinding
 ok 132 - installed predicate policies reject malformed rows and semantic rebinding
   ---
-  duration_ms: 11.902872
+  duration_ms: 12.056475
   type: 'test'
   ...
 # Subtest: pair, operator, artifact, and catalog identities retain golden values
 ok 133 - pair, operator, artifact, and catalog identities retain golden values
   ---
-  duration_ms: 6.321065
+  duration_ms: 6.561256
   type: 'test'
   ...
 # Subtest: every exported catalog structure and code-owned spec is deeply frozen
 ok 134 - every exported catalog structure and code-owned spec is deeply frozen
   ---
-  duration_ms: 1.774203
+  duration_ms: 1.688957
   type: 'test'
   ...
 # Subtest: closed definitions reject executable text and unknown fields
 ok 135 - closed definitions reject executable text and unknown fields
   ---
-  duration_ms: 1.908192
+  duration_ms: 1.89182
   type: 'test'
   ...
 # Subtest: definition keys cannot be rebound across families, relations, effects, or predicates
 ok 136 - definition keys cannot be rebound across families, relations, effects, or predicates
   ---
-  duration_ms: 3.450651
+  duration_ms: 3.513663
   type: 'test'
   ...
 # Subtest: source probes reject reordering, omission, duplication, and family substitution
 ok 137 - source probes reject reordering, omission, duplication, and family substitution
   ---
-  duration_ms: 2.876354
+  duration_ms: 3.054044
   type: 'test'
   ...
 # Subtest: visual definitions reject cross-mixed palettes and trusted ratio fields
 ok 138 - visual definitions reject cross-mixed palettes and trusted ratio fields
   ---
-  duration_ms: 3.022384
+  duration_ms: 3.132838
   type: 'test'
   ...
 # Subtest: definition-set validation rejects reordering and duplicate members
 ok 139 - definition-set validation rejects reordering and duplicate members
   ---
-  duration_ms: 37.757198
+  duration_ms: 38.883228
   type: 'test'
   ...
 # Subtest: definition-set wrappers reject sparse, subclassed, overridden-map, and getter inputs
 ok 140 - definition-set wrappers reject sparse, subclassed, overridden-map, and getter inputs
   ---
-  duration_ms: 1.465964
+  duration_ms: 1.553869
   type: 'test'
   ...
 # Subtest: catalog validation rejects reordered and duplicate definition bindings
 ok 141 - catalog validation rejects reordered and duplicate definition bindings
   ---
-  duration_ms: 6.363847
+  duration_ms: 6.439119
   type: 'test'
   ...
 # Subtest: canonical definition and catalog parsers reject alternate JSON encodings
 ok 142 - canonical definition and catalog parsers reject alternate JSON encodings
   ---
-  duration_ms: 11.347137
+  duration_ms: 10.907243
   type: 'test'
   ...
 # Subtest: production operator codecs round-trip only canonical closed payloads
 ok 143 - production operator codecs round-trip only canonical closed payloads
   ---
-  duration_ms: 18.311313
+  duration_ms: 17.138808
   type: 'test'
   ...
 # Subtest: provenance trees are globally sorted and independent of creation order
 ok 144 - provenance trees are globally sorted and independent of creation order
   ---
-  duration_ms: 28.582501
+  duration_ms: 22.452376
   type: 'test'
   ...
 # Subtest: provenance trees bound empty-directory and entry traversal
 ok 145 - provenance trees bound empty-directory and entry traversal
   ---
-  duration_ms: 589.084986
+  duration_ms: 549.633439
   type: 'test'
   ...
 # Subtest: provenance trees enforce required paths, file bytes, and depth
 ok 146 - provenance trees enforce required paths, file bytes, and depth
   ---
-  duration_ms: 37.651261
+  duration_ms: 28.528201
   type: 'test'
   ...
 # Subtest: provenance trees reject malformed and aggregate byte budgets
 ok 147 - provenance trees reject malformed and aggregate byte budgets
   ---
-  duration_ms: 2.901945
+  duration_ms: 2.602326
   type: 'test'
   ...
 # Subtest: provenance trees reject symbolic and hard-linked aliases
 ok 148 - provenance trees reject symbolic and hard-linked aliases
   ---
-  duration_ms: 5.925519
+  duration_ms: 4.88707
   type: 'test'
   ...
 # Subtest: verified fixture loader emits the exact reusable action-plan artifact
 ok 149 - verified fixture loader emits the exact reusable action-plan artifact
   ---
-  duration_ms: 2.604626
+  duration_ms: 2.504028
   type: 'test'
   ...
 # Subtest: baseline task uses a true coordinate click and the fixture route aborts external traffic
 ok 150 - baseline task uses a true coordinate click and the fixture route aborts external traffic
   ---
-  duration_ms: 1024.502999
+  duration_ms: 1156.442428
   type: 'test'
   ...
 # Subtest: pinned Chromium AX output normalizes through the closed accessibility contract
 ok 151 - pinned Chromium AX output normalizes through the closed accessibility contract
   ---
-  duration_ms: 315.016783
+  duration_ms: 329.842533
   type: 'test'
   ...
 # Subtest: authenticated task capture emits deterministic canonical checkpoints
 ok 152 - authenticated task capture emits deterministic canonical checkpoints
   ---
-  duration_ms: 5773.746004
+  duration_ms: 5816.624479
   type: 'test'
   ...
 # Subtest: captured task outcomes distinguish preserving and breaking mutations
 ok 153 - captured task outcomes distinguish preserving and breaking mutations
   ---
-  duration_ms: 3275.079044
+  duration_ms: 3098.801571
   type: 'test'
   ...
 # Subtest: task capture enforces its phase, geometry, plan, and operation lock
 ok 154 - task capture enforces its phase, geometry, plan, and operation lock
   ---
-  duration_ms: 2111.752422
+  duration_ms: 1965.47834
   type: 'test'
   ...
 # Subtest: factory rejects changed manifest bytes, resources, and directory members
 ok 155 - factory rejects changed manifest bytes, resources, and directory members
   ---
-  duration_ms: 1895.978883
+  duration_ms: 1704.353655
   type: 'test'
   ...
 # Subtest: factory binds task identity to exact canonical action-plan bytes and target mapping
 ok 156 - factory binds task identity to exact canonical action-plan bytes and target mapping
   ---
-  duration_ms: 3.825634
+  duration_ms: 3.739208
   type: 'test'
   ...
 # Subtest: factory derives source identity from exact sealed provenance bytes
 ok 157 - factory derives source identity from exact sealed provenance bytes
   ---
-  duration_ms: 1.453103
+  duration_ms: 1.390778
   type: 'test'
   ...
 # Subtest: factory derives environment identity from exact canonical CaptureSpec bytes
 ok 158 - factory derives environment identity from exact canonical CaptureSpec bytes
   ---
-  duration_ms: 9.420943
+  duration_ms: 9.544427
   type: 'test'
   ...
 # Subtest: verified fixture loader emits the exact reusable source-state artifact
 ok 159 - verified fixture loader emits the exact reusable source-state artifact
   ---
-  duration_ms: 7.479899
+  duration_ms: 6.951882
   type: 'test'
   ...
 # Subtest: runtime provenance rejects unbranded sessions, caller targets, and mismatched IDs
 ok 160 - runtime provenance rejects unbranded sessions, caller targets, and mismatched IDs
   ---
-  duration_ms: 380.975149
+  duration_ms: 359.644591
   type: 'test'
   ...
 # Subtest: session serializes operations so close cannot race an in-flight audit
 ok 161 - session serializes operations so close cannot race an in-flight audit
   ---
-  duration_ms: 298.357487
+  duration_ms: 281.439468
   type: 'test'
   ...
 # Subtest: failed context cleanup poisons the owned capture environment
 ok 162 - failed context cleanup poisons the owned capture environment
   ---
-  duration_ms: 814.218104
+  duration_ms: 796.928649
   type: 'test'
   ...
 # Subtest: session audit records external aborts and rejects internal network taint
     # Subtest: external origin is aborted and reported
     ok 1 - external origin is aborted and reported
       ---
-      duration_ms: 319.356422
+      duration_ms: 278.524692
       type: 'test'
       ...
     # Subtest: unknown same-origin resource taints close
     ok 2 - unknown same-origin resource taints close
       ---
-      duration_ms: 300.588631
+      duration_ms: 276.980653
       type: 'test'
       ...
     # Subtest: removing the route cannot bypass the request audit
     ok 3 - removing the route cannot bypass the request audit
       ---
-      duration_ms: 311.033019
+      duration_ms: 292.131547
       type: 'test'
       ...
     1..3
 ok 163 - session audit records external aborts and rejects internal network taint
   ---
-  duration_ms: 932.125456
+  duration_ms: 848.658749
   type: 'test'
   ...
 # Subtest: CSP enforcement blocks unsafe inline style and taints the audited session
 ok 164 - CSP enforcement blocks unsafe inline style and taints the audited session
   ---
-  duration_ms: 274.719043
+  duration_ms: 265.066767
   type: 'test'
   ...
 # Subtest: replacing the branded document invalidates the session provenance
 ok 165 - replacing the branded document invalidates the session provenance
   ---
-  duration_ms: 286.830769
+  duration_ms: 272.873413
   type: 'test'
   ...
 # Subtest: replacing a retained fixture target inside the same document is rejected
 ok 166 - replacing a retained fixture target inside the same document is rejected
   ---
-  duration_ms: 241.981857
+  duration_ms: 287.342263
   type: 'test'
   ...
 # Subtest: in-place critical content and CSSOM tampering are rejected
     # Subtest: text tamper restored before probing is still audited
     ok 1 - text tamper restored before probing is still audited
       ---
-      duration_ms: 319.097706
+      duration_ms: 288.194957
       type: 'test'
       ...
     # Subtest: persistent stylesheet rule mutation changes the integrity digest
     ok 2 - persistent stylesheet rule mutation changes the integrity digest
       ---
-      duration_ms: 304.281874
+      duration_ms: 267.412175
       type: 'test'
       ...
     1..2
 ok 167 - in-place critical content and CSSOM tampering are rejected
   ---
-  duration_ms: 624.104537
+  duration_ms: 556.265634
   type: 'test'
   ...
 # Subtest: palette mutation changes canonical pixels, restores exactly, and preserves the task
 ok 168 - palette mutation changes canonical pixels, restores exactly, and preserves the task
   ---
-  duration_ms: 1745.812592
+  duration_ms: 1693.672386
   type: 'test'
   ...
 # Subtest: active owned CSSOM tampering is detected before it can be reused
 ok 169 - active owned CSSOM tampering is detected before it can be reused
   ---
-  duration_ms: 532.628616
+  duration_ms: 436.496598
   type: 'test'
   ...
 # Subtest: pointer interceptor preserves pixels and AX while blocking only the coordinate task
 ok 170 - pointer interceptor preserves pixels and AX while blocking only the coordinate task
   ---
-  duration_ms: 1997.803398
+  duration_ms: 1641.37879
   type: 'test'
   ...
 # Subtest: live re-probing rejects stale and overlapping applications without leaking ownership
 ok 171 - live re-probing rejects stale and overlapping applications without leaking ownership
   ---
-  duration_ms: 680.469444
+  duration_ms: 608.600544
   type: 'test'
   ...
 # Subtest: failed verification rolls back the exact owned node and releases the page
 ok 172 - failed verification rolls back the exact owned node and releases the page
   ---
-  duration_ms: 583.320607
+  duration_ms: 520.62741
   type: 'test'
   ...
 # Subtest: the actual market-basket manifest derives two exact canonical action plans
 ok 173 - the actual market-basket manifest derives two exact canonical action plans
   ---
-  duration_ms: 37.353974
+  duration_ms: 29.325604
   type: 'test'
   ...
 # Subtest: action-plan artifacts expose immutable metadata and defensive byte copies
 ok 174 - action-plan artifacts expose immutable metadata and defensive byte copies
   ---
-  duration_ms: 14.454937
+  duration_ms: 10.111852
   type: 'test'
   ...
 # Subtest: variable recipes map exactly into canonical action plans
 ok 175 - variable recipes map exactly into canonical action plans
   ---
-  duration_ms: 24.4877
+  duration_ms: 18.293012
   type: 'test'
   ...
 # Subtest: the maximum Pilot recipe remains below the ActionPlan byte budget
 ok 176 - the maximum Pilot recipe remains below the ActionPlan byte budget
   ---
-  duration_ms: 27.746739
+  duration_ms: 25.661842
   type: 'test'
   ...
 # Subtest: step identity commits independently to every authoring input
 ok 177 - step identity commits independently to every authoring input
   ---
-  duration_ms: 7.4806
+  duration_ms: 8.031411
   type: 'test'
   ...
 # Subtest: action-plan construction rejects a noncanonical manifest digest
 ok 178 - action-plan construction rejects a noncanonical manifest digest
   ---
-  duration_ms: 7.525832
+  duration_ms: 7.054029
   type: 'test'
   ...
 # Subtest: the canonical market-basket manifest binds the exact Pilot authoring slice
 ok 179 - the canonical market-basket manifest binds the exact Pilot authoring slice
   ---
-  duration_ms: 8.290382
+  duration_ms: 11.01304
   type: 'test'
   ...
 # Subtest: manifest parsing requires duplicate-free RFC 8785 bytes
 ok 180 - manifest parsing requires duplicate-free RFC 8785 bytes
   ---
-  duration_ms: 4.599505
+  duration_ms: 6.234727
   type: 'test'
   ...
 # Subtest: manifest root rejects missing, extra, outcome, identity, and reference fields
 ok 181 - manifest root rejects missing, extra, outcome, identity, and reference fields
   ---
-  duration_ms: 7.352151
+  duration_ms: 8.010409
   type: 'test'
   ...
 # Subtest: manifest identities and catalog order are exact authoring bindings
 ok 182 - manifest identities and catalog order are exact authoring bindings
   ---
-  duration_ms: 5.876347
+  duration_ms: 6.712787
   type: 'test'
   ...
 # Subtest: resource membership is safe, complete, unique, and strictly ordered
 ok 183 - resource membership is safe, complete, unique, and strictly ordered
   ---
-  duration_ms: 8.751882
+  duration_ms: 8.054222
   type: 'test'
   ...
 # Subtest: CSP, environment, and readiness are exact
 ok 184 - CSP, environment, and readiness are exact
   ---
-  duration_ms: 6.195887
+  duration_ms: 5.18977
   type: 'test'
   ...
 # Subtest: workflow ABI permits an independent focus entry but only the root may cross workflows
 ok 185 - workflow ABI permits an independent focus entry but only the root may cross workflows
   ---
-  duration_ms: 4.433014
+  duration_ms: 6.038173
   type: 'test'
   ...
 # Subtest: workflow recipes admit 32 actions and reject a 33rd
 ok 186 - workflow recipes admit 32 actions and reject a 33rd
   ---
-  duration_ms: 3.629803
+  duration_ms: 3.29965
   type: 'test'
   ...
 # Subtest: workflow control-state expectations are conditional and exact
 ok 187 - workflow control-state expectations are conditional and exact
   ---
-  duration_ms: 8.402408
+  duration_ms: 6.999845
   type: 'test'
   ...
 # Subtest: workflow actions, checkpoints, predicates, and expectations are closed
 ok 188 - workflow actions, checkpoints, predicates, and expectations are closed
   ---
-  duration_ms: 7.920478
+  duration_ms: 7.286493
   type: 'test'
   ...
 # Subtest: authoring package emits only frozen, non-official source and task artifacts
 ok 189 - authoring package emits only frozen, non-official source and task artifacts
   ---
-  duration_ms: 56.421166
+  duration_ms: 54.785202
   type: 'test'
   ...
 # Subtest: public authoring artifacts own exact defensive byte backing stores
 ok 190 - public authoring artifacts own exact defensive byte backing stores
   ---
-  duration_ms: 12.877865
+  duration_ms: 12.791353
   type: 'test'
   ...
 # Subtest: browser authoring resources come from one defensive audited byte snapshot
 ok 191 - browser authoring resources come from one defensive audited byte snapshot
   ---
-  duration_ms: 20.562888
+  duration_ms: 16.957168
   type: 'test'
   ...
 # Subtest: market source, catalog, CSP, shared bytes, and near-duplicate budget stay closed
 ok 192 - market source, catalog, CSP, shared bytes, and near-duplicate budget stay closed
   ---
-  duration_ms: 31.263935
+  duration_ms: 28.271657
   type: 'test'
   ...
 # Subtest: authoring loader rejects changed resource bytes
 ok 193 - authoring loader rejects changed resource bytes
   ---
-  duration_ms: 21.041499
+  duration_ms: 21.08927
   type: 'test'
   ...
 # Subtest: authoring loader rejects unlisted, missing, and empty-directory membership
 ok 194 - authoring loader rejects unlisted, missing, and empty-directory membership
   ---
-  duration_ms: 50.977668
+  duration_ms: 48.527354
   type: 'test'
   ...
 # Subtest: authoring loader rejects symbolic, hard-linked, and root aliases
 ok 195 - authoring loader rejects symbolic, hard-linked, and root aliases
   ---
-  duration_ms: 25.375767
+  duration_ms: 22.416265
   type: 'test'
   ...
 # Subtest: Incident Command manifest is canonical and binds its frozen catalog slot
 ok 196 - Incident Command manifest is canonical and binds its frozen catalog slot
   ---
-  duration_ms: 23.40195
+  duration_ms: 22.516391
   type: 'test'
   ...
 # Subtest: Incident Command package derives closed source and task identities
 ok 197 - Incident Command package derives closed source and task identities
   ---
-  duration_ms: 45.903523
+  duration_ms: 41.512018
   type: 'test'
   ...
 # Subtest: Incident Command resource snapshot is exact and defensively copied
 ok 198 - Incident Command resource snapshot is exact and defensively copied
   ---
-  duration_ms: 19.784078
+  duration_ms: 14.493071
   type: 'test'
   ...
 # Subtest: Incident Command data, application logic, and independent bytes stay closed
 ok 199 - Incident Command data, application logic, and independent bytes stay closed
   ---
-  duration_ms: 41.665191
+  duration_ms: 43.468593
   type: 'test'
   ...
 # Subtest: Incident Command pointer authoring is exact across workflows and fresh attempts
 ok 200 - Incident Command pointer authoring is exact across workflows and fresh attempts
   ---
-  duration_ms: 82020.764697
+  duration_ms: 83803.150974
   type: 'test'
   ...
 # Subtest: Incident Command browser replay and source predicates stay application-generic
 ok 201 - Incident Command browser replay and source predicates stay application-generic
   ---
-  duration_ms: 7103.322488
+  duration_ms: 6934.982963
   type: 'test'
   ...
 # Subtest: Incident Command emits three byte-identical canonical capture attempts
 ok 202 - Incident Command emits three byte-identical canonical capture attempts
   ---
-  duration_ms: 23993.412422
+  duration_ms: 23870.80853
   type: 'test'
   ...
 # Subtest: Pilot replay rejects a self-consistent fixture above the CaptureSpec DOM-node budget
 ok 203 - Pilot replay rejects a self-consistent fixture above the CaptureSpec DOM-node budget
   ---
-  duration_ms: 997.488879
+  duration_ms: 1003.642909
   type: 'test'
   ...
 # Subtest: Pilot capture checkpoints reject forged constructor capabilities
 ok 204 - Pilot capture checkpoints reject forged constructor capabilities
   ---
-  duration_ms: 2.314989
+  duration_ms: 2.83899
   type: 'test'
   ...
 # Subtest: Pilot capture emits deterministic canonical checkpoints for every authored workflow
     # Subtest: add_bundle
     ok 1 - add_bundle
       ---
-      duration_ms: 12115.314783
+      duration_ms: 12522.769454
       type: 'test'
       ...
     # Subtest: choose_pickup
     ok 2 - choose_pickup
       ---
-      duration_ms: 12502.621045
+      duration_ms: 11626.126396
       type: 'test'
       ...
     1..2
 ok 205 - Pilot capture emits deterministic canonical checkpoints for every authored workflow
   ---
-  duration_ms: 27010.066529
+  duration_ms: 26592.216051
   type: 'test'
   ...
 # Subtest: Pilot authoring environment rejects forged capabilities
 ok 206 - Pilot authoring environment rejects forged capabilities
   ---
-  duration_ms: 2.33151
+  duration_ms: 2.553373
   type: 'test'
   ...
 # Subtest: Pilot authoring environment owns one reusable verified browser capability
 ok 207 - Pilot authoring environment owns one reusable verified browser capability
   ---
-  duration_ms: 680.262681
+  duration_ms: 683.11788
   type: 'test'
   ...
 # Subtest: Pilot authoring lease fails closed on a release-time browser disconnect
 ok 208 - Pilot authoring lease fails closed on a release-time browser disconnect
   ---
-  duration_ms: 573.800076
+  duration_ms: 608.464963
   type: 'test'
   ...
 # Subtest: pointer-hit authoring emits deterministic fresh pairs for the complete Pilot slice
 ok 209 - pointer-hit authoring emits deterministic fresh pairs for the complete Pilot slice
   ---
-  duration_ms: 74196.770334
+  duration_ms: 76000.027135
   type: 'test'
   ...
 # Subtest: pointer-hit definition keys are exact and rejected before a browser context exists
 ok 210 - pointer-hit definition keys are exact and rejected before a browser context exists
   ---
-  duration_ms: 7568.988838
+  duration_ms: 6636.474045
   type: 'test'
   ...
 # Subtest: pointer-hit authoring rejects fixture collisions with its reserved DOM namespace
 ok 211 - pointer-hit authoring rejects fixture collisions with its reserved DOM namespace
   ---
-  duration_ms: 4316.038166
+  duration_ms: 3975.870744
   type: 'test'
   ...
 # Subtest: pointer-hit authoring rejects source CSS that paints its reserved pseudo surface
 ok 212 - pointer-hit authoring rejects source CSS that paints its reserved pseudo surface
   ---
-  duration_ms: 4647.76993
+  duration_ms: 3848.119185
   type: 'test'
   ...
 # Subtest: pointer-hit authoring detects temporary listener-registry drift during setup
 ok 213 - pointer-hit authoring detects temporary listener-registry drift during setup
   ---
-  duration_ms: 5846.577607
+  duration_ms: 5236.445813
   type: 'test'
   ...
 # Subtest: pointer selection binds the exact code-owned pair before runtime use
 ok 214 - pointer selection binds the exact code-owned pair before runtime use
   ---
-  duration_ms: 2.49605
+  duration_ms: 2.116715
   type: 'test'
   ...
 # Subtest: pointer selection rejects aliases, non-pointer values, objects, and forgeries
 ok 215 - pointer selection rejects aliases, non-pointer values, objects, and forgeries
   ---
-  duration_ms: 0.906138
+  duration_ms: 0.894857
   type: 'test'
   ...
 # Subtest: pointer predicate tuples are exact, defensive, and policy-bound
 ok 216 - pointer predicate tuples are exact, defensive, and policy-bound
   ---
-  duration_ms: 1.135793
+  duration_ms: 1.140863
   type: 'test'
   ...
 # Subtest: pointer probe tuples retain exact source, installed, inverse, and cleanup order
 ok 217 - pointer probe tuples retain exact source, installed, inverse, and cleanup order
   ---
-  duration_ms: 0.746588
+  duration_ms: 0.750998
   type: 'test'
   ...
 # Subtest: pointer probe tuples reject failed, reordered, extended, and forged evidence
 ok 218 - pointer probe tuples reject failed, reordered, extended, and forged evidence
   ---
-  duration_ms: 0.495772
+  duration_ms: 0.47529
   type: 'test'
   ...
 # Subtest: Pilot predicate inputs reject active and ambiguous source-point objects
 ok 219 - Pilot predicate inputs reject active and ambiguous source-point objects
   ---
-  duration_ms: 3.316374
+  duration_ms: 2.480818
   type: 'test'
   ...
 # Subtest: Pilot predicate evidence rejects malformed page projections
 ok 220 - Pilot predicate evidence rejects malformed page projections
   ---
-  duration_ms: 1.436463
+  duration_ms: 1.044967
   type: 'test'
   ...
 # Subtest: Pilot predicate authoring measures every source workflow in fresh contexts
 ok 221 - Pilot predicate authoring measures every source workflow in fresh contexts
   ---
-  duration_ms: 9032.04224
+  duration_ms: 8741.225096
   type: 'test'
   ...
 # Subtest: Pilot predicates derive accessibility, containment, and contrast from Chromium
     # Subtest: corner-only primary hit-test occlusion
     ok 1 - corner-only primary hit-test occlusion
       ---
-      duration_ms: 2582.769458
+      duration_ms: 2466.140914
       type: 'test'
       ...
     # Subtest: empty browser-computed primary name
     ok 2 - empty browser-computed primary name
       ---
-      duration_ms: 2402.058832
+      duration_ms: 2378.1568
       type: 'test'
       ...
     # Subtest: overflowing fixed content-pressure box
     ok 3 - overflowing fixed content-pressure box
       ---
-      duration_ms: 2398.80013
+      duration_ms: 2396.905473
       type: 'test'
       ...
     # Subtest: opaque low-contrast primary palette
     ok 4 - opaque low-contrast primary palette
       ---
-      duration_ms: 2323.042002
+      duration_ms: 2528.82199
       type: 'test'
       ...
     # Subtest: filtered primary is not admitted as a visible source
     ok 5 - filtered primary is not admitted as a visible source
       ---
-      duration_ms: 845.930102
+      duration_ms: 903.784162
       type: 'test'
       ...
     # Subtest: predicate vector is withheld when the final oracle fails
     ok 6 - predicate vector is withheld when the final oracle fails
       ---
-      duration_ms: 2315.645928
+      duration_ms: 2238.915317
       type: 'test'
       ...
     # Subtest: fixture-side intrinsic replacements cannot forge evidence
     ok 7 - fixture-side intrinsic replacements cannot forge evidence
       ---
-      duration_ms: 2738.893953
+      duration_ms: 2493.635412
       type: 'test'
       ...
     1..7
 ok 222 - Pilot predicates derive accessibility, containment, and contrast from Chromium
   ---
-  duration_ms: 15609.080182
+  duration_ms: 15408.111289
   type: 'test'
   ...
 # Subtest: Pilot capture withholds checkpoints when the final oracle fails
 ok 223 - Pilot capture withholds checkpoints when the final oracle fails
   ---
-  duration_ms: 2674.90204
+  duration_ms: 2508.382442
   type: 'test'
   ...
 # Subtest: Pilot capture withholds checkpoints when its capture CDP session cannot detach
 ok 224 - Pilot capture withholds checkpoints when its capture CDP session cannot detach
   ---
-  duration_ms: 1427.026704
+  duration_ms: 1483.947472
   type: 'test'
   ...
 # Subtest: Pilot replay rejects unknown workflows before context creation and serves its launch snapshot
 ok 225 - Pilot replay rejects unknown workflows before context creation and serves its launch snapshot
   ---
-  duration_ms: 1747.097178
+  duration_ms: 2291.742901
   type: 'test'
   ...
 # Subtest: Pilot replay rejects credential-bearing same-origin fixture requests
 ok 226 - Pilot replay rejects credential-bearing same-origin fixture requests
   ---
-  duration_ms: 769.982717
+  duration_ms: 1096.326381
   type: 'test'
   ...
 # Subtest: Pilot replay revokes success when a browser event arrives during teardown
 ok 227 - Pilot replay revokes success when a browser event arrives during teardown
   ---
-  duration_ms: 1037.994721
+  duration_ms: 1547.054803
   type: 'test'
   ...
 # Subtest: Pilot replay detects an unsolicited page close after the terminal seal
 ok 228 - Pilot replay detects an unsolicited page close after the terminal seal
   ---
-  duration_ms: 1161.34902
+  duration_ms: 1256.075596
   type: 'test'
   ...
 # Subtest: Pilot replay rejects success text hidden inside undeclared element structure
 ok 229 - Pilot replay rejects success text hidden inside undeclared element structure
   ---
-  duration_ms: 1092.915233
+  duration_ms: 1058.847589
   type: 'test'
   ...
 # Subtest: Pilot replay rejects undeclared nodes beside the retained document element
 ok 230 - Pilot replay rejects undeclared nodes beside the retained document element
   ---
-  duration_ms: 1078.911912
+  duration_ms: 1080.478914
   type: 'test'
   ...
 # Subtest: Pilot replay rejects a self-consistent manifest with an unsealed readiness shape
 ok 231 - Pilot replay rejects a self-consistent manifest with an unsealed readiness shape
   ---
-  duration_ms: 705.172716
+  duration_ms: 1042.483459
   type: 'test'
   ...
 # Subtest: Pilot replay rejects a closed declarative author shadow root while admitting native-control UA roots
 ok 232 - Pilot replay rejects a closed declarative author shadow root while admitting native-control UA roots
   ---
-  duration_ms: 816.602031
+  duration_ms: 836.266539
   type: 'test'
   ...
 # Subtest: Pilot replay rejects an over-budget closed shadow tree without piercing its descendants
 ok 233 - Pilot replay rejects an over-budget closed shadow tree without piercing its descendants
   ---
-  duration_ms: 864.915312
+  duration_ms: 869.114306
   type: 'test'
   ...
 # Subtest: Pilot replay fingerprints live selectedness outside the active workflow
 ok 234 - Pilot replay fingerprints live selectedness outside the active workflow
   ---
-  duration_ms: 1001.371899
+  duration_ms: 1031.640857
   type: 'test'
   ...
 # Subtest: Pilot replay rejects duplicate-valued setup options before normalization
 ok 235 - Pilot replay rejects duplicate-valued setup options before normalization
   ---
-  duration_ms: 883.896434
+  duration_ms: 795.410491
   type: 'test'
   ...
 # Subtest: Pilot replay fingerprints post-click element scroll state
 ok 236 - Pilot replay fingerprints post-click element scroll state
   ---
-  duration_ms: 1044.168995
+  duration_ms: 986.853741
   type: 'test'
   ...
 # Subtest: Pilot replay rejects an undeclared open popover top-layer state
 ok 237 - Pilot replay rejects an undeclared open popover top-layer state
   ---
-  duration_ms: 981.36059
+  duration_ms: 976.699355
   type: 'test'
   ...
 # Subtest: Pilot replay revokes success when the primary action opens a native file chooser
 ok 238 - Pilot replay revokes success when the primary action opens a native file chooser
   ---
-  duration_ms: 1030.185044
+  duration_ms: 1085.549104
   type: 'test'
   ...
 # Subtest: Pilot replay revokes success when a declared fixture request reports failure
 ok 239 - Pilot replay revokes success when a declared fixture request reports failure
   ---
-  duration_ms: 1182.266276
+  duration_ms: 1013.545467
   type: 'test'
   ...
 # Subtest: Pilot replay revokes success when the renderer crashes during teardown
 ok 240 - Pilot replay revokes success when the renderer crashes during teardown
   ---
-  duration_ms: 1173.296488
+  duration_ms: 1020.99301
   type: 'test'
   ...
 # Subtest: Pilot replay poisons the environment when context close resolves without destruction
 ok 241 - Pilot replay poisons the environment when context close resolves without destruction
   ---
-  duration_ms: 1139.422338
+  duration_ms: 1104.099843
   type: 'test'
   ...
 # Subtest: Pilot replay executes every declared select setup action
 ok 242 - Pilot replay executes every declared select setup action
   ---
-  duration_ms: 1285.661493
+  duration_ms: 1226.863677
   type: 'test'
   ...
 # Subtest: Pilot replay binds text entry and a distinct select as one closed workflow
 ok 243 - Pilot replay binds text entry and a distinct select as one closed workflow
   ---
-  duration_ms: 1092.266022
+  duration_ms: 1128.685026
   type: 'test'
   ...
 # Subtest: Pilot replay rejects a setup transition synthesized by blur
 ok 244 - Pilot replay rejects a setup transition synthesized by blur
   ---
-  duration_ms: 941.455191
+  duration_ms: 1007.630422
   type: 'test'
   ...
 # Subtest: Pilot replay rejects a setup transition synthesized by focus
 ok 245 - Pilot replay rejects a setup transition synthesized by focus
   ---
-  duration_ms: 1120.849041
+  duration_ms: 943.158063
   type: 'test'
   ...
 # Subtest: Pilot replay rejects an author-owned select state accessor
 ok 246 - Pilot replay rejects an author-owned select state accessor
   ---
-  duration_ms: 1003.132672
+  duration_ms: 973.678352
   type: 'test'
   ...
 # Subtest: Pilot terminal seal blocks every admitted late mutation path
 ok 247 - Pilot terminal seal blocks every admitted late mutation path
   ---
-  duration_ms: 8608.714016
+  duration_ms: 8215.920449
   type: 'test'
   ...
 # Subtest: Pilot replay verifies a native radio checked-state transition
 ok 248 - Pilot replay verifies a native radio checked-state transition
   ---
-  duration_ms: 1026.626575
+  duration_ms: 1032.955902
   type: 'test'
   ...
 # Subtest: Pilot replay rejects a checked transition on a radio group
 ok 249 - Pilot replay rejects a checked transition on a radio group
   ---
-  duration_ms: 819.576553
+  duration_ms: 811.204978
   type: 'test'
   ...
 # Subtest: canonical PNG bytes depend on decoded pixels, not encoder choices
 ok 250 - canonical PNG bytes depend on decoded pixels, not encoder choices
   ---
-  duration_ms: 9.064393
+  duration_ms: 8.880375
   type: 'test'
   ...
 # Subtest: palette and RGBA encodings of the same pixels converge
 ok 251 - palette and RGBA encodings of the same pixels converge
   ---
-  duration_ms: 2.48734
+  duration_ms: 2.431734
   type: 'test'
   ...
 # Subtest: valid indexed transparency converges with the same RGBA pixels
 ok 252 - valid indexed transparency converges with the same RGBA pixels
   ---
-  duration_ms: 1.887012
+  duration_ms: 1.89376
   type: 'test'
   ...
 # Subtest: invisible RGB values cannot carry a covert channel
 ok 253 - invisible RGB values cannot carry a covert channel
   ---
-  duration_ms: 1.341016
+  duration_ms: 1.41035
   type: 'test'
   ...
 # Subtest: ancillary metadata and private chunks are removed
 ok 254 - ancillary metadata and private chunks are removed
   ---
-  duration_ms: 5.545527
+  duration_ms: 5.614007
   type: 'test'
   ...
 # Subtest: malformed and active PNG structures fail closed
 ok 255 - malformed and active PNG structures fail closed
   ---
-  duration_ms: 14.827595
+  duration_ms: 14.548555
   type: 'test'
   ...
 # Subtest: capture dimensions are bound to the canonical payload
 ok 256 - capture dimensions are bound to the canonical payload
   ---
-  duration_ms: 0.963182
+  duration_ms: 0.94873
   type: 'test'
   ...
 # Subtest: CanonicalPng construction requires the module-private capability
 ok 257 - CanonicalPng construction requires the module-private capability
   ---
-  duration_ms: 0.854276
+  duration_ms: 0.827553
   type: 'test'
   ...
 # Subtest: the production PNG codec canonicalizes and validates its bound dimensions
 ok 258 - the production PNG codec canonicalizes and validates its bound dimensions
   ---
-  duration_ms: 1.86245
+  duration_ms: 1.768993
   type: 'test'
   ...
 # Subtest: the production PNG codec can bootstrap publication verification without dimensions
 ok 259 - the production PNG codec can bootstrap publication verification without dimensions
   ---
-  duration_ms: 0.974563
+  duration_ms: 0.913068
   type: 'test'
   ...
 # Subtest: Pilot portfolio evidence is deterministic, repository-portable, fresh, and fail closed
 ok 260 - Pilot portfolio evidence is deterministic, repository-portable, fresh, and fail closed
   ---
-  duration_ms: 113578.694309
+  duration_ms: 113507.122186
   type: 'test'
   ...
 # Subtest: Pilot portfolio evidence CLI exposes path-free help
 ok 261 - Pilot portfolio evidence CLI exposes path-free help
   ---
-  duration_ms: 1585.832421
+  duration_ms: 1194.728395
   type: 'test'
   ...
 # Subtest: Pilot portfolio evidence CLI fails closed on malformed arguments
     # Subtest: []
     ok 1 - []
       ---
-      duration_ms: 1484.170281
+      duration_ms: 1162.998999
       type: 'test'
       ...
     # Subtest: ["capture"]
     ok 2 - ["capture"]
       ---
-      duration_ms: 1465.981791
+      duration_ms: 1214.036243
       type: 'test'
       ...
     # Subtest: ["check"]
     ok 3 - ["check"]
       ---
-      duration_ms: 1197.299446
+      duration_ms: 1112.314619
       type: 'test'
       ...
     # Subtest: ["--unknown"]
     ok 4 - ["--unknown"]
       ---
-      duration_ms: 1195.778698
+      duration_ms: 1093.866423
       type: 'test'
       ...
     # Subtest: ["capture","--repository",".","--output"]
     ok 5 - ["capture","--repository",".","--output"]
       ---
-      duration_ms: 1251.060764
+      duration_ms: 1089.24397
       type: 'test'
       ...
     # Subtest: ["capture","--repository",".","--repository",".","--output","bundle"]
     ok 6 - ["capture","--repository",".","--repository",".","--output","bundle"]
       ---
-      duration_ms: 1182.694696
+      duration_ms: 1081.330757
       type: 'test'
       ...
     # Subtest: ["capture","--repository",".","--output","bundle","--help"]
     ok 7 - ["capture","--repository",".","--output","bundle","--help"]
       ---
-      duration_ms: 1215.38804
+      duration_ms: 1103.236839
       type: 'test'
       ...
     # Subtest: ["check","--output","bundle"]
     ok 8 - ["check","--output","bundle"]
       ---
-      duration_ms: 1224.816996
+      duration_ms: 1072.317603
       type: 'test'
       ...
     # Subtest: ["check","--repository",".","--repository",".","--output","bundle"]
     ok 9 - ["check","--repository",".","--repository",".","--output","bundle"]
       ---
-      duration_ms: 1185.478436
+      duration_ms: 1069.341275
       type: 'test'
       ...
     # Subtest: ["check","--output","first","--output","second"]
     ok 10 - ["check","--output","first","--output","second"]
       ---
-      duration_ms: 1213.605154
+      duration_ms: 1031.744804
       type: 'test'
       ...
     1..10
 ok 262 - Pilot portfolio evidence CLI fails closed on malformed arguments
   ---
-  duration_ms: 12618.671135
+  duration_ms: 11032.637982
   type: 'test'
   ...
 # Subtest: repository evidence files round-trip with fresh-checkout modes
 ok 263 - repository evidence files round-trip with fresh-checkout modes
   ---
-  duration_ms: 37.744868
+  duration_ms: 35.717511
   type: 'test'
   ...
 # Subtest: repository evidence reads reject links and unsafe checkout permissions
 ok 264 - repository evidence reads reject links and unsafe checkout permissions
   ---
-  duration_ms: 16.199652
+  duration_ms: 13.809697
   type: 'test'
   ...
 # Subtest: the package root exposes the capture, storage, mutation, and resolver API
 ok 265 - the package root exposes the capture, storage, mutation, and resolver API
   ---
-  duration_ms: 2.266546
+  duration_ms: 1.929133
   type: 'test'
   ...
 # Subtest: paired publication commits bind both canonical record files
 ok 266 - paired publication commits bind both canonical record files
   ---
-  duration_ms: 19.954745
+  duration_ms: 22.939058
   type: 'test'
   ...
 # Subtest: paired publication commits reject a false identity
 ok 267 - paired publication commits reject a false identity
   ---
-  duration_ms: 3.222577
+  duration_ms: 3.251467
   type: 'test'
   ...
 # Subtest: paired publication commits reject record substitution after identity recomputation
 ok 268 - paired publication commits reject record substitution after identity recomputation
   ---
-  duration_ms: 5.044705
+  duration_ms: 5.060582
   type: 'test'
   ...
 # Subtest: a genuine two-checkpoint 320x240 resolved evidence bundle validates
 ok 269 - a genuine two-checkpoint 320x240 resolved evidence bundle validates
   ---
-  duration_ms: 857.75651
+  duration_ms: 854.268473
   type: 'test'
   ...
 # Subtest: resolved evidence rejects schedule count and swapped checkpoint bytes
 ok 270 - resolved evidence rejects schedule count and swapped checkpoint bytes
   ---
-  duration_ms: 1064.213891
+  duration_ms: 1052.530817
   type: 'test'
   ...
 # Subtest: resolved evidence binds PNG dimensions and checkpoint target provenance
 ok 271 - resolved evidence binds PNG dimensions and checkpoint target provenance
   ---
-  duration_ms: 1886.9845
+  duration_ms: 1951.550304
   type: 'test'
   ...
 # Subtest: resolved wrappers reject extra fields, sparse arrays, and oversized bytes
 ok 272 - resolved wrappers reject extra fields, sparse arrays, and oversized bytes
   ---
-  duration_ms: 2071.443725
+  duration_ms: 2031.268782
   type: 'test'
   ...
 # Subtest: resolved evidence rejects manifest and count failures before artifact snapshots
 ok 273 - resolved evidence rejects manifest and count failures before artifact snapshots
   ---
-  duration_ms: 56.563461
+  duration_ms: 49.018866
   type: 'test'
   ...
 # Subtest: resolved evidence snapshots high-multiplicity repeated refs only once
 ok 274 - resolved evidence snapshots high-multiplicity repeated refs only once
   ---
-  duration_ms: 301.903976
+  duration_ms: 279.841519
   type: 'test'
   ...
 # Subtest: resolved evidence rejects conflicting bytes for one repeated ref
 ok 275 - resolved evidence rejects conflicting bytes for one repeated ref
   ---
-  duration_ms: 122.751533
+  duration_ms: 121.933911
   type: 'test'
   ...
 # Subtest: resolved intervention accepts canonical plan and precondition bytes
 ok 276 - resolved intervention accepts canonical plan and precondition bytes
   ---
-  duration_ms: 550.440956
+  duration_ms: 542.127554
   type: 'test'
   ...
 # Subtest: resolved evidence records replay sealed outcome payloads
 ok 277 - resolved evidence records replay sealed outcome payloads
   ---
-  duration_ms: 832.882629
+  duration_ms: 863.574468
   type: 'test'
   ...
 # Subtest: resolved evidence records reject a rehashed but false changed surface
 ok 278 - resolved evidence records reject a rehashed but false changed surface
   ---
-  duration_ms: 807.033795
+  duration_ms: 855.915001
   type: 'test'
   ...
 # Subtest: resolved intervention rejects every manifest request binding tamper
 ok 279 - resolved intervention rejects every manifest request binding tamper
   ---
-  duration_ms: 1558.862736
+  duration_ms: 1565.145457
   type: 'test'
   ...
 # Subtest: resolved intervention rejects every sealed intervention binding tamper
 ok 280 - resolved intervention rejects every sealed intervention binding tamper
   ---
-  duration_ms: 2640.9685
+  duration_ms: 2587.70525
   type: 'test'
   ...
 # Subtest: resolved intervention binds the exact plan and precondition references
 ok 281 - resolved intervention binds the exact plan and precondition references
   ---
-  duration_ms: 533.234588
+  duration_ms: 530.666605
   type: 'test'
   ...
 # Subtest: paired publication is concurrent, idempotent, and owns caller bytes
 ok 282 - paired publication is concurrent, idempotent, and owns caller bytes
   ---
-  duration_ms: 19139.204998
+  duration_ms: 18997.367378
   type: 'test'
   ...
 # Subtest: paired publication rejects incomplete input without filesystem residue
 ok 283 - paired publication rejects incomplete input without filesystem residue
   ---
-  duration_ms: 565.166104
+  duration_ms: 546.199942
   type: 'test'
   ...
 # Subtest: paired publication rejects hostile input wrappers and artifact substitutions
     # Subtest: accessor wrapper
     ok 1 - accessor wrapper
       ---
-      duration_ms: 1.403711
+      duration_ms: 4.979467
       type: 'test'
       ...
     # Subtest: sparse array
     ok 2 - sparse array
       ---
-      duration_ms: 3.487514
+      duration_ms: 11.819772
       type: 'test'
       ...
     # Subtest: duplicate artifact
     ok 3 - duplicate artifact
       ---
-      duration_ms: 4.224182
+      duration_ms: 12.702398
       type: 'test'
       ...
     # Subtest: conflicting duplicate metadata
     ok 4 - conflicting duplicate metadata
       ---
-      duration_ms: 3.656485
+      duration_ms: 6.738339
       type: 'test'
       ...
     # Subtest: unexpected sealed artifact
     ok 5 - unexpected sealed artifact
       ---
-      duration_ms: 3.357647
+      duration_ms: 7.722081
       type: 'test'
       ...
     # Subtest: reference metadata substitution
     ok 6 - reference metadata substitution
       ---
-      duration_ms: 3.282171
+      duration_ms: 3.476682
       type: 'test'
       ...
     # Subtest: shared backing memory
     ok 7 - shared backing memory
       ---
-      duration_ms: 3.324954
+      duration_ms: 2.926847
       type: 'test'
       ...
     # Subtest: short artifact bytes
     ok 8 - short artifact bytes
       ---
-      duration_ms: 3.306633
+      duration_ms: 2.377402
       type: 'test'
       ...
     # Subtest: same-length digest substitution
     ok 9 - same-length digest substitution
       ---
-      duration_ms: 9.440357
+      duration_ms: 2.487088
       type: 'test'
       ...
     1..9
 ok 284 - paired publication rejects hostile input wrappers and artifact substitutions
   ---
-  duration_ms: 578.139029
+  duration_ms: 621.67528
   type: 'test'
   ...
 # Subtest: paired publication remains atomic under a restrictive umask
 ok 285 - paired publication remains atomic under a restrictive umask
   ---
-  duration_ms: 8661.492914
+  duration_ms: 7723.542583
   type: 'test'
   ...
 # Subtest: publisher startup removes only a bounded owned staging tree
 ok 286 - publisher startup removes only a bounded owned staging tree
   ---
-  duration_ms: 36.569494
+  duration_ms: 32.659446
   type: 'test'
   ...
 # Subtest: one visible identity cannot be rebound to another sealed record
 ok 287 - one visible identity cannot be rebound to another sealed record
   ---
-  duration_ms: 9332.461771
+  duration_ms: 9379.832007
   type: 'test'
   ...
 # Subtest: committed metadata tampering fails closed on reopen
 ok 288 - committed metadata tampering fails closed on reopen
   ---
-  duration_ms: 6238.749073
+  duration_ms: 6381.729962
   type: 'test'
   ...
 # Subtest: semantic staging failure rolls back completely and permits retry
 ok 289 - semantic staging failure rolls back completely and permits retry
   ---
-  duration_ms: 11159.740556
+  duration_ms: 11170.130396
   type: 'test'
   ...
 # Subtest: final release directory names are cryptographically bound
 ok 290 - final release directory names are cryptographically bound
   ---
-  duration_ms: 6277.299119
+  duration_ms: 6418.167464
   type: 'test'
   ...
 # Subtest: the four representative v1 manifests satisfy their schemas
 ok 291 - the four representative v1 manifests satisfy their schemas
   ---
-  duration_ms: 11.528002
+  duration_ms: 13.308426
   type: 'test'
   ...
 # Subtest: visible evidence rejects direct label fields
 ok 292 - visible evidence rejects direct label fields
   ---
-  duration_ms: 0.483552
+  duration_ms: 0.507872
   type: 'test'
   ...
 # Subtest: artifact references cannot carry paths or URIs
 ok 293 - artifact references cannot carry paths or URIs
   ---
-  duration_ms: 0.195463
+  duration_ms: 0.191043
   type: 'test'
   ...
 # Subtest: candidate observations cannot include an execution trace
 ok 294 - candidate observations cannot include an execution trace
   ---
-  duration_ms: 0.228755
+  duration_ms: 0.222964
   type: 'test'
   ...
 # Subtest: artifact digests are exact lowercase SHA-256 values
 ok 295 - artifact digests are exact lowercase SHA-256 values
   ---
-  duration_ms: 0.178461
+  duration_ms: 0.227084
   type: 'test'
   ...
 # Subtest: capture roles cannot be swapped
 ok 296 - capture roles cannot be swapped
   ---
-  duration_ms: 0.181252
+  duration_ms: 0.187902
   type: 'test'
   ...
 # Subtest: artifact size budgets are enforced by media type
 ok 297 - artifact size budgets are enforced by media type
   ---
-  duration_ms: 0.188293
+  duration_ms: 0.188332
   type: 'test'
   ...
 # Subtest: one partition cannot contain the same evidence ID twice
 ok 298 - one partition cannot contain the same evidence ID twice
   ---
-  duration_ms: 0.197813
+  duration_ms: 0.196772
   type: 'test'
   ...
 # Subtest: sealed evidence payloads are closed, canonical, and replayable
 ok 299 - sealed evidence payloads are closed, canonical, and replayable
   ---
-  duration_ms: 9.93909
+  duration_ms: 10.250921
   type: 'test'
   ...
 # Subtest: sealed payloads reject semantic contradictions
 ok 300 - sealed payloads reject semantic contradictions
   ---
-  duration_ms: 0.867946
+  duration_ms: 0.909668
   type: 'test'
   ...
 # Subtest: raw trace codec honors its declared multi-megabyte parser budget
 ok 301 - raw trace codec honors its declared multi-megabyte parser budget
   ---
-  duration_ms: 109.776969
+  duration_ms: 114.274051
   type: 'test'
   ...
 # Subtest: source-state provenance is closed, canonical, and immutable
 ok 302 - source-state provenance is closed, canonical, and immutable
   ---
-  duration_ms: 8.683119
+  duration_ms: 9.688636
   type: 'test'
   ...
 # Subtest: source packages reject ambiguous membership and unsafe paths
 ok 303 - source packages reject ambiguous membership and unsafe paths
   ---
-  duration_ms: 1.461924
+  duration_ms: 1.486824
   type: 'test'
   ...
 # Subtest: raw fixture-manifest identity cannot be confused with canonical JSON
 ok 304 - raw fixture-manifest identity cannot be confused with canonical JSON
   ---
-  duration_ms: 6.628386
+  duration_ms: 11.913607
   type: 'test'
   ...
 # Subtest: semantically consistent contract bundles validate
 ok 305 - semantically consistent contract bundles validate
   ---
-  duration_ms: 18.870075
+  duration_ms: 18.960565
   type: 'test'
   ...
 # Subtest: paired checkpoints must have the same opaque identity
 ok 306 - paired checkpoints must have the same opaque identity
   ---
-  duration_ms: 1.304884
+  duration_ms: 1.314764
   type: 'test'
   ...
 # Subtest: one capture identity cannot describe both roles
 ok 307 - one capture identity cannot describe both roles
   ---
-  duration_ms: 0.786261
+  duration_ms: 0.78776
   type: 'test'
   ...
 # Subtest: one content digest cannot claim two artifact identities
 ok 308 - one content digest cannot claim two artifact identities
   ---
-  duration_ms: 0.804072
+  duration_ms: 0.849044
   type: 'test'
   ...
 # Subtest: task-regression labels are derived from outcomes
 ok 309 - task-regression labels are derived from outcomes
   ---
-  duration_ms: 0.77738
+  duration_ms: 0.812091
   type: 'test'
   ...
 # Subtest: invalid samples cannot retain benchmark targets
 ok 310 - invalid samples cannot retain benchmark targets
   ---
-  duration_ms: 0.735868
+  duration_ms: 0.723465
   type: 'test'
   ...
 # Subtest: outcome success cannot carry a failed step
 ok 311 - outcome success cannot carry a failed step
   ---
-  duration_ms: 0.759259
+  duration_ms: 0.745007
   type: 'test'
   ...
 # Subtest: visible and sealed stores cannot reference the same object
 ok 312 - visible and sealed stores cannot reference the same object
   ---
-  duration_ms: 6.084192
+  duration_ms: 6.405967
   type: 'test'
   ...
 # Subtest: an evidence ID cannot cross assignment partitions
 ok 313 - an evidence ID cannot cross assignment partitions
   ---
-  duration_ms: 0.329582
+  duration_ms: 0.362533
   type: 'test'
   ...
 # Subtest: split IDs are strictly sorted for canonical review
 ok 314 - split IDs are strictly sorted for canonical review
   ---
-  duration_ms: 0.383354
+  duration_ms: 0.387575
   type: 'test'
   ...
 # Subtest: joint holdouts reject grouping overlap
 ok 315 - joint holdouts reject grouping overlap
   ---
-  duration_ms: 0.711086
+  duration_ms: 0.710365
   type: 'test'
   ...
 # Subtest: the sealed audit must cover the exact visible membership
 ok 316 - the sealed audit must cover the exact visible membership
   ---
-  duration_ms: 0.870966
+  duration_ms: 0.916659
   type: 'test'
   ...
 # Subtest: all four content-shaped root identities bind canonical bodies
 ok 317 - all four content-shaped root identities bind canonical bodies
   ---
-  duration_ms: 2.494581
+  duration_ms: 2.383311
   type: 'test'
   ...
 # Subtest: visible routing identities cannot be chosen independently of evidence
 ok 318 - visible routing identities cannot be chosen independently of evidence
   ---
-  duration_ms: 2.261416
+  duration_ms: 2.296126
   type: 'test'
   ...
 # Subtest: sealed labels bind the exact canonical visible manifest
 ok 319 - sealed labels bind the exact canonical visible manifest
   ---
-  duration_ms: 2.263196
+  duration_ms: 2.310207
   type: 'test'
   ...
 # Subtest: source identity is resolved at the visible-sealed pair boundary
 ok 320 - source identity is resolved at the visible-sealed pair boundary
   ---
-  duration_ms: 3.148423
+  duration_ms: 3.051384
   type: 'test'
   ...
 # Subtest: sealed grouping cannot disguise canonical source or mutation families
 ok 321 - sealed grouping cannot disguise canonical source or mutation families
   ---
-  duration_ms: 4.82266
+  duration_ms: 6.001641
   type: 'test'
   ...
 # Subtest: sealed split metadata binds the exact canonical assignment
 ok 322 - sealed split metadata binds the exact canonical assignment
   ---
-  duration_ms: 0.808492
+  duration_ms: 1.197866
   type: 'test'
   ...
 # Subtest: baseline_failed is accepted if and only if the baseline failed
 ok 323 - baseline_failed is accepted if and only if the baseline failed
   ---
-  duration_ms: 0.975743
+  duration_ms: 1.528617
   type: 'test'
   ...
 # Subtest: different scalar outcomes require different sealed evidence
 ok 324 - different scalar outcomes require different sealed evidence
   ---
-  duration_ms: 1.068619
+  duration_ms: 1.540478
   type: 'test'
   ...
 # Subtest: validators reject inherited and hidden JavaScript fields
 ok 325 - validators reject inherited and hidden JavaScript fields
   ---
-  duration_ms: 0.446989
+  duration_ms: 0.720556
   type: 'test'
   ...
 # Subtest: multi-checkpoint evidence enforces symmetric order and identity
 ok 326 - multi-checkpoint evidence enforces symmetric order and identity
   ---
-  duration_ms: 4.326108
+  duration_ms: 5.527781
   type: 'test'
   ...
 # Subtest: dataset validation binds split, records, groups, policies, and CAS stores
 ok 327 - dataset validation binds split, records, groups, policies, and CAS stores
   ---
-  duration_ms: 17.55555
+  duration_ms: 17.01233
   type: 'test'
   ...
 # Subtest: dataset validation rejects an audit that lies about sealed grouping
 ok 328 - dataset validation rejects an audit that lies about sealed grouping
   ---
-  duration_ms: 10.490955
+  duration_ms: 10.579403
   type: 'test'
   ...
 # Subtest: observation artifacts cannot be reused across split partitions
 ok 329 - observation artifacts cannot be reused across split partitions
   ---
-  duration_ms: 9.882916
+  duration_ms: 10.121933
   type: 'test'
   ...
 # Subtest: global visible and sealed stores cannot overlap across different records
 ok 330 - global visible and sealed stores cannot overlap across different records
   ---
-  duration_ms: 8.445634
+  duration_ms: 7.927924
   type: 'test'
   ...
 # Subtest: dataset membership is exact and label policy is uniform
 ok 331 - dataset membership is exact and label policy is uniform
   ---
-  duration_ms: 14.141041
+  duration_ms: 12.12557
   type: 'test'
   ...
 # Subtest: dataset pair wrappers fail closed on non-data and sparse inputs
 ok 332 - dataset pair wrappers fail closed on non-data and sparse inputs
   ---
-  duration_ms: 5.620942
+  duration_ms: 4.173066
   type: 'test'
   ...
 1..332
@@ -2355,7 +2355,7 @@ ok 332 - dataset pair wrappers fail closed on non-data and sparse inputs
 # cancelled 0
 # skipped 0
 # todo 0
-# duration_ms 674177.861505
+# duration_ms 669256.84105
 # start of coverage report
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # file                                           | line % | branch % | funcs % | uncovered lines
@@ -2399,7 +2399,7 @@ ok 332 - dataset pair wrappers fail closed on non-data and sparse inputs
 #    errors.js                                   | 100.00 |   100.00 |  100.00 | 
 #    immutable-map.js                            |  89.47 |   100.00 |   90.00 | 30-33
 #    input.js                                    | 100.00 |    83.33 |  100.00 | 
-#    resolved-record.js                          |  83.20 |    65.52 |  100.00 | 12-13 16-17 22-23 29-30 37-38 40-41 47-48 52-53 64-65 69-75 99-100 103-104 114-115 130-131 136-137 142-143 150-151 165-166
+#    resolved-record.js                          |  82.38 |    64.41 |  100.00 | 12-13 16-17 22-23 29-30 37-38 40-41 47-48 52-53 64-65 69-75 99-100 103-104 114-115 130-131 136-137 142-143 150-151 165-166 233-234
 #    resolved.js                                 |  85.50 |    76.63 |  100.00 | 37-38 68-70 75-77 86-88 93-94 100-102 114-115 135-137 155-156 166-167 180-181 213-214 221-222 234-235 258-260 262-264 267-269 275-276 282-284 297-299 305-307 334-335 385-386 396-397 407-408 411-412 428-429 440-441 445-447 458-459 463-464 483-484 488-489 558-559 569-570 580-581 589-590 596-597
 #    schema.js                                   | 100.00 |   100.00 |  100.00 | 
 #    validate.js                                 |  90.21 |    84.62 |  100.00 | 32-33 35-36 38-39 58-59 62-63 81-82 110-111 113-114 121-122 125-126 128-129 179-180 203-204 250-251
@@ -2461,13 +2461,13 @@ ok 332 - dataset pair wrappers fail closed on non-data and sparse inputs
 #   publication                                  |        |          |         | 
 #    codecs.js                                   |  93.33 |    75.00 |  100.00 | 26-27
 #    errors.js                                   | 100.00 |   100.00 |  100.00 | 
-#    filesystem.js                               |  67.98 |    48.87 |   96.77 | 30-31 36-37 42-43 53-54 86-87 89-90 100-103 105-114 126-127 134-135 139-140 165-167 180-181 184-189 198-199 223-224 232-262 279 284-288 292-293 295-296 298-299 303-304 306-307 309-310 312-313 318-319 326-327 333-334 339-340 346-347 371-372 379-380 383-388 391-392 394-403 413-414 421-422 434-435 441-442 446-447 451-456 469-470 484-485 494-495 502-503 508-513 516-517 523-524 526-527 530-531 537-538 546-547 554-555 563-564 574-575 583-584 591-592 597-602 612-613 615-616 624-629 634-635 638-639 641-642 647-648 652-657
+#    filesystem.js                               |  66.62 |    48.15 |   96.77 | 30-31 36-37 42-43 53-54 86-87 89-90 100-103 105-114 126-127 134-135 139-140 145-151 155-156 165-167 180-181 184-189 198-199 223-224 232-262 279 284-288 292-293 295-296 298-299 303-304 306-307 309-310 312-313 318-319 326-327 333-334 339-340 346-347 371-372 379-380 383-388 391-392 394-403 413-414 421-422 434-435 441-442 446-447 451-456 469-470 484-485 494-495 502-503 508-513 516-517 523-524 526-527 530-531 537-538 546-547 554-555 563-564 574-575 583-584 591-592 597-602 612-613 615-616 624-629 634-635 638-639 641-642 647-648 652-657
 #    index.js                                    | 100.00 |   100.00 |  100.00 | 
 #    input.js                                    |  84.81 |    70.27 |  100.00 | 22 26-27 35-36 38-39 43-44 52-53 65-66 76-77 79-80 89-90 106-107 111-112 128-129 137-138 144-145 212-213 219-220 222-223 242-243 248-249 260-261
 #    publisher.js                                |  85.25 |    75.34 |  100.00 | 22-23 35-38 46-47 63-64 67-68 78-81 83-84 88-89 94-95 183-184 192-193 221-222 224-225 233-235 240-242 246-247 251-253
 #    schema.js                                   | 100.00 |   100.00 |  100.00 | 
 #    validate.js                                 | 100.00 |   100.00 |  100.00 | 
-#    verify.js                                   |  95.63 |    83.78 |  100.00 | 23-24 33-34 61-62 146-147 225-226
+#    verify.js                                   |  94.76 |    81.58 |  100.00 | 23-24 33-34 61-62 146-147 163-164 225-226
 #   sealed                                       |        |          |         | 
 #    index.js                                    | 100.00 |   100.00 |  100.00 | 
 #    schema.js                                   | 100.00 |   100.00 |  100.00 | 
@@ -2534,6 +2534,6 @@ ok 332 - dataset pair wrappers fail closed on non-data and sparse inputs
 #    state.test.js                               | 100.00 |   100.00 |  100.00 | 
 #   validate.test.js                             | 100.00 |   100.00 |  100.00 | 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-# all files                                      |  90.83 |    83.46 |   95.59 | 
+# all files                                      |  90.80 |    83.40 |   95.59 | 
 # ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 # end of coverage report
