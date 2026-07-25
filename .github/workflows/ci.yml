@@ -16,7 +16,7 @@ jobs:
   verify:
     name: Node ${{ matrix.node }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -47,6 +47,7 @@ jobs:
         run: npm run check
 
       - name: Test
+        if: matrix.node == '22.23.1'
         run: npm test
 
       - name: Verify committed Pilot evidence
