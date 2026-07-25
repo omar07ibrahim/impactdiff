@@ -222,9 +222,13 @@ verified before and after one same-parent rename.
 **Mixed — scoped quality verification.** The recorded run passes 388 of 388 tests and
 reports 90.83% line, 83.46% branch, and 95.59% function coverage across loaded emitted
 JavaScript under `dist`, including `dist/src + dist/test`. Chromium page JavaScript,
-non-JavaScript assets, and unloaded modules are outside that coverage scope. The project
-declares no minimum coverage threshold. This is verification evidence, not a broad
-quality or performance claim.
+non-JavaScript assets, and unloaded modules are outside that coverage scope. Its
+immutable receipt predates enforcement and truthfully records that no minimum was
+configured. Current CI runs `npm run coverage:check` on exact Node 22.23.1 and enforces
+90% line, 83% branch, and 95% function floors over the same loaded-JavaScript scope.
+Node 24 runs the ordinary test suite as a compatibility check; equal coverage totals
+across Node majors are not claimed. This is verification evidence, not a broad quality
+or performance claim.
 
 ### Hard technical decisions
 
@@ -333,6 +337,7 @@ npm run format:check
 npm run check
 npm test
 npm run coverage
+npm run coverage:check
 npm run evidence:pilot:check
 node tools/render-readme-visuals.mjs check
 ```

@@ -46,8 +46,12 @@ jobs:
       - name: Type-check
         run: npm run check
 
-      - name: Test
+      - name: Enforce coverage floors
         if: matrix.node == '22.23.1'
+        run: npm run coverage:check
+
+      - name: Test current Node.js
+        if: matrix.node == '24'
         run: npm test
 
       - name: Verify committed Pilot evidence
@@ -57,7 +61,3 @@ jobs:
       - name: Verify README visuals
         if: matrix.node == '22.23.1'
         run: node tools/render-readme-visuals.mjs check
-
-      - name: Measure coverage
-        if: matrix.node == 24
-        run: npm run coverage

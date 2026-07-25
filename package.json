@@ -27,6 +27,7 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node --test --test-concurrency=1 'dist/test/**/*.test.js'",
     "coverage": "npm run build && node --test --test-concurrency=1 --experimental-test-coverage 'dist/test/**/*.test.js'",
+    "coverage:check": "npm run build && node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=83 --test-coverage-functions=95 'dist/test/**/*.test.js'",
     "release:dev": "npm run build && node dist/src/cli/development-release.js",
     "evidence:pilot": "npm run build && node dist/src/cli/pilot-portfolio-evidence.js",
     "evidence:pilot:check": "npm run build && node dist/src/cli/pilot-portfolio-evidence.js check --repository . --output docs/images/pilot-portfolio-evidence",

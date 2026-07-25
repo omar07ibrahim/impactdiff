@@ -109,6 +109,19 @@ const expectedQuality = Object.freeze({
   }),
 });
 
+const currentCoverageGate = Object.freeze({
+  command: "npm run coverage:check",
+  runtime: "22.23.1",
+  scope: "All loaded JavaScript emitted under dist, including dist/src and dist/test.",
+  script:
+    "npm run build && node --test --test-concurrency=1 --experimental-test-coverage --test-coverage-lines=90 --test-coverage-branches=83 --test-coverage-functions=95 'dist/test/**/*.test.js'",
+  thresholds: Object.freeze({
+    linePercent: 90,
+    branchPercent: 83,
+    functionPercent: 95,
+  }),
+});
+
 const outputCatalog = Object.freeze([
   Object.freeze({
     file: "architecture-contours.svg",
@@ -173,7 +186,7 @@ const sourceCatalog = Object.freeze({
     "src/pilot/runtime/pointer-operator.ts",
     "src/portfolio-evidence/schema.ts",
   ]),
-  quality: Object.freeze([".node-version", "package.json"]),
+  quality: Object.freeze([".github/workflows/ci.yml", ".node-version", "package.json"]),
 });
 
 function fail(message) {
@@ -266,6 +279,46 @@ function parseJsonDocument(bytes, label) {
   } catch (error) {
     fail(`${label} is not valid JSON: ${error.message}`);
   }
+}
+
+function parseCoverageTotals(text, label) {
+  if (typeof text !== "string") {
+    fail(`${label} must be UTF-8 text`);
+  }
+  const starts = [...text.matchAll(/^# start of coverage report\s*$/gmu)];
+  const ends = [...text.matchAll(/^# end of coverage report\s*$/gmu)];
+  if (starts.length !== 1 || ends.length !== 1 || starts[0].index >= ends[0].index) {
+    fail(`${label} must contain one unambiguous coverage report`);
+  }
+  const report = text.slice(starts[0].index, ends[0].index + ends[0][0].length);
+  if (
+    !/^# file\s+\|\s+line %\s+\|\s+branch %\s+\|\s+funcs %\s+\|\s+uncovered lines\s*$/mu.test(
+      report,
+    )
+  ) {
+    fail(`${label} coverage columns changed`);
+  }
+  const rows = [
+    ...report.matchAll(
+      /^#\s+all files\s+\|\s+(\d+(?:\.\d+)?)\s+\|\s+(\d+(?:\.\d+)?)\s+\|\s+(\d+(?:\.\d+)?)\s+\|\s*$/gmu,
+    ),
+  ];
+  if (rows.length !== 1) {
+    fail(`${label} must contain exactly one aggregate coverage row`);
+  }
+  const [linePercent, branchPercent, functionPercent] = rows[0].slice(1).map(Number);
+  if (
+    [linePercent, branchPercent, functionPercent].some(
+      (value) => !Number.isFinite(value) || value < 0 || value > 100,
+    )
+  ) {
+    fail(`${label} contains an invalid coverage percentage`);
+  }
+  return Object.freeze({
+    linePercent,
+    branchPercent,
+    functionPercent,
+  });
 }
 
 async function readBounded(relativePath, maximumBytes = maximumSourceBytes) {
@@ -761,30 +814,35 @@ async function loadQuality() {
   ) {
     fail("quality raw log bytes differ from their verified identities");
   }
-  const testSummary = `# tests 388
-# suites 0
-# pass 388
-# fail 0
-# cancelled 0
-# skipped 0
-# todo 0
-# duration_ms 256853.061961
-`;
-  const coverageSummary = `# tests 388
-# suites 0
-# pass 388
-# fail 0
-# cancelled 0
-# skipped 0
-# todo 0
-# duration_ms 674177.861505
-`;
+  const testSummary = `${[
+    "# tests 388",
+    "# suites 0",
+    "# pass 388",
+    "# fail 0",
+    "# cancelled 0",
+    "# skipped 0",
+    "# todo 0",
+    "# duration_ms 256853.061961",
+  ].join("\n")}\n`;
+  const coverageSummary = `${[
+    "# tests 388",
+    "# suites 0",
+    "# pass 388",
+    "# fail 0",
+    "# cancelled 0",
+    "# skipped 0",
+    "# todo 0",
+    "# duration_ms 674177.861505",
+  ].join("\n")}\n`;
   const testText = testLogBytes.toString("utf8");
   const coverageText = coverageLogBytes.toString("utf8");
+  const coverageTotals = parseCoverageTotals(coverageText, coverageLogPath);
   if (
     !testText.endsWith(testSummary) ||
     !coverageText.includes(coverageSummary) ||
-    !/^# all files\s+\|\s+90\.83\s+\|\s+83\.46\s+\|\s+95\.59\s+\|/mu.test(coverageText)
+    coverageTotals.linePercent !== expectedQuality.coverage.linePercent ||
+    coverageTotals.branchPercent !== expectedQuality.coverage.branchPercent ||
+    coverageTotals.functionPercent !== expectedQuality.coverage.functionPercent
   ) {
     fail("quality raw log summaries differ from the declared run totals");
   }
@@ -905,15 +963,36 @@ async function loadSources() {
     bytesByPath.get("package.json"),
     "package.json",
   );
+  const continuousIntegration = bytesByPath
+    .get(".github/workflows/ci.yml")
+    .toString("utf8");
+  const coverageCommands = [
+    ...continuousIntegration.matchAll(
+      /^\s*run:\s*(npm run coverage(?::check)?)\s*$/gmu,
+    ),
+  ].map((match) => match[1]);
+  const coverageStep = `      - name: Enforce coverage floors
+        if: matrix.node == '22.23.1'
+        run: npm run coverage:check`;
+  const currentNodeStep = `      - name: Test current Node.js
+        if: matrix.node == '24'
+        run: npm test`;
   if (
     nodeVersion !== expectedQuality.runtime.node ||
     packageManifest?.packageManager !== `npm@${expectedQuality.runtime.npm}` ||
     packageManifest?.scripts?.test !==
       "npm run build && node --test --test-concurrency=1 'dist/test/**/*.test.js'" ||
     packageManifest?.scripts?.coverage !==
-      "npm run build && node --test --test-concurrency=1 --experimental-test-coverage 'dist/test/**/*.test.js'"
+      "npm run build && node --test --test-concurrency=1 --experimental-test-coverage 'dist/test/**/*.test.js'" ||
+    packageManifest?.scripts?.["coverage:check"] !== currentCoverageGate.script ||
+    JSON.stringify(coverageCommands) !==
+      JSON.stringify([currentCoverageGate.command]) ||
+    !continuousIntegration.includes(coverageStep) ||
+    !continuousIntegration.includes(currentNodeStep)
   ) {
-    fail("quality run commands or pinned Node/npm source configuration changed");
+    fail(
+      "quality commands, coverage gate, CI matrix, or pinned Node/npm configuration changed",
+    );
   }
 
   const publication = bytesByPath
@@ -1904,16 +1983,19 @@ function renderQualityVerification(quality) {
     {
       label: "Lines",
       value: coverage.line_percent,
+      minimum: currentCoverageGate.thresholds.linePercent,
       color: palette.blue,
     },
     {
       label: "Branches",
       value: coverage.branch_percent,
+      minimum: currentCoverageGate.thresholds.branchPercent,
       color: palette.teal,
     },
     {
       label: "Functions",
       value: coverage.function_percent,
+      minimum: currentCoverageGate.thresholds.functionPercent,
       color: palette.violet,
     },
   ];
@@ -1924,7 +2006,7 @@ function renderQualityVerification(quality) {
     text(
       64,
       101,
-      "One complete test run and one coverage-instrumented run, bound to raw TAP logs.",
+      "Historical totals are byte-bound; current Node 22 coverage floors are source-bound.",
       "subtitle",
     ),
     pill(
@@ -1963,22 +2045,32 @@ function renderQualityVerification(quality) {
     rect(64, 384, 1312, 294, palette.surface, palette.border, 22),
     text(92, 426, "Loaded JavaScript coverage totals", "section"),
     pill(
-      1022,
+      1010,
       401,
-      326,
-      "NO MINIMUM THRESHOLD CONFIGURED",
-      palette.amberSoft,
-      palette.amber,
+      338,
+      "CURRENT FLOOR · L90 / B83 / F95",
+      palette.blueSoft,
+      palette.blue,
     ),
     text(trackX, 458, "0%", "axis"),
     text(trackX + trackWidth, 458, "100%", "axis", 'text-anchor="end"'),
     ...metrics.flatMap((metric, index) => {
       const y = 486 + index * 62;
       const width = (metric.value / 100) * trackWidth;
+      const minimumX = trackX + (metric.minimum / 100) * trackWidth;
       return [
         text(92, y + 22, metric.label, "node-title"),
         rect(trackX, y, trackWidth, 28, palette.greySoft, palette.greySoft, 8),
         rect(trackX, y, width, 28, metric.color, metric.color, 8),
+        line(
+          minimumX,
+          y - 5,
+          minimumX,
+          y + 33,
+          palette.ink,
+          'stroke-dasharray="3 3"',
+          2,
+        ),
         text(
           1328,
           y + 21,
@@ -1995,13 +2087,13 @@ function renderQualityVerification(quality) {
       "small",
     ),
     rect(64, 716, 1312, 142, palette.surface, palette.border, 22),
-    pill(92, 742, 138, "SCOPE NOTE", palette.greySoft, palette.muted),
+    pill(92, 742, 182, "SCOPE + RECEIPT", palette.greySoft, palette.muted),
     multiline(
       92,
       798,
       [
-        "Includes dist/src and dist/test modules loaded by this run; this is not production-source-only coverage.",
-        "Excludes JavaScript inside Chromium pages, non-JavaScript assets, and modules not loaded by the run.",
+        "Bars: recorded Node 22.23.1 run; its immutable receipt configured no minimum threshold.",
+        "Markers: current Node 22.23.1 CI floors over the same loaded dist/src + dist/test scope.",
       ],
       "small",
       28,
@@ -2011,8 +2103,8 @@ function renderQualityVerification(quality) {
       944,
       798,
       [
-        "coverage enforcement · production browser compatibility",
-        "model quality · benchmark performance",
+        "production-browser compatibility · model quality",
+        "benchmark performance · equal Node 24 coverage totals",
       ],
       "small",
       28,
@@ -2024,7 +2116,7 @@ function renderQualityVerification(quality) {
     height: 900,
     title: "Verified tests and loaded-JavaScript coverage",
     description:
-      "A source-backed verification figure shows 388 of 388 passing tests in two runs, exact loaded-JavaScript line, branch, and function coverage percentages, declared scope, exclusions, and absence of minimum thresholds.",
+      "A source-backed verification figure separates one historical no-floor Node 22.23.1 receipt with 388 passing tests and exact loaded-JavaScript coverage totals from the current Node 22.23.1 CI floors of 90 percent lines, 83 percent branches, and 95 percent functions.",
     body,
   });
 }
@@ -2070,6 +2162,16 @@ async function buildManifest(outputs, artifactSources, evidence, quality) {
       official: false,
       test_count: quality.record.runs.test.tests,
       raw_log_count: 2,
+      recorded_minimum_thresholds_configured:
+        quality.record.runs.coverage.minimum_thresholds_configured,
+      current_coverage_gate: {
+        command: currentCoverageGate.command,
+        runtime: currentCoverageGate.runtime,
+        scope: currentCoverageGate.scope,
+        line_percent_minimum: currentCoverageGate.thresholds.linePercent,
+        branch_percent_minimum: currentCoverageGate.thresholds.branchPercent,
+        function_percent_minimum: currentCoverageGate.thresholds.functionPercent,
+      },
     },
     artifact_types: ["captured", "source-derived", "mixed"],
     artifacts,
