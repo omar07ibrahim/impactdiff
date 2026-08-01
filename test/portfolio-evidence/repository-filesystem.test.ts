@@ -15,6 +15,17 @@ import {
 
 const workspaceTemporaryRoot = resolve("..", ".t");
 
+async function expectPortfolioCode(
+  operation: Promise<unknown>,
+  expectedCode: string,
+): Promise<void> {
+  await assert.rejects(operation, (error: unknown) => {
+    assert.ok(error instanceof PilotPortfolioEvidenceError);
+    assert.equal(error.code, expectedCode);
+    return true;
+  });
+}
+
 test("repository evidence files round-trip with fresh-checkout modes", async (t) => {
   const parent = await mkdtemp(
     join(workspaceTemporaryRoot, "impactdiff-repository-files-"),
@@ -90,4 +101,60 @@ test("repository evidence reads reject links and unsafe checkout permissions", a
       return true;
     },
   );
+
+  for (const unsafeName of [
+    "",
+    ".",
+    "..",
+    "nested/file.json",
+    "back\\slash.json",
+    "nul\0.json",
+    "delete\u007f.json",
+    "e\u0301.json",
+    "x".repeat(256),
+  ]) {
+    await expectPortfolioCode(
+      writeRepositoryFile(
+        directory,
+        unsafeName,
+        Buffer.from("bounded", "utf8"),
+        directoryIdentity,
+      ),
+      "portfolio_evidence.file_input",
+    );
+  }
+  for (const unsafeBytes of [Buffer.alloc(0), Buffer.alloc(16_777_217)]) {
+    await expectPortfolioCode(
+      writeRepositoryFile(directory, "bounded.json", unsafeBytes, directoryIdentity),
+      "portfolio_evidence.file_input",
+    );
+  }
+  for (const unsafeBudget of [-1, Number.MAX_SAFE_INTEGER + 1]) {
+    await expectPortfolioCode(
+      listRepositoryDirectory(directory, unsafeBudget, directoryIdentity),
+      "portfolio_evidence.directory_budget",
+    );
+    await expectPortfolioCode(
+      readStableRepositoryFile(original, unsafeBudget),
+      "portfolio_evidence.file_budget",
+    );
+  }
+  for (const unsafeStage of [
+    join(directory, "not-a-stage"),
+    join(directory, "nested", ".impactdiff-stage-0123456789abcdef0123456789abcdef.tmp"),
+  ]) {
+    await expectPortfolioCode(
+      createRepositoryStage(unsafeStage, directory, directoryIdentity),
+      "portfolio_evidence.stage_name",
+    );
+    await expectPortfolioCode(
+      removeRepositoryStage(
+        unsafeStage,
+        directory,
+        directoryIdentity,
+        directoryIdentity,
+      ),
+      "portfolio_evidence.stage_name",
+    );
+  }
 });
