@@ -76,8 +76,8 @@ const checkpointCatalog = Object.freeze([
 ]);
 
 const expectedQuality = Object.freeze({
-  sourceRevision: "49bde81f4f8e1b93bc9ba4a86460e787cde17cc7",
-  sourceTree: "4a4c4fd6e3b0c40c91526e84d7dc5aa1ce029f11",
+  sourceRevision: "d1402f523e96646c743fbd2a67717a9925145655",
+  sourceTree: "30020fe630d455178aab30d86371414c922a4fc9",
   runtime: Object.freeze({
     node: "22.23.1",
     nodeModuleAbi: "127",
@@ -89,24 +89,24 @@ const expectedQuality = Object.freeze({
   }),
   test: Object.freeze({
     command: "npm test",
-    tests: 388,
-    passed: 388,
-    durationMs: 261978.061552,
+    tests: 415,
+    passed: 415,
+    durationMs: 256877.881513,
     logFile: "full-test.tap",
-    logSha256: "dcd4e6c2cdb3c80f315a6a42b5c4bd076d5dd7ece60e88e48f71b8078c47b43b",
-    logBytes: 76809,
+    logSha256: "37523bb108988c5611939d99401bf246298eb15b28b54814a54f4a7447af6168",
+    logBytes: 81154,
   }),
   coverage: Object.freeze({
     command: "npm run coverage:check",
-    tests: 388,
-    passed: 388,
-    durationMs: 669256.84105,
-    linePercent: 90.8,
-    branchPercent: 83.4,
-    functionPercent: 95.59,
+    tests: 415,
+    passed: 415,
+    durationMs: 660821.027748,
+    linePercent: 90.17,
+    branchPercent: 83.15,
+    functionPercent: 95.26,
     logFile: "full-coverage.tap",
-    logSha256: "cc840933d18c17869526c2190167949ecb1b932980207be5361ce5e01ac40a98",
-    logBytes: 104094,
+    logSha256: "941ca0e620fd3d8518349b844791b01864778d5c259c2be474daa338c62760dc",
+    logBytes: 109266,
   }),
 });
 
@@ -979,24 +979,24 @@ async function loadQuality() {
     fail("quality raw log bytes differ from their verified identities");
   }
   const testSummary = `${[
-    "# tests 388",
+    `# tests ${expectedQuality.test.tests}`,
     "# suites 0",
-    "# pass 388",
+    `# pass ${expectedQuality.test.passed}`,
     "# fail 0",
     "# cancelled 0",
     "# skipped 0",
     "# todo 0",
-    "# duration_ms 261978.061552",
+    `# duration_ms ${expectedQuality.test.durationMs}`,
   ].join("\n")}\n`;
   const coverageSummary = `${[
-    "# tests 388",
+    `# tests ${expectedQuality.coverage.tests}`,
     "# suites 0",
-    "# pass 388",
+    `# pass ${expectedQuality.coverage.passed}`,
     "# fail 0",
     "# cancelled 0",
     "# skipped 0",
     "# todo 0",
-    "# duration_ms 669256.84105",
+    `# duration_ms ${expectedQuality.coverage.durationMs}`,
   ].join("\n")}\n`;
   const testText = testLogBytes.toString("utf8");
   const coverageText = coverageLogBytes.toString("utf8");
@@ -2480,7 +2480,7 @@ function renderQualityVerification(quality) {
     rect(64, 182, 628, 166, palette.surface, palette.blue, 22),
     pill(92, 208, 118, "npm test", palette.blueSoft, palette.blue),
     text(92, 276, `${test.passed}/${test.tests}`, "metric"),
-    text(92, 307, "tests passed", "metric-label"),
+    text(92, 307, "TAP test points passed", "metric-label"),
     text(282, 267, "0 failed · 0 skipped", "body"),
     text(282, 295, "0 cancelled · 0 todo", "small"),
     text(282, 324, `${formatDecimal(test.duration_ms)} ms`, "small"),
@@ -2488,7 +2488,7 @@ function renderQualityVerification(quality) {
     rect(748, 182, 628, 166, palette.surface, palette.teal, 22),
     pill(776, 208, 210, "npm run coverage:check", palette.tealSoft, palette.teal),
     text(776, 276, `${coverage.passed}/${coverage.tests}`, "metric"),
-    text(776, 307, "tests passed", "metric-label"),
+    text(776, 307, "TAP test points passed", "metric-label"),
     text(966, 267, "0 failed · 0 skipped", "body"),
     text(966, 295, "0 cancelled · 0 todo", "small"),
     text(966, 324, `${formatDecimal(coverage.duration_ms)} ms`, "small"),
@@ -2566,8 +2566,7 @@ function renderQualityVerification(quality) {
     width: 1440,
     height: 900,
     title: "Verified tests and loaded-JavaScript coverage",
-    description:
-      "A source-backed verification figure shows one coverage-gated Node 22.23.1 receipt with 388 passing tests, exact loaded-JavaScript coverage totals, and enforced minimums of 90 percent lines, 83 percent branches, and 95 percent functions.",
+    description: `A source-backed verification figure shows one coverage-gated Node 22.23.1 receipt with ${coverage.passed} passing TAP test points, exact loaded-JavaScript coverage totals, and enforced minimums of 90 percent lines, 83 percent branches, and 95 percent functions.`,
     body,
   });
 }

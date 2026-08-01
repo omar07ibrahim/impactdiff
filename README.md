@@ -287,15 +287,15 @@ verified before and after one same-parent rename.
 
 ![Quality verification](docs/images/readme/quality-verification.svg)
 
-**Mixed — scoped quality verification.** The recorded run passes 388 of 388 tests and
-reports 90.80% line, 83.40% branch, and 95.59% function coverage across loaded emitted
-JavaScript under `dist`, including `dist/src + dist/test`. Chromium page JavaScript,
-non-JavaScript assets, and unloaded modules are outside that coverage scope. The
-recorded `npm run coverage:check` command and current CI both enforce 90% line, 83%
-branch, and 95% function floors on exact Node 22.23.1 over that same scope. Node 24 runs
-the ordinary test suite as a compatibility check; equal coverage totals across Node
-majors are not claimed. This is verification evidence, not a broad quality or
-performance claim.
+**Mixed — scoped quality verification.** The recorded run passes 415 of 415 TAP test
+points (344 top-level and 71 nested) and reports 90.17% line, 83.15% branch, and 95.26%
+function coverage across loaded emitted JavaScript under `dist`, including
+`dist/src + dist/test`. Chromium page JavaScript, non-JavaScript assets, and unloaded
+modules are outside that coverage scope. The recorded `npm run coverage:check` command
+and current CI both enforce 90% line, 83% branch, and 95% function floors on exact Node
+22.23.1 over that same scope. Node 24 runs the ordinary test suite as a compatibility
+check; equal coverage totals across Node majors are not claimed. This is verification
+evidence, not a broad quality or performance claim.
 
 ### Hard technical decisions
 

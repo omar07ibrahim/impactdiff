@@ -13,10 +13,10 @@
   },
   "quality": {
     "manifest": "docs/quality/verified-run.json",
-    "manifest_sha256": "6b8634aeb59b248f6dba5ceddcec545d6fe260f5fda797c8c1a35fe179a27416",
-    "source_revision": "49bde81f4f8e1b93bc9ba4a86460e787cde17cc7",
+    "manifest_sha256": "e5b87ddf3b9910cf08858157cee990cad0f9a1be7826ef10337de0a038401102",
+    "source_revision": "d1402f523e96646c743fbd2a67717a9925145655",
     "official": false,
-    "test_count": 388,
+    "test_count": 415,
     "raw_log_count": 2,
     "recorded_minimum_thresholds_configured": true,
     "current_coverage_gate": {
@@ -84,8 +84,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
-          "byte_length": 93485
+          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
+          "byte_length": 93688
         }
       ]
     },
@@ -123,8 +123,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
-          "byte_length": 93485
+          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
+          "byte_length": 93688
         }
       ]
     },
@@ -147,8 +147,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
-          "byte_length": 93485
+          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
+          "byte_length": 93688
         }
       ]
     },
@@ -186,8 +186,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
-          "byte_length": 93485
+          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
+          "byte_length": 93688
         }
       ]
     },
@@ -325,8 +325,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
-          "byte_length": 93485
+          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
+          "byte_length": 93688
         }
       ]
     },
@@ -589,8 +589,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
-          "byte_length": 93485
+          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
+          "byte_length": 93688
         }
       ]
     },
@@ -598,23 +598,23 @@
       "file": "quality-verification.svg",
       "type": "mixed",
       "title": "Verified tests and loaded-JavaScript coverage",
-      "sha256": "bf38e2cf1944d1adf219dd754941b1945b3e768d05814e2ae9a1aca4c93b9478",
-      "byte_length": 6815,
+      "sha256": "fde494c091221e28fc2bcbad3c04f6ddb06273c066db97aa33762de8f01fd8fc",
+      "byte_length": 6836,
       "sources": [
         {
           "path": "docs/quality/verified-run.json",
-          "sha256": "6b8634aeb59b248f6dba5ceddcec545d6fe260f5fda797c8c1a35fe179a27416",
-          "byte_length": 2368
+          "sha256": "e5b87ddf3b9910cf08858157cee990cad0f9a1be7826ef10337de0a038401102",
+          "byte_length": 2371
         },
         {
           "path": "docs/quality/full-test.tap",
-          "sha256": "dcd4e6c2cdb3c80f315a6a42b5c4bd076d5dd7ece60e88e48f71b8078c47b43b",
-          "byte_length": 76809
+          "sha256": "37523bb108988c5611939d99401bf246298eb15b28b54814a54f4a7447af6168",
+          "byte_length": 81154
         },
         {
           "path": "docs/quality/full-coverage.tap",
-          "sha256": "cc840933d18c17869526c2190167949ecb1b932980207be5361ce5e01ac40a98",
-          "byte_length": 104094
+          "sha256": "941ca0e620fd3d8518349b844791b01864778d5c259c2be474daa338c62760dc",
+          "byte_length": 109266
         },
         {
           "path": ".github/workflows/ci.yml",
@@ -633,8 +633,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
-          "byte_length": 93485
+          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
+          "byte_length": 93688
         }
       ]
     },
@@ -697,8 +697,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "3114a9fefd663208281441377b308cc978b538641a2a2837e793124b35e8854f",
-          "byte_length": 93485
+          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
+          "byte_length": 93688
         }
       ]
     }

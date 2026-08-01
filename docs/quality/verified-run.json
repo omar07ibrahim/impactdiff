@@ -3,8 +3,8 @@
   "version": 1,
   "official": false,
   "source": {
-    "git_revision": "49bde81f4f8e1b93bc9ba4a86460e787cde17cc7",
-    "git_tree": "4a4c4fd6e3b0c40c91526e84d7dc5aa1ce029f11"
+    "git_revision": "d1402f523e96646c743fbd2a67717a9925145655",
+    "git_tree": "30020fe630d455178aab30d86371414c922a4fc9"
   },
   "runtime": {
     "node": "22.23.1",
@@ -18,32 +18,32 @@
   "runs": {
     "test": {
       "command": "npm test",
-      "tests": 388,
-      "passed": 388,
+      "tests": 415,
+      "passed": 415,
       "failed": 0,
       "skipped": 0,
       "cancelled": 0,
       "todo": 0,
-      "duration_ms": 261978.061552,
+      "duration_ms": 256877.881513,
       "log": {
         "file": "full-test.tap",
         "media_type": "text/plain; charset=utf-8",
-        "sha256": "dcd4e6c2cdb3c80f315a6a42b5c4bd076d5dd7ece60e88e48f71b8078c47b43b",
-        "byte_length": 76809
+        "sha256": "37523bb108988c5611939d99401bf246298eb15b28b54814a54f4a7447af6168",
+        "byte_length": 81154
       }
     },
     "coverage": {
       "command": "npm run coverage:check",
-      "tests": 388,
-      "passed": 388,
+      "tests": 415,
+      "passed": 415,
       "failed": 0,
       "skipped": 0,
       "cancelled": 0,
       "todo": 0,
-      "duration_ms": 669256.84105,
-      "line_percent": 90.8,
-      "branch_percent": 83.4,
-      "function_percent": 95.59,
+      "duration_ms": 660821.027748,
+      "line_percent": 90.17,
+      "branch_percent": 83.15,
+      "function_percent": 95.26,
       "scope": "All loaded JavaScript emitted under dist, including dist/src and dist/test.",
       "excludes": [
         "JavaScript executed inside Chromium pages",
@@ -59,8 +59,8 @@
       "log": {
         "file": "full-coverage.tap",
         "media_type": "text/plain; charset=utf-8",
-        "sha256": "cc840933d18c17869526c2190167949ecb1b932980207be5361ce5e01ac40a98",
-        "byte_length": 104094
+        "sha256": "941ca0e620fd3d8518349b844791b01864778d5c259c2be474daa338c62760dc",
+        "byte_length": 109266
       }
     }
   },
