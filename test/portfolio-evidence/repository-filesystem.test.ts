@@ -57,7 +57,7 @@ test("repository evidence files round-trip with fresh-checkout modes", async (t)
   await assert.rejects(lstat(stage), { code: "ENOENT" });
 });
 
-test("repository evidence reads reject links and unsafe checkout permissions", async (t) => {
+test("repository evidence rejects unsafe files, inputs, budgets, and stages", async (t) => {
   const parent = await mkdtemp(
     join(workspaceTemporaryRoot, "impactdiff-repository-defenses-"),
   );
@@ -111,7 +111,7 @@ test("repository evidence reads reject links and unsafe checkout permissions", a
     "nul\0.json",
     "delete\u007f.json",
     "e\u0301.json",
-    "x".repeat(256),
+    "é".repeat(128),
   ]) {
     await expectPortfolioCode(
       writeRepositoryFile(
