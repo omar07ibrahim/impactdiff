@@ -573,7 +573,9 @@ function safeEnvironment() {
 function runBounded(root, executable, arguments_, maximumBytes, environment) {
   const result = spawnSync(executable, arguments_, {
     cwd: root,
-    env: environment,
+    // Node's test coverage collector injects NODE_V8_COVERAGE before spawn.
+    // Keep the validated template frozen, but give the runtime a mutable copy.
+    env: { ...environment },
     shell: false,
     encoding: "buffer",
     maxBuffer: maximumBytes,
