@@ -84,8 +84,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
-          "byte_length": 93688
+          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "byte_length": 94080
         }
       ]
     },
@@ -123,8 +123,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
-          "byte_length": 93688
+          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "byte_length": 94080
         }
       ]
     },
@@ -147,8 +147,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
-          "byte_length": 93688
+          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "byte_length": 94080
         }
       ]
     },
@@ -186,8 +186,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
-          "byte_length": 93688
+          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "byte_length": 94080
         }
       ]
     },
@@ -325,8 +325,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
-          "byte_length": 93688
+          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "byte_length": 94080
         }
       ]
     },
@@ -589,8 +589,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
-          "byte_length": 93688
+          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "byte_length": 94080
         }
       ]
     },
@@ -618,8 +618,8 @@
         },
         {
           "path": ".github/workflows/ci.yml",
-          "sha256": "0e96eb137aa6eda389c774a9cd53accbdfd4582ec060854f548ae86752af39bc",
-          "byte_length": 1980
+          "sha256": "9ba623e432be0407a5ebc072a77628f128ada44f66e26697430a7792e74cae89",
+          "byte_length": 2084
         },
         {
           "path": ".node-version",
@@ -633,8 +633,8 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
-          "byte_length": 93688
+          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "byte_length": 94080
         }
       ]
     },
@@ -692,13 +692,13 @@
         },
         {
           "path": ".github/workflows/ci.yml",
-          "sha256": "0e96eb137aa6eda389c774a9cd53accbdfd4582ec060854f548ae86752af39bc",
-          "byte_length": 1980
+          "sha256": "9ba623e432be0407a5ebc072a77628f128ada44f66e26697430a7792e74cae89",
+          "byte_length": 2084
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "e9a5b20c61eb9d67783c8fc26ce3ac6154683e6e2670648fb78bc471a8cd5065",
-          "byte_length": 93688
+          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "byte_length": 94080
         }
       ]
     }

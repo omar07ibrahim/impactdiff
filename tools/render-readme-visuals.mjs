@@ -1324,6 +1324,12 @@ async function loadSources() {
   const coverageStep = `      - name: Enforce coverage floors
         if: matrix.node == '22.23.1'
         run: npm run coverage:check`;
+  const fullHistoryCheckout = `      - name: Check out source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          # Source-bound evidence must resolve its recorded capture ancestors.
+          fetch-depth: 0
+          persist-credentials: false`;
   const currentNodeStep = `      - name: Test current Node.js
         if: matrix.node == '24'
         run: npm test`;
@@ -1347,12 +1353,13 @@ async function loadSources() {
     packageManifest?.scripts?.["coverage:check"] !== currentCoverageGate.script ||
     JSON.stringify(coverageCommands) !==
       JSON.stringify([currentCoverageGate.command]) ||
+    !continuousIntegration.includes(fullHistoryCheckout) ||
     !continuousIntegration.includes(coverageStep) ||
     !continuousIntegration.includes(currentNodeStep) ||
     !continuousIntegration.includes(cliReceiptStep)
   ) {
     fail(
-      "quality commands, coverage gate, CLI receipt replay, CI matrix, or pinned runtime changed",
+      "quality commands, full-history evidence checkout, coverage gate, CLI receipt replay, CI matrix, or pinned runtime changed",
     );
   }
 

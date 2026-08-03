@@ -26,6 +26,8 @@ jobs:
       - name: Check out source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
+          # Source-bound evidence must resolve its recorded capture ancestors.
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Set up Node.js
