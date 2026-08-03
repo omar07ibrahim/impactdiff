@@ -65,6 +65,10 @@ jobs:
           test ! -s "${stderr}"
           cmp docs/quality/pilot-evidence-check.stdout "${stdout}"
 
+      - name: Verify committed workflow GIF
+        if: matrix.node == '22.23.1'
+        run: node tools/render-pilot-workflow-gif.mjs check
+
       - name: Verify README visuals
         if: matrix.node == '22.23.1'
         run: node tools/render-readme-visuals.mjs check

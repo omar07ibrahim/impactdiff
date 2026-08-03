@@ -618,8 +618,8 @@
         },
         {
           "path": ".github/workflows/ci.yml",
-          "sha256": "001bf883e100311de3e508aab7300937cc5785672aeb4d2dc57b55183a110642",
-          "byte_length": 1838
+          "sha256": "0e96eb137aa6eda389c774a9cd53accbdfd4582ec060854f548ae86752af39bc",
+          "byte_length": 1980
         },
         {
           "path": ".node-version",
@@ -692,8 +692,8 @@
         },
         {
           "path": ".github/workflows/ci.yml",
-          "sha256": "001bf883e100311de3e508aab7300937cc5785672aeb4d2dc57b55183a110642",
-          "byte_length": 1838
+          "sha256": "0e96eb137aa6eda389c774a9cd53accbdfd4582ec060854f548ae86752af39bc",
+          "byte_length": 1980
         },
         {
           "path": "tools/render-readme-visuals.mjs",
