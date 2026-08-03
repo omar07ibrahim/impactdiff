@@ -5,6 +5,7 @@ import {
   chmod,
   cp,
   lstat,
+  mkdir,
   mkdtemp,
   readdir,
   readFile,
@@ -33,7 +34,7 @@ import { verifyPilotPortfolioEvidence } from "../../src/portfolio-evidence/publi
 import { parsePilotPortfolioEvidenceManifest } from "../../src/portfolio-evidence/validate.js";
 
 const repositoryRoot = resolve(".");
-const workspaceTemporaryRoot = resolve("..", ".t");
+const workspaceTemporaryRoot = resolve("artifacts/generated/portfolio-evidence-tests");
 const cliPath = fileURLToPath(
   new URL("../../src/cli/pilot-portfolio-evidence.js", import.meta.url),
 );
@@ -72,6 +73,11 @@ function expectPortfolioCode(action: () => unknown, expectedCode: string): void 
   });
 }
 
+async function createWorkspaceTemporaryDirectory(prefix: string): Promise<string> {
+  await mkdir(workspaceTemporaryRoot, { mode: 0o755, recursive: true });
+  return mkdtemp(join(workspaceTemporaryRoot, prefix));
+}
+
 function runGit(repository: string, arguments_: readonly string[]): void {
   const result = spawnSync("git", ["-C", repository, ...arguments_], {
     encoding: "utf8",
@@ -106,8 +112,8 @@ test(
   "Pilot portfolio evidence is deterministic, repository-portable, fresh, and fail closed",
   { concurrency: false, timeout: 300_000, skip: !pinnedCaptureRuntime },
   async (t) => {
-    const publicationParent = await mkdtemp(
-      join(workspaceTemporaryRoot, "impactdiff-portfolio-evidence-"),
+    const publicationParent = await createWorkspaceTemporaryDirectory(
+      "impactdiff-portfolio-evidence-",
     );
     t.after(async () => rm(publicationParent, { force: true, recursive: true }));
 

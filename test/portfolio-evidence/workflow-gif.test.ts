@@ -59,6 +59,11 @@ const productionSourcePaths = [
   ...frameFiles.map((file) => `${evidenceRelative}/${file}`),
 ] as const;
 const runtimePackages = ["canonicalize", "pngjs"] as const;
+const pinnedWorkflowRuntime =
+  process.versions.node === "22.23.1" &&
+  process.versions.modules === "127" &&
+  process.platform === "linux" &&
+  process.arch === "x64";
 
 interface ToolResult {
   readonly status: number | null;
@@ -335,7 +340,7 @@ async function createProductionFixture(t: test.TestContext): Promise<string> {
   return root;
 }
 
-test("preview emits a deterministic, bounded, pixel-audited GIF89a replay", async (t) => {
+test("preview is deterministic on the pinned runtime and fails closed otherwise", async (t) => {
   await mkdir(generatedTestRoot, { recursive: true });
   const nonce = `${process.pid}-${Date.now()}`;
   const firstRelative = `artifacts/generated/workflow-gif-${nonce}-a.gif`;
@@ -350,6 +355,16 @@ test("preview emits a deterministic, bounded, pixel-audited GIF89a replay", asyn
   });
 
   const first = runTool(repositoryRoot, ["preview", "--output", firstRelative]);
+  if (!pinnedWorkflowRuntime) {
+    assert.equal(first.error, undefined);
+    assert.equal(first.signal, null);
+    assert.equal(first.status, 1);
+    assert.equal(first.stdout, "");
+    assert.equal(first.stderr, '{"code":"pilot_gif.runtime"}\n');
+    assert.equal(existsSync(firstPath), false);
+    return;
+  }
+
   const second = runTool(repositoryRoot, ["preview", "--output", secondRelative]);
   assert.equal(first.error, undefined);
   assert.equal(first.signal, null);
@@ -397,6 +412,10 @@ test("preview emits a deterministic, bounded, pixel-audited GIF89a replay", asyn
 });
 
 test("preview refuses a symlinked output parent before creating descendants", async (t) => {
+  if (!pinnedWorkflowRuntime) {
+    t.skip("requires exact Node.js 22.23.1 on Linux x64");
+    return;
+  }
   const root = await createProductionFixture(t);
   const outside = await mkdtemp(join(generatedTestRoot, "outside-"));
   t.after(async () => {
@@ -416,6 +435,10 @@ test("preview refuses a symlinked output parent before creating descendants", as
 });
 
 test("production binds committed provenance and rejects dirty or mutated sources", async (t) => {
+  if (!pinnedWorkflowRuntime) {
+    t.skip("requires exact Node.js 22.23.1 on Linux x64");
+    return;
+  }
   const root = await createProductionFixture(t);
   await writeFile(join(root, "dirty.txt"), "uncommitted\n", "utf8");
   const dirty = runTool(root, ["write"]);

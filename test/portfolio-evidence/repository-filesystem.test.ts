@@ -13,7 +13,14 @@ import {
   writeRepositoryFile,
 } from "../../src/portfolio-evidence/repository-filesystem.js";
 
-const workspaceTemporaryRoot = resolve("..", ".t");
+const workspaceTemporaryRoot = resolve(
+  "artifacts/generated/repository-filesystem-tests",
+);
+
+async function createWorkspaceTemporaryDirectory(prefix: string): Promise<string> {
+  await mkdir(workspaceTemporaryRoot, { mode: 0o755, recursive: true });
+  return mkdtemp(join(workspaceTemporaryRoot, prefix));
+}
 
 async function expectPortfolioCode(
   operation: Promise<unknown>,
@@ -27,8 +34,8 @@ async function expectPortfolioCode(
 }
 
 test("repository evidence files round-trip with fresh-checkout modes", async (t) => {
-  const parent = await mkdtemp(
-    join(workspaceTemporaryRoot, "impactdiff-repository-files-"),
+  const parent = await createWorkspaceTemporaryDirectory(
+    "impactdiff-repository-files-",
   );
   t.after(async () => rm(parent, { force: true, recursive: true }));
   const parentIdentity = await inspectRepositoryDirectory(parent);
@@ -58,8 +65,8 @@ test("repository evidence files round-trip with fresh-checkout modes", async (t)
 });
 
 test("repository evidence rejects unsafe files, inputs, budgets, and stages", async (t) => {
-  const parent = await mkdtemp(
-    join(workspaceTemporaryRoot, "impactdiff-repository-defenses-"),
+  const parent = await createWorkspaceTemporaryDirectory(
+    "impactdiff-repository-defenses-",
   );
   t.after(async () => rm(parent, { force: true, recursive: true }));
   const directory = join(parent, "checkout");
