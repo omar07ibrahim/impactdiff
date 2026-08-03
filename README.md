@@ -74,10 +74,12 @@ npm test
 On a fresh Linux runner, use `npx playwright install --with-deps chromium` if the
 Playwright distribution packages are not already installed.
 
-### Verify the committed evidence
+### First verified run
 
-These checks rebuild the TypeScript CLI, validate every bound file and current source
-identity, and then verify that the README visuals still match their declared inputs:
+After setup, start with the read-only evidence verifier. These checks rebuild the
+TypeScript CLI, validate every bound file and current source identity, reproduce the
+committed workflow GIF, and verify that the README visuals still match their declared
+inputs:
 
 ```bash
 npm run --silent evidence:pilot:check
@@ -109,6 +111,14 @@ The primary evidence check returns this exact path-free, LF-terminated receipt:
     <td><strong>Recorded claim boundary.</strong> The receipt verifies 2 fixtures, 4 workflows, and 12 checkpoints. Network behavior was not observed; no fresh browser capture or browser-suite rerun is claimed.</td>
   </tr>
 </table>
+
+![Structured rendering of the recorded Pilot CLI receipt](docs/images/readme/cli-evidence-verification.svg)
+
+**Mixed — structured rendering of the same recorded verifier run.** This source-bound
+view makes the exact command, stdout, runtime, exit status, manifest identity, and
+explicit `official: false` boundary readable at a glance. It is derived from the real
+recorded terminal run above; it is not a terminal screenshot, fresh browser capture, or
+benchmark result.
 
 The committed [raw transcript](docs/images/terminal-evidence/pilot-evidence-check.txt)
 and [terminal-evidence manifest](docs/images/terminal-evidence/MANIFEST.json) bind the
@@ -411,6 +421,7 @@ npm test
 npm run coverage
 npm run coverage:check
 npm run --silent evidence:pilot:check
+node tools/render-pilot-workflow-gif.mjs check
 node tools/render-readme-visuals.mjs check
 ```
 
