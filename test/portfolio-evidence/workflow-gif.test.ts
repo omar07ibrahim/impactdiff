@@ -377,6 +377,16 @@ test("preview is deterministic on the pinned runtime and fails closed otherwise"
     return;
   }
 
+  const invalidPath = runTool(repositoryRoot, [
+    "preview",
+    "--output",
+    "not-under-generated.gif",
+  ]);
+  assert.equal(invalidPath.status, 1);
+  assert.equal(invalidPath.stdout, "");
+  assert.equal(invalidPath.stderr, '{"code":"pilot_gif.arguments"}\n');
+  assert.equal(existsSync(join(repositoryRoot, "not-under-generated.gif")), false);
+
   const second = runTool(repositoryRoot, ["preview", "--output", secondRelative]);
   assert.equal(first.error, undefined);
   assert.equal(first.signal, null);
@@ -685,8 +695,15 @@ test("production binds committed provenance and rejects dirty or mutated sources
     assert.equal(manifestRejected.stdout, "");
     assert.equal(manifestRejected.stderr, `{"code":"${code}"}\n`);
   };
+  await writeFile(manifestPath, "{", "utf8");
+  const malformedManifest = runTool(root, ["check"]);
+  assert.equal(malformedManifest.status, 1);
+  assert.equal(malformedManifest.stdout, "");
+  assert.equal(malformedManifest.stderr, '{"code":"pilot_gif.manifest_json"}\n');
+
   const invalidTopLevelManifests: readonly unknown[] = [
     null,
+    { ...manifest, source: { ...manifest.source, git_revision: "0" } },
     { ...manifest, source: null },
     { ...manifest, source: { ...manifest.source, git_revision: null } },
     { ...manifest, source: { ...manifest.source, committed_files: null } },
@@ -741,6 +758,19 @@ test("production binds committed provenance and rejects dirty or mutated sources
   );
   await writeFile(manifestPath, manifestBytes);
 
+  const corruptedGif = Buffer.from(gifBytes);
+  const corruptedOffset = corruptedGif.length - 1;
+  corruptedGif.writeUInt8(
+    corruptedGif.readUInt8(corruptedOffset) ^ 0x01,
+    corruptedOffset,
+  );
+  await writeFile(join(outputRoot, manifest.output.file), corruptedGif);
+  const corruptedOutput = runTool(root, ["check"]);
+  assert.equal(corruptedOutput.status, 1);
+  assert.equal(corruptedOutput.stdout, "");
+  assert.equal(corruptedOutput.stderr, '{"code":"pilot_gif.output_mismatch"}\n');
+  await writeFile(join(outputRoot, manifest.output.file), gifBytes);
+
   for (const relativePath of [
     "node_modules/canonicalize/lib/canonicalize.js",
     "node_modules/pngjs/lib/png-sync.js",
@@ -775,6 +805,26 @@ test("production binds committed provenance and rejects dirty or mutated sources
   assert.equal(symlinkRejected.stderr, '{"code":"pilot_gif.dependency_identity"}\n');
   await unlink(dependencySymlink);
 
+  const emptyDependencyFile = join(root, "node_modules/pngjs/unexpected-empty");
+  await writeFile(emptyDependencyFile, Buffer.alloc(0));
+  const emptyDependencyRejected = runTool(root, ["check"]);
+  assert.equal(emptyDependencyRejected.status, 1);
+  assert.equal(
+    emptyDependencyRejected.stderr,
+    '{"code":"pilot_gif.dependency_identity"}\n',
+  );
+  await unlink(emptyDependencyFile);
+
+  const hardlinkedDependencyFile = join(root, "node_modules/pngjs/unexpected-hardlink");
+  await link(join(root, "node_modules/pngjs/package.json"), hardlinkedDependencyFile);
+  const hardlinkedDependencyRejected = runTool(root, ["check"]);
+  assert.equal(hardlinkedDependencyRejected.status, 1);
+  assert.equal(
+    hardlinkedDependencyRejected.stderr,
+    '{"code":"pilot_gif.dependency_identity"}\n',
+  );
+  await unlink(hardlinkedDependencyFile);
+
   runGit(root, ["add", "docs/images/pilot-workflow-demo"]);
   runGit(root, [
     "-c",
@@ -787,6 +837,11 @@ test("production binds committed provenance and rejects dirty or mutated sources
     "publish fixture",
   ]);
   const publishedRevision = runGit(root, ["rev-parse", "HEAD"]);
+  const duplicateWrite = runTool(root, ["write"]);
+  assert.equal(duplicateWrite.status, 1);
+  assert.equal(duplicateWrite.stdout, "");
+  assert.equal(duplicateWrite.stderr, '{"code":"pilot_gif.output_exists"}\n');
+
   const originalManifestBytes = await readFile(join(outputRoot, "MANIFEST.json"));
   const originalGifBytes = await readFile(
     join(outputRoot, "incident-command--acknowledge-alert.gif"),
