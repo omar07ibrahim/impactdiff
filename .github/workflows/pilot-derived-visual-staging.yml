@@ -1,0 +1,602 @@
+name: Pilot derived visual staging
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pilot-derived-visual-staging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stage:
+    if: github.event.pull_request.number == 17
+    name: Node 22.23.1 candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the immutable PR head
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Source-bound evidence must resolve its recorded capture ancestors.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Require the immutable event revision
+        shell: bash
+        env:
+          EXPECTED_REVISION: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          actual_revision="$(git rev-parse --verify 'HEAD^{commit}')"
+          test "${actual_revision}" = "${EXPECTED_REVISION}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22.23.1"
+          package-manager-cache: false
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install pinned Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify formatting
+        run: npm run format:check
+
+      - name: Type-check
+        run: npm run check
+
+      - name: Generate and audit derived visual evidence candidate
+        id: derived_visuals
+        shell: bash
+        env:
+          EXPECTED_REVISION: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          candidate_root="${RUNNER_TEMP}/pilot-derived-visuals-candidate"
+          archive="${RUNNER_TEMP}/pilot-derived-visuals-candidate.zip"
+          rm -rf -- "${candidate_root}"
+          rm -f -- "${archive}"
+          install -d -m 0700 -- "${candidate_root}/docs/images"
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_REVISION}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+          node tools/capture-pilot-cli-terminal.mjs record
+          node tools/capture-pilot-cli-terminal.mjs check
+          cp -a docs/images/terminal-evidence "${candidate_root}/docs/images/"
+          git restore --source=HEAD --worktree -- docs/images/terminal-evidence
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+          node tools/render-pilot-workflow-gif.mjs refresh
+          node tools/render-pilot-workflow-gif.mjs check
+          cp -a docs/images/pilot-workflow-demo "${candidate_root}/docs/images/"
+          git restore --source=HEAD --worktree -- docs/images/pilot-workflow-demo
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+          node tools/render-readme-visuals.mjs write
+          node tools/render-readme-visuals.mjs check
+          cp -a docs/images/readme "${candidate_root}/docs/images/"
+          git restore --source=HEAD --worktree -- docs/images/readme
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+          verification_root="${RUNNER_TEMP}/pilot-derived-visuals-verification"
+          rm -rf -- "${verification_root}"
+          git clone --quiet --no-local --no-checkout -- "${GITHUB_WORKSPACE}" "${verification_root}"
+          git -C "${verification_root}" checkout --quiet --detach "${EXPECTED_REVISION}"
+          test "$(git -C "${verification_root}" rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_REVISION}"
+          test -z "$(git -C "${verification_root}" status --porcelain=v1 --untracked-files=all)"
+
+          cp -a "${candidate_root}/docs/images/terminal-evidence/." "${verification_root}/docs/images/terminal-evidence/"
+          cp -a "${candidate_root}/docs/images/pilot-workflow-demo/." "${verification_root}/docs/images/pilot-workflow-demo/"
+          cp -a "${candidate_root}/docs/images/readme/." "${verification_root}/docs/images/readme/"
+          git -C "${verification_root}" add -- \
+            docs/images/terminal-evidence \
+            docs/images/pilot-workflow-demo \
+            docs/images/readme
+          test -n "$(git -C "${verification_root}" diff --cached --name-only)"
+          while IFS= read -r path; do
+            case "${path}" in
+              docs/images/terminal-evidence/* | docs/images/pilot-workflow-demo/* | docs/images/readme/*) ;;
+              *) exit 1 ;;
+            esac
+          done < <(git -C "${verification_root}" diff --cached --name-only)
+          git -C "${verification_root}" \
+            -c user.name="Omar Ibrahim" \
+            -c user.email="31526072+omar07ibrahim@users.noreply.github.com" \
+            commit --quiet --no-gpg-sign --no-verify \
+            -m "Verify derived visual candidate"
+          verification_revision="$(git -C "${verification_root}" rev-parse --verify 'HEAD^{commit}')"
+          test "$(git -C "${verification_root}" rev-parse --verify 'HEAD^1')" = "${EXPECTED_REVISION}"
+          test -z "$(git -C "${verification_root}" status --porcelain=v1 --untracked-files=all)"
+
+          (
+            cd "${verification_root}"
+            npm ci
+            npm run format:check
+            npm run check
+            npm run coverage:check
+          )
+          test -z "$(git -C "${verification_root}" status --porcelain=v1 --untracked-files=all)"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+          env \
+            CANDIDATE_ROOT="${candidate_root}" \
+            ARCHIVE="${archive}" \
+            EXPECTED_REVISION="${EXPECTED_REVISION}" \
+            SOURCE_ROOT="${GITHUB_WORKSPACE}" \
+            VERIFICATION_ROOT="${verification_root}" \
+            VERIFICATION_REVISION="${verification_revision}" \
+            python - <<'PY'
+          import hashlib
+          import json
+          import os
+          import re
+          import stat
+          import struct
+          import subprocess
+          import zipfile
+          from pathlib import Path, PurePosixPath
+          from xml.etree import ElementTree
+
+          expected = sorted(
+              [
+                  "docs/images/terminal-evidence/MANIFEST.json",
+                  "docs/images/terminal-evidence/evidence-boundary.svg",
+                  "docs/images/terminal-evidence/pilot-evidence-check.svg",
+                  "docs/images/terminal-evidence/pilot-evidence-check.txt",
+                  "docs/images/pilot-workflow-demo/MANIFEST.json",
+                  "docs/images/pilot-workflow-demo/incident-command--acknowledge-alert.gif",
+                  "docs/images/readme/architecture-contours.svg",
+                  "docs/images/readme/atomic-publication.svg",
+                  "docs/images/readme/checkpoint-modalities.svg",
+                  "docs/images/readme/cli-evidence-verification.svg",
+                  "docs/images/readme/evidence-bundle-overview.svg",
+                  "docs/images/readme/evidence-trust-chain.svg",
+                  "docs/images/readme/pilot-implementation-grid.svg",
+                  "docs/images/readme/quality-verification.svg",
+                  "docs/images/readme/visuals-manifest.json",
+              ]
+          )
+          source = Path(os.environ["SOURCE_ROOT"]).resolve(strict=True)
+          candidate = Path(os.environ["CANDIDATE_ROOT"]).resolve(strict=True)
+          verification = Path(os.environ["VERIFICATION_ROOT"]).resolve(strict=True)
+          runner_temp = Path(os.environ["RUNNER_TEMP"]).resolve(strict=True)
+          archive = Path(os.environ["ARCHIVE"])
+          revision = os.environ["EXPECTED_REVISION"]
+          verification_revision = os.environ["VERIFICATION_REVISION"]
+
+          def fail(message):
+              raise SystemExit(message)
+
+          def digest(value):
+              return hashlib.sha256(value).hexdigest()
+
+          def git(arguments, binary=False):
+              result = subprocess.run(
+                  ["git", *arguments],
+                  cwd=source,
+                  check=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+                  text=not binary,
+              )
+              if result.stderr:
+                  fail("candidate Git command wrote stderr")
+              return result.stdout
+
+          if (
+              not re.fullmatch(r"[0-9a-f]{40}", revision)
+              or not re.fullmatch(r"[0-9a-f]{40}", verification_revision)
+              or runner_temp not in candidate.parents
+              or runner_temp not in verification.parents
+              or runner_temp not in archive.parents
+              or len({source, candidate, verification}) != 3
+              or source in candidate.parents
+              or source in verification.parents
+              or candidate in source.parents
+              or candidate in verification.parents
+              or verification in source.parents
+              or verification in candidate.parents
+              or archive.exists()
+              or archive.is_symlink()
+          ):
+              fail("candidate path or revision boundary is invalid")
+          if git(["rev-parse", "--verify", "HEAD^{commit}"]).strip() != revision:
+              fail("candidate revision differs from the event revision")
+          tree = git(["rev-parse", "--verify", "HEAD^{tree}"]).strip()
+          if git(["status", "--porcelain=v1", "-z", "--untracked-files=all"]):
+              fail("source checkout is dirty after candidate capture")
+
+          def verification_git(arguments):
+              result = subprocess.run(
+                  ["git", *arguments],
+                  cwd=verification,
+                  check=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+                  text=True,
+              )
+              if result.stderr:
+                  fail("verification Git command wrote stderr")
+              return result.stdout
+
+          verification_parents = verification_git(
+              ["rev-list", "--parents", "-n", "1", "HEAD"]
+          ).split()
+          if (
+              verification_git(["rev-parse", "--verify", "HEAD^{commit}"]).strip()
+              != verification_revision
+              or verification_parents != [verification_revision, revision]
+              or verification_git(
+                  ["status", "--porcelain=v1", "-z", "--untracked-files=all"]
+              )
+          ):
+              fail("candidate verification checkout is not exact and clean")
+          verification_identity = verification_git(
+              ["show", "-s", "--format=%an%x00%ae%x00%cn%x00%ce", "HEAD"]
+          ).rstrip("\n").split("\x00")
+          if verification_identity != [
+              "Omar Ibrahim",
+              "31526072+omar07ibrahim@users.noreply.github.com",
+              "Omar Ibrahim",
+              "31526072+omar07ibrahim@users.noreply.github.com",
+          ]:
+              fail("candidate verification commit identity is not Omar-only")
+          verification_changes = verification_git(
+              ["diff-tree", "--no-commit-id", "--name-only", "-r", "HEAD"]
+          ).splitlines()
+          if (
+              not verification_changes
+              or len(verification_changes) != len(set(verification_changes))
+              or any(path not in expected for path in verification_changes)
+          ):
+              fail("candidate verification commit changed an unexpected path")
+
+          observed = []
+          files = {}
+          for path in sorted(candidate.rglob("*")):
+              identity = path.lstat()
+              relative = path.relative_to(candidate).as_posix()
+              if stat.S_ISDIR(identity.st_mode):
+                  continue
+              if (
+                  not stat.S_ISREG(identity.st_mode)
+                  or identity.st_nlink != 1
+                  or stat.S_IMODE(identity.st_mode) != 0o644
+                  or identity.st_size < 1
+                  or identity.st_size > 4 * 1024 * 1024
+              ):
+                  fail("candidate contains a linked, non-regular, or unbounded member")
+              value = path.read_bytes()
+              after = path.lstat()
+              if (
+                  len(value) != identity.st_size
+                  or (identity.st_dev, identity.st_ino, identity.st_size, identity.st_mtime_ns)
+                  != (after.st_dev, after.st_ino, after.st_size, after.st_mtime_ns)
+              ):
+                  fail("candidate member changed while reading")
+              observed.append(relative)
+              files[relative] = value
+          if observed != expected or sum(map(len, files.values())) > 16 * 1024 * 1024:
+              fail("candidate inventory or expanded size is outside its closed boundary")
+
+          terminal = json.loads(files["docs/images/terminal-evidence/MANIFEST.json"])
+          workflow = json.loads(files["docs/images/pilot-workflow-demo/MANIFEST.json"])
+          readme = json.loads(files["docs/images/readme/visuals-manifest.json"])
+          if (
+              terminal.get("contract") != "impactdiff.pilot-cli-terminal-evidence"
+              or terminal.get("official") is not False
+              or terminal.get("source", {}).get("git_revision") != revision
+              or terminal.get("source", {}).get("git_tree") != tree
+          ):
+              fail("terminal evidence provenance is not exact")
+          if (
+              workflow.get("contract") != "impactdiff.pilot-workflow-gif"
+              or workflow.get("official") is not False
+              or workflow.get("source", {}).get("git_revision") != revision
+              or workflow.get("source", {}).get("git_tree") != tree
+          ):
+              fail("workflow GIF provenance is not exact")
+          if (
+              readme.get("contract") != "impactdiff.readme-visuals"
+              or readme.get("evidence", {}).get("manifest_sha256")
+              != "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012"
+              or readme.get("cli_verification", {}).get("run_record_sha256")
+              != "f6124a4520d57749d80869a423afc85cda4ac328b4d42481de0548bc398ecd3f"
+              or readme.get("cli_verification", {}).get("stdout_sha256")
+              != "d5aceb78e7aa6b6a4588145e1887386ad93ecbcceba8a2c1df4d04c69ef96086"
+          ):
+              fail("README visual evidence bindings are not exact")
+
+          gif = files[
+              "docs/images/pilot-workflow-demo/incident-command--acknowledge-alert.gif"
+          ]
+          if (
+              len(gif) != 1_635_354
+              or digest(gif)
+              != "70a26d4f3a7348793a08726115e1238b89db139f5f17521377376b86a0d07bb2"
+              or gif[:6] != b"GIF89a"
+              or struct.unpack("<HH", gif[6:10]) != (800, 600)
+          ):
+              fail("workflow GIF byte identity or dimensions are unexpected")
+
+          sensitive = [
+              re.compile(rb"github_pat_[A-Za-z0-9_]{20,}"),
+              re.compile(rb"gh[pousr]_[A-Za-z0-9]{20,}"),
+              re.compile(rb"(?:AKIA|ASIA)[A-Z0-9]{16}"),
+              re.compile(rb"BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY"),
+              re.compile(rb"/home/[A-Za-z0-9._-]+/"),
+              re.compile(rb"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"),
+          ]
+          allowed_svg_elements = {
+              "circle",
+              "defs",
+              "desc",
+              "line",
+              "marker",
+              "path",
+              "rect",
+              "style",
+              "svg",
+              "text",
+              "title",
+              "tspan",
+          }
+          allowed_svg_attributes = {
+              "aria-labelledby",
+              "class",
+              "cx",
+              "cy",
+              "d",
+              "dy",
+              "fill",
+              "height",
+              "id",
+              "marker-end",
+              "markerHeight",
+              "markerWidth",
+              "orient",
+              "r",
+              "refX",
+              "refY",
+              "role",
+              "rx",
+              "stroke",
+              "stroke-dasharray",
+              "stroke-linecap",
+              "stroke-linejoin",
+              "stroke-width",
+              "style",
+              "text-anchor",
+              "transform",
+              "viewBox",
+              "width",
+              "x",
+              "x1",
+              "x2",
+              "y",
+              "y1",
+              "y2",
+          }
+
+          def qualified_name(value):
+              if value.startswith("{"):
+                  namespace, local = value[1:].split("}", 1)
+                  return namespace, local
+              return "", value
+
+          def audit_css(value):
+              lowered = value.lower()
+              forbidden = (
+                  "@",
+                  "\\",
+                  "/*",
+                  "url(",
+                  "expression(",
+                  "javascript:",
+                  "vbscript:",
+                  "file:",
+                  "ftp:",
+                  "http:",
+                  "https:",
+                  "//",
+                  "behavior:",
+                  "-moz-binding",
+                  "src:",
+              )
+              if any(fragment in lowered for fragment in forbidden):
+                  fail("candidate SVG CSS contains an active or external value")
+
+          def audit_svg(value):
+              xml_declaration = b'<?xml version="1.0" encoding="UTF-8"?>\n'
+              body = (
+                  value[len(xml_declaration):]
+                  if value.startswith(xml_declaration)
+                  else value
+              )
+              if b"<?" in body or b"<!" in body:
+                  fail("candidate SVG contains an XML processing construct")
+              root = ElementTree.fromstring(value)
+              for element in root.iter():
+                  namespace, local = qualified_name(element.tag)
+                  if (
+                      namespace not in ("", "http://www.w3.org/2000/svg")
+                      or local not in allowed_svg_elements
+                  ):
+                      fail("candidate SVG contains a non-static element")
+                  if local == "style":
+                      audit_css(element.text or "")
+                  for attribute, attribute_value in element.attrib.items():
+                      attribute_namespace, attribute_local = qualified_name(attribute)
+                      if (
+                          attribute_namespace
+                          or attribute_local not in allowed_svg_attributes
+                          or attribute_local.lower().startswith("on")
+                      ):
+                          fail("candidate SVG contains an active attribute")
+                      if attribute_local == "style":
+                          audit_css(attribute_value)
+                      lowered_value = attribute_value.lower()
+                      if re.search(
+                          r"(?:https?|data|javascript|vbscript|file|ftp):",
+                          lowered_value,
+                      ) or lowered_value.startswith("//"):
+                          fail("candidate SVG contains an external attribute")
+                      if "url(" in lowered_value and (
+                          attribute_local != "marker-end"
+                          or re.fullmatch(
+                              r"url\(#[A-Za-z][A-Za-z0-9_.:-]*\)",
+                              attribute_value,
+                          )
+                          is None
+                      ):
+                          fail("candidate SVG contains a non-local URL")
+
+          unsafe_svg_probes = (
+              b'<svg xmlns="http://www.w3.org/2000/svg"><a href="javascript:alert(1)"/></svg>',
+              b'<svg xmlns="http://www.w3.org/2000/svg"><style>@import url(https://example.invalid/a.css);</style></svg>',
+              b'<!DOCTYPE svg SYSTEM "file:///etc/passwd"><svg xmlns="http://www.w3.org/2000/svg"/>',
+              b'<?xml-stylesheet href="https://example.invalid/a.css"?><svg xmlns="http://www.w3.org/2000/svg"/>',
+              b'<svg xmlns="http://www.w3.org/2000/svg"><foreignObject/></svg>',
+          )
+          for probe in unsafe_svg_probes:
+              try:
+                  audit_svg(probe)
+              except SystemExit:
+                  continue
+              fail("candidate SVG safety probe was unexpectedly accepted")
+
+          for name, value in files.items():
+              if name.endswith((".json", ".svg", ".txt")):
+                  if any(pattern.search(value) for pattern in sensitive):
+                      fail("candidate contains a sensitive text pattern")
+              if name.endswith(".svg"):
+                  audit_svg(value)
+
+          changed = []
+          identities = []
+          for name in expected:
+              value = files[name]
+              blob = hashlib.sha1(
+                  b"blob " + str(len(value)).encode() + bytes([0]) + value
+              ).hexdigest()
+              committed = git(["rev-parse", f"HEAD:{name}"]).strip()
+              row = {
+                  "path": name,
+                  "sha256": digest(value),
+                  "byte_length": len(value),
+                  "git_blob": blob,
+                  "current_blob": committed,
+              }
+              identities.append(row)
+              if blob != committed:
+                  changed.append(name)
+
+          verification_blobs = {
+              name: verification_git(["rev-parse", f"HEAD:{name}"]).strip()
+              for name in expected
+          }
+          if (
+              not changed
+              or sorted(verification_changes) != changed
+              or any(
+                  verification_blobs[row["path"]] != row["git_blob"]
+                  for row in identities
+              )
+          ):
+              fail("verified commit bytes differ from the candidate archive")
+
+          with zipfile.ZipFile(
+              archive,
+              mode="x",
+              compression=zipfile.ZIP_DEFLATED,
+              compresslevel=9,
+              allowZip64=False,
+          ) as output:
+              for name in expected:
+                  info = zipfile.ZipInfo(name, (1980, 1, 1, 0, 0, 0))
+                  info.create_system = 3
+                  info.compress_type = zipfile.ZIP_DEFLATED
+                  info.external_attr = (stat.S_IFREG | 0o644) << 16
+                  output.writestr(info, files[name], compresslevel=9)
+
+          with zipfile.ZipFile(archive, "r", allowZip64=False) as output:
+              infos = output.infolist()
+              if (
+                  [info.filename for info in infos] != expected
+                  or len(infos) != len(expected)
+                  or output.comment
+                  or output.testzip() is not None
+              ):
+                  fail("candidate archive inventory or integrity is invalid")
+              for info in infos:
+                  path = PurePosixPath(info.filename)
+                  mode = info.external_attr >> 16
+                  if (
+                      path.is_absolute()
+                      or ".." in path.parts
+                      or info.is_dir()
+                      or info.flag_bits & 1
+                      or info.extra
+                      or info.comment
+                      or stat.S_IFMT(mode) != stat.S_IFREG
+                      or stat.S_IMODE(mode) != 0o644
+                      or output.read(info) != files[info.filename]
+                  ):
+                      fail("candidate archive member is unsafe or inexact")
+
+          archive_bytes = archive.read_bytes()
+          audit = {
+              "archive_sha256": digest(archive_bytes),
+              "archive_bytes": len(archive_bytes),
+              "expanded_bytes": sum(map(len, files.values())),
+              "entry_count": len(expected),
+              "changed_files": changed,
+              "source_revision": revision,
+              "source_tree": tree,
+              "verification_revision": verification_revision,
+              "verification_files": verification_changes,
+              "files": identities,
+          }
+          print(json.dumps(audit, separators=(",", ":")))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"archive_sha256={audit['archive_sha256']}\n")
+              output.write(f"archive_bytes={audit['archive_bytes']}\n")
+              output.write(f"entry_count={audit['entry_count']}\n")
+              output.write(f"changed_count={len(changed)}\n")
+          PY
+
+          test "$(git rev-parse --verify 'HEAD^{commit}')" = "${EXPECTED_REVISION}"
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+
+      - name: Upload the derived visual evidence candidate
+        id: derived_visuals_upload
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pilot-derived-visuals-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/pilot-derived-visuals-candidate.zip
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          include-hidden-files: false
+
+      - name: Stop before derived visual evidence adoption
+        shell: bash
+        env:
+          ARTIFACT_ID: ${{ steps.derived_visuals_upload.outputs.artifact-id }}
+          ARCHIVE_SHA256: ${{ steps.derived_visuals.outputs.archive_sha256 }}
+        run: |
+          set -euo pipefail
+          test -n "${ARTIFACT_ID}"
+          test -n "${ARCHIVE_SHA256}"
+          echo "::error title=Derived visual review required::The audited 15-file candidate is preserved as artifact ${ARTIFACT_ID}; adopt only its byte-different files in a separate reviewed Omar-authored commit."
+          exit 1
