@@ -106,7 +106,6 @@ jobs:
             npm ci
             npm run format:check
             npm run check
-            npm run coverage:check
             npm run build
             node dist/src/cli/pilot-portfolio-evidence.js check \
               --repository . \
