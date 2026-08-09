@@ -5,8 +5,8 @@
   "generated_by": "tools/capture-pilot-cli-terminal.mjs",
   "network_observation": "not_observed",
   "source": {
-    "git_revision": "40c2cfd34ad57beebe3b3f550f5fd7791e6c5d2c",
-    "git_tree": "4155facbaa978609585ea63fb84a1ad41551880a"
+    "git_revision": "67d667e466fd4c98c0cee7e04a8de11546cfcd60",
+    "git_tree": "8a7ba0c74041e3119c18abea6fd89b84976bc32b"
   },
   "command": {
     "argv": [
@@ -27,7 +27,7 @@
   },
   "result": {
     "exit_code": 0,
-    "stdout_sha256": "5002ded371aebf52796a1294623bcb1daabbc6fffdc104cd52e7930bec3e02e8",
+    "stdout_sha256": "d5aceb78e7aa6b6a4588145e1887386ad93ecbcceba8a2c1df4d04c69ef96086",
     "stdout_byte_length": 163,
     "stdout_line_count": 1,
     "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -56,27 +56,27 @@
     },
     {
       "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
-      "sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+      "sha256": "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012",
       "byte_length": 18508,
       "line_count": 1
     },
     {
       "path": "docs/quality/pilot-evidence-check-run.json",
-      "sha256": "667dcac8c40b4df063fd7b9c997254df457bb0e9063224a4d44d28fb14069cfa",
-      "byte_length": 2658,
-      "line_count": 83
+      "sha256": "f6124a4520d57749d80869a423afc85cda4ac328b4d42481de0548bc398ecd3f",
+      "byte_length": 2688,
+      "line_count": 88
     },
     {
       "path": "docs/quality/pilot-evidence-check.stdout",
-      "sha256": "5002ded371aebf52796a1294623bcb1daabbc6fffdc104cd52e7930bec3e02e8",
+      "sha256": "d5aceb78e7aa6b6a4588145e1887386ad93ecbcceba8a2c1df4d04c69ef96086",
       "byte_length": 163,
       "line_count": 1
     },
     {
       "path": "package-lock.json",
-      "sha256": "372dcff1777c7d89060eb9c33c7fd664047265cd0ef5b01801964f8b3d5a1e5c",
-      "byte_length": 8191,
-      "line_count": 238
+      "sha256": "78750d1a10f3aa8bebac739139ca3422e5aee12f3ea9721f4457670af3a05a42",
+      "byte_length": 8224,
+      "line_count": 239
     },
     {
       "path": "package.json",
@@ -113,12 +113,12 @@
     {
       "file": "evidence-boundary.svg",
       "media_type": "image/svg+xml",
-      "sha256": "95d5cb134a2126d07795e7418acd069003ff4c66dc3b420e70a87809705c7a07",
+      "sha256": "db3fbf765c31adae2df6c26a31329261c6c1f3146b4a79a239b48c754089c84b",
       "byte_length": 2681,
       "source_bindings": [
         {
           "path": "docs/quality/pilot-evidence-check-run.json",
-          "lines": "1-83"
+          "lines": "1-88"
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
@@ -129,7 +129,7 @@
     {
       "file": "pilot-evidence-check.svg",
       "media_type": "image/svg+xml",
-      "sha256": "8a67c807e66286983cda470a74929262a4d81fa110e257c327af3ff51698ac9d",
+      "sha256": "a0373713c13305ff8846c07be959e3f3fd70eeec71e1fa66ff9952a4a65d47b2",
       "byte_length": 2173,
       "source_bindings": [
         {
@@ -138,14 +138,14 @@
         },
         {
           "path": "docs/quality/pilot-evidence-check-run.json",
-          "lines": "1-83"
+          "lines": "1-88"
         }
       ]
     },
     {
       "file": "pilot-evidence-check.txt",
       "media_type": "text/plain; charset=utf-8",
-      "sha256": "b1fedb529de3b40364198d51a30a27865f4cc727e7345af7d008d9814594b147",
+      "sha256": "83e9a9ce9827bf7be1ff80268a4438df135e8700470bbfe435c09249ddabb820",
       "byte_length": 203,
       "source_bindings": [
         {

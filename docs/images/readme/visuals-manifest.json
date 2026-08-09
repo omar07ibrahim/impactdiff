@@ -6,7 +6,7 @@
   "network_access": false,
   "evidence": {
     "directory": "docs/images/pilot-portfolio-evidence",
-    "manifest_sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+    "manifest_sha256": "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012",
     "official": false,
     "file_count": 50,
     "checkpoint_count": 12
@@ -30,10 +30,10 @@
   },
   "cli_verification": {
     "run_record": "docs/quality/pilot-evidence-check-run.json",
-    "run_record_sha256": "667dcac8c40b4df063fd7b9c997254df457bb0e9063224a4d44d28fb14069cfa",
+    "run_record_sha256": "f6124a4520d57749d80869a423afc85cda4ac328b4d42481de0548bc398ecd3f",
     "stdout": "docs/quality/pilot-evidence-check.stdout",
-    "stdout_sha256": "5002ded371aebf52796a1294623bcb1daabbc6fffdc104cd52e7930bec3e02e8",
-    "source_revision": "6d8cd5d43b82a441a8e6e8c3df281aa73bdbf293",
+    "stdout_sha256": "d5aceb78e7aa6b6a4588145e1887386ad93ecbcceba8a2c1df4d04c69ef96086",
+    "source_revision": "296f4d384f3153d7df3972f4864e3ae344707f54",
     "command_argv": ["npm", "run", "--silent", "evidence:pilot:check"],
     "runtime": {
       "node": "22.23.1",
@@ -44,7 +44,7 @@
     },
     "exit_code": 0,
     "stderr_byte_length": 0,
-    "manifest_sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+    "manifest_sha256": "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012",
     "official": false,
     "input_count": 7
   },
@@ -84,7 +84,7 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "sha256": "deec5ea294c13930d08aaefff1bcde9c01dc32369fbc03b2ad25f4aae55763a9",
           "byte_length": 94080
         }
       ]
@@ -123,7 +123,7 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "sha256": "deec5ea294c13930d08aaefff1bcde9c01dc32369fbc03b2ad25f4aae55763a9",
           "byte_length": 94080
         }
       ]
@@ -147,7 +147,7 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "sha256": "deec5ea294c13930d08aaefff1bcde9c01dc32369fbc03b2ad25f4aae55763a9",
           "byte_length": 94080
         }
       ]
@@ -186,7 +186,7 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "sha256": "deec5ea294c13930d08aaefff1bcde9c01dc32369fbc03b2ad25f4aae55763a9",
           "byte_length": 94080
         }
       ]
@@ -200,7 +200,7 @@
       "sources": [
         {
           "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
-          "sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+          "sha256": "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012",
           "byte_length": 18508
         },
         {
@@ -325,7 +325,7 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "sha256": "deec5ea294c13930d08aaefff1bcde9c01dc32369fbc03b2ad25f4aae55763a9",
           "byte_length": 94080
         }
       ]
@@ -334,12 +334,12 @@
       "file": "evidence-bundle-overview.svg",
       "type": "captured",
       "title": "Pilot portfolio evidence bundle receipt",
-      "sha256": "ed66c00f6abd1b07e58017ee65ffeb7bf3ef9dbf4e7573bfbf51fb6aa163361c",
+      "sha256": "bee844e16c7109f5bde0ec8f93d81467c33f7c5b4caad8cf2366eb7c66b858a0",
       "byte_length": 6323,
       "sources": [
         {
           "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
-          "sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+          "sha256": "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012",
           "byte_length": 18508
         },
         {
@@ -364,8 +364,8 @@
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--initial-state.png",
-          "sha256": "41c1a07c4390e2fb38636e443a8004f38da45005bae6c129ea4e868f96a1760f",
-          "byte_length": 109460
+          "sha256": "3d1055dc241d248c0ebc2f7977e230660477a2513e9e18dac4afcd9fa189be48",
+          "byte_length": 109464
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/incident-command--acknowledge-alert--post-primary-action--accessibility.json",
@@ -419,8 +419,8 @@
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--initial-state.png",
-          "sha256": "41c1a07c4390e2fb38636e443a8004f38da45005bae6c129ea4e868f96a1760f",
-          "byte_length": 109460
+          "sha256": "3d1055dc241d248c0ebc2f7977e230660477a2513e9e18dac4afcd9fa189be48",
+          "byte_length": 109464
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/incident-command--assign-responder--post-primary-action--accessibility.json",
@@ -484,8 +484,8 @@
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--initial-state.png",
-          "sha256": "17948b509ccc17a0078b4316cf6f276f5ddef8bdf1c8afee0e7f8decf1538e81",
-          "byte_length": 99012
+          "sha256": "97dbd323cce16ca6df32831a78d1f9d58fde0cd973c1be71f606ee4549f68f68",
+          "byte_length": 99009
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/market-basket--add-bundle--post-primary-action--accessibility.json",
@@ -539,8 +539,8 @@
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--initial-state.png",
-          "sha256": "17948b509ccc17a0078b4316cf6f276f5ddef8bdf1c8afee0e7f8decf1538e81",
-          "byte_length": 99012
+          "sha256": "97dbd323cce16ca6df32831a78d1f9d58fde0cd973c1be71f606ee4549f68f68",
+          "byte_length": 99009
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/market-basket--choose-pickup--post-primary-action--accessibility.json",
@@ -589,7 +589,7 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "sha256": "deec5ea294c13930d08aaefff1bcde9c01dc32369fbc03b2ad25f4aae55763a9",
           "byte_length": 94080
         }
       ]
@@ -633,7 +633,7 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "sha256": "deec5ea294c13930d08aaefff1bcde9c01dc32369fbc03b2ad25f4aae55763a9",
           "byte_length": 94080
         }
       ]
@@ -642,18 +642,18 @@
       "file": "cli-evidence-verification.svg",
       "type": "mixed",
       "title": "Recorded CLI verification receipt",
-      "sha256": "e5034624f369ac258c442db15a8491ff23e47d7bf7ce55e93f6a517c7e5ee864",
+      "sha256": "d4f079c27f489bc8ae37cd2db6f8ad7f3bf778989486e5af1c97ec39019c3e87",
       "byte_length": 6135,
       "sources": [
         {
           "path": "docs/quality/pilot-evidence-check.stdout",
-          "sha256": "5002ded371aebf52796a1294623bcb1daabbc6fffdc104cd52e7930bec3e02e8",
+          "sha256": "d5aceb78e7aa6b6a4588145e1887386ad93ecbcceba8a2c1df4d04c69ef96086",
           "byte_length": 163
         },
         {
           "path": "docs/quality/pilot-evidence-check-run.json",
-          "sha256": "667dcac8c40b4df063fd7b9c997254df457bb0e9063224a4d44d28fb14069cfa",
-          "byte_length": 2658
+          "sha256": "f6124a4520d57749d80869a423afc85cda4ac328b4d42481de0548bc398ecd3f",
+          "byte_length": 2688
         },
         {
           "path": ".node-version",
@@ -667,8 +667,8 @@
         },
         {
           "path": "package-lock.json",
-          "sha256": "372dcff1777c7d89060eb9c33c7fd664047265cd0ef5b01801964f8b3d5a1e5c",
-          "byte_length": 8191
+          "sha256": "78750d1a10f3aa8bebac739139ca3422e5aee12f3ea9721f4457670af3a05a42",
+          "byte_length": 8224
         },
         {
           "path": "tsconfig.json",
@@ -687,7 +687,7 @@
         },
         {
           "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
-          "sha256": "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56",
+          "sha256": "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012",
           "byte_length": 18508
         },
         {
@@ -697,7 +697,7 @@
         },
         {
           "path": "tools/render-readme-visuals.mjs",
-          "sha256": "2566572fbbf8eaf7e0a14f5e69caf958498828302967a49de61e48805a3dceae",
+          "sha256": "deec5ea294c13930d08aaefff1bcde9c01dc32369fbc03b2ad25f4aae55763a9",
           "byte_length": 94080
         }
       ]
