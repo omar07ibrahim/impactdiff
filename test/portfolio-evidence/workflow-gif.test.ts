@@ -440,6 +440,10 @@ test("test repository roots cannot escape the generated fixture boundary", async
   expectRejected(relative, "pilot_gif.test_root");
 
   const outsideRoot = resolve(repositoryRoot, "..");
+  const cwdMismatch = runTool(repositoryRoot, ["check"], {
+    IMPACTDIFF_PILOT_GIF_TEST_REPOSITORY_ROOT: outsideRoot,
+  });
+  expectRejected(cwdMismatch, "pilot_gif.test_root");
   expectRejected(runTool(outsideRoot, ["check"]), "pilot_gif.test_root");
 
   await mkdir(generatedTestRoot, { recursive: true });
