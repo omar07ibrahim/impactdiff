@@ -58,14 +58,61 @@ jobs:
 
       - name: Reproduce recorded Pilot CLI receipt
         if: matrix.node == '22.23.1'
+        id: pilot_receipt
         shell: bash
         run: |
           set -euo pipefail
           stdout="${RUNNER_TEMP}/pilot-evidence-check.stdout"
           stderr="${RUNNER_TEMP}/pilot-evidence-check.stderr"
+          candidate_root="${RUNNER_TEMP}/pilot-evidence-candidate"
+          candidate="${candidate_root}/docs/quality/pilot-evidence-check.stdout"
           npm run --silent evidence:pilot:check >"${stdout}" 2>"${stderr}"
           test ! -s "${stderr}"
-          cmp docs/quality/pilot-evidence-check.stdout "${stdout}"
+          install -d -m 0700 -- "$(dirname "${candidate}")"
+          install -m 0600 -- "${stdout}" "${candidate}"
+          chmod 0644 -- "${candidate}"
+          CANDIDATE_ROOT="${candidate_root}" python - <<'PY'
+          import os
+          import stat
+          from pathlib import Path
+
+          root = Path(os.environ["CANDIDATE_ROOT"])
+          expected = {"docs/quality/pilot-evidence-check.stdout"}
+          observed: set[str] = set()
+          for path in root.rglob("*"):
+              if path.is_symlink():
+                  raise SystemExit("receipt candidate contains a symlink")
+              if path.is_dir():
+                  continue
+              if not path.is_file():
+                  raise SystemExit("receipt candidate contains a non-file")
+              relative = path.relative_to(root).as_posix()
+              observed.add(relative)
+              if stat.S_IMODE(path.stat().st_mode) != 0o644:
+                  raise SystemExit("receipt candidate has non-canonical permissions")
+          if observed != expected:
+              raise SystemExit("receipt candidate inventory is not closed")
+          PY
+          if cmp docs/quality/pilot-evidence-check.stdout "${candidate}"; then
+            echo "drift=false" >>"${GITHUB_OUTPUT}"
+          else
+            echo "drift=true" >>"${GITHUB_OUTPUT}"
+          fi
+
+      - name: Preserve a refreshed Pilot receipt for review
+        if: matrix.node == '22.23.1' && steps.pilot_receipt.outputs.drift == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pilot-evidence-receipt-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/pilot-evidence-candidate/
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+          include-hidden-files: false
+
+      - name: Reject stale Pilot receipt evidence
+        if: matrix.node == '22.23.1' && steps.pilot_receipt.outputs.drift == 'true'
+        run: exit 1
 
       - name: Verify committed workflow GIF
         if: matrix.node == '22.23.1'
