@@ -229,11 +229,13 @@ jobs:
                   fail("verification Git command wrote stderr")
               return result.stdout
 
+          verification_parents = verification_git(
+              ["rev-list", "--parents", "-n", "1", "HEAD"]
+          ).split()
           if (
               verification_git(["rev-parse", "--verify", "HEAD^{commit}"]).strip()
               != verification_revision
-              or verification_git(["rev-parse", "--verify", "HEAD^1"]).strip()
-              != revision
+              or verification_parents != [verification_revision, revision]
               or verification_git(
                   ["status", "--porcelain=v1", "-z", "--untracked-files=all"]
               )
@@ -498,8 +500,20 @@ jobs:
               identities.append(row)
               if blob != committed:
                   changed.append(name)
-          if not changed:
-              fail("candidate has no derived visual drift")
+
+          verification_blobs = {
+              name: verification_git(["rev-parse", f"HEAD:{name}"]).strip()
+              for name in expected
+          }
+          if (
+              not changed
+              or sorted(verification_changes) != changed
+              or any(
+                  verification_blobs[row["path"]] != row["git_blob"]
+                  for row in identities
+              )
+          ):
+              fail("verified commit bytes differ from the candidate archive")
 
           with zipfile.ZipFile(
               archive,
