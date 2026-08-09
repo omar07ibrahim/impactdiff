@@ -9,3 +9,4 @@ fixtures/pilot-incident-command-v1/fixture.json
 docs/images/pilot-portfolio-evidence/
 docs/images/pilot-workflow-demo/MANIFEST.json
 docs/images/terminal-evidence/MANIFEST.json
+# Exact hosted-run receipt; byte identity is audited by CI.\ndocs/quality/pilot-evidence-check-run.json\n

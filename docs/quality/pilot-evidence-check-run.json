@@ -7,7 +7,12 @@
     "git_tree": "0a081752e83d5b0da516c272a0d5ef44876b8a4f"
   },
   "command": {
-    "argv": ["npm", "run", "--silent", "evidence:pilot:check"]
+    "argv": [
+      "npm",
+      "run",
+      "--silent",
+      "evidence:pilot:check"
+    ]
   },
   "runtime": {
     "node": "22.23.1",

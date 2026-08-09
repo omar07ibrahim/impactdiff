@@ -567,6 +567,28 @@ test("production binds committed provenance and rejects dirty or mutated sources
   const originalGifBytes = await readFile(
     join(outputRoot, "incident-command--acknowledge-alert.gif"),
   );
+  const assertOriginalPublication = async (): Promise<void> => {
+    assert.deepEqual(
+      await readFile(join(outputRoot, "MANIFEST.json")),
+      originalManifestBytes,
+    );
+    assert.deepEqual(
+      await readFile(join(outputRoot, "incident-command--acknowledge-alert.gif")),
+      originalGifBytes,
+    );
+    assert.deepEqual((await readdir(outputRoot)).sort(), [
+      "MANIFEST.json",
+      "incident-command--acknowledge-alert.gif",
+    ]);
+    assert.deepEqual((await readdir(dirname(outputRoot))).sort(), [
+      "pilot-portfolio-evidence",
+      "pilot-workflow-demo",
+    ]);
+    assert.equal(
+      runGit(root, ["status", "--porcelain=v1", "--untracked-files=all"]),
+      "",
+    );
+  };
   const ignoredExtra = join(outputRoot, "unexpected.txt");
   await writeFile(
     join(root, ".git/info/exclude"),
@@ -588,6 +610,17 @@ test("production binds committed provenance and rejects dirty or mutated sources
   );
   await unlink(ignoredExtra);
 
+  const stageFailure = runTool(root, ["refresh"], {
+    IMPACTDIFF_PILOT_GIF_TEST_FAIL_AFTER_STAGE_CREATION: "1",
+  });
+  assert.equal(stageFailure.status, 1);
+  assert.equal(stageFailure.stdout, "");
+  assert.equal(
+    stageFailure.stderr,
+    '{"code":"pilot_gif.test_failure_after_stage_creation"}\n',
+  );
+  await assertOriginalPublication();
+
   const rollbackFailure = runTool(root, ["refresh"], {
     IMPACTDIFF_PILOT_GIF_TEST_FAIL_AFTER_BACKUP: "1",
   });
@@ -597,24 +630,7 @@ test("production binds committed provenance and rejects dirty or mutated sources
     rollbackFailure.stderr,
     '{"code":"pilot_gif.test_failure_after_backup"}\n',
   );
-  assert.deepEqual(
-    await readFile(join(outputRoot, "MANIFEST.json")),
-    originalManifestBytes,
-  );
-  assert.deepEqual(
-    await readFile(join(outputRoot, "incident-command--acknowledge-alert.gif")),
-    originalGifBytes,
-  );
-  assert.deepEqual((await readdir(outputRoot)).sort(), [
-    "MANIFEST.json",
-    "incident-command--acknowledge-alert.gif",
-  ]);
-  assert.deepEqual(
-    (await readdir(dirname(outputRoot))).filter((name) =>
-      name.startsWith(".pilot-workflow-demo-"),
-    ),
-    [],
-  );
+  await assertOriginalPublication();
 
   const refresh = runTool(root, ["refresh"]);
   assert.equal(refresh.error, undefined);

@@ -391,10 +391,13 @@ async function ensurePlainDirectory(absolutePath) {
   }
 }
 
+function sameFilesystemObject(left, right) {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
 function sameFileIdentity(left, right) {
   return (
-    left.dev === right.dev &&
-    left.ino === right.ino &&
+    sameFilesystemObject(left, right) &&
     left.mode === right.mode &&
     left.size === right.size &&
     left.mtimeMs === right.mtimeMs
@@ -1169,20 +1172,20 @@ async function inspectReplaceableOutputDirectory(directory, revision) {
   return before;
 }
 
-async function assertDirectoryIdentity(path, expected, code) {
+async function readDirectoryIdentity(path, code) {
   let actual;
   try {
     actual = await lstat(path);
   } catch {
     fail(code);
   }
-  if (
-    !actual.isDirectory() ||
-    actual.isSymbolicLink() ||
-    !sameFileIdentity(actual, expected)
-  ) {
-    fail(code);
-  }
+  if (!actual.isDirectory() || actual.isSymbolicLink()) fail(code);
+  return actual;
+}
+
+async function assertDirectoryIdentity(path, expected, code) {
+  const actual = await readDirectoryIdentity(path, code);
+  if (!sameFileIdentity(actual, expected)) fail(code);
 }
 
 async function removeKnownDirectory(path, expected, code) {
@@ -1329,6 +1332,7 @@ async function refreshProduction() {
   let stageCreated = false;
   let previousMoved = false;
   let published = false;
+  let finalized = false;
   let primaryError;
   const cleanupErrors = [];
 
@@ -1342,12 +1346,23 @@ async function refreshProduction() {
     await assertMissing(backup, "pilot_gif.backup_exists");
     await mkdir(stage, { mode: 0o700 });
     stageCreated = true;
+    stageIdentity = await readDirectoryIdentity(stage, "pilot_gif.stage_changed");
+    if (process.env.IMPACTDIFF_PILOT_GIF_TEST_FAIL_AFTER_STAGE_CREATION === "1") {
+      fail("pilot_gif.test_failure_after_stage_creation");
+    }
     await writeSyncedFile(join(stage, outputName), gifBytes);
     await writeSyncedFile(join(stage, outputManifestName), manifestBytes);
     await verifyOutputDirectory(stage, gifBytes, manifestBytes);
-    await syncDirectory(stage);
     await chmod(stage, 0o755);
-    stageIdentity = await lstat(stage);
+    await syncDirectory(stage);
+    const preparedStageIdentity = await readDirectoryIdentity(
+      stage,
+      "pilot_gif.stage_changed",
+    );
+    if (!sameFilesystemObject(preparedStageIdentity, stageIdentity)) {
+      fail("pilot_gif.stage_changed");
+    }
+    stageIdentity = preparedStageIdentity;
     const currentIdentity = await inspectReplaceableOutputDirectory(
       output,
       provenance.git_revision,
@@ -1377,9 +1392,24 @@ async function refreshProduction() {
       "pilot_gif.publication_cleanup",
     );
     previousMoved = false;
+    finalized = true;
+    await syncDirectory(parent);
   } catch (error) {
     primaryError = error;
-    if (published && stageIdentity !== undefined) {
+    let backupReadyForRestore = false;
+    if (!finalized && previousMoved && previousIdentity !== undefined) {
+      try {
+        await assertDirectoryIdentity(
+          backup,
+          previousIdentity,
+          "pilot_gif.publication_restore",
+        );
+        backupReadyForRestore = true;
+      } catch (restoreError) {
+        cleanupErrors.push(restoreError);
+      }
+    }
+    if (backupReadyForRestore && published && stageIdentity !== undefined) {
       try {
         await assertMissing(stage, "pilot_gif.publication_restore");
         await assertDirectoryIdentity(
@@ -1394,15 +1424,14 @@ async function refreshProduction() {
         cleanupErrors.push(restoreError);
       }
     }
-    if (previousMoved && previousIdentity !== undefined) {
+    if (
+      backupReadyForRestore &&
+      !published &&
+      previousMoved &&
+      previousIdentity !== undefined
+    ) {
       try {
-        await assertDirectoryIdentity(
-          backup,
-          previousIdentity,
-          "pilot_gif.publication_restore",
-        );
         await rename(backup, output);
-        previousMoved = false;
         const restored = await inspectReplaceableOutputDirectory(
           output,
           provenance.git_revision,
@@ -1411,18 +1440,27 @@ async function refreshProduction() {
           fail("pilot_gif.publication_restore");
         }
         await syncDirectory(parent);
+        previousMoved = false;
       } catch (restoreError) {
         cleanupErrors.push(restoreError);
       }
     }
   }
 
-  if (stageCreated && stageIdentity !== undefined) {
-    try {
-      await removeKnownDirectory(stage, stageIdentity, "pilot_gif.publication_cleanup");
-      stageCreated = false;
-    } catch (cleanupError) {
-      cleanupErrors.push(cleanupError);
+  if (stageCreated) {
+    if (stageIdentity === undefined || previousMoved) {
+      cleanupErrors.push(new PilotWorkflowGifError("pilot_gif.publication_uncertain"));
+    } else {
+      try {
+        await removeKnownDirectory(
+          stage,
+          stageIdentity,
+          "pilot_gif.publication_cleanup",
+        );
+        stageCreated = false;
+      } catch (cleanupError) {
+        cleanupErrors.push(cleanupError);
+      }
     }
   }
   if (published && primaryError !== undefined) {
