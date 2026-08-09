@@ -3,7 +3,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { constants } from "node:fs";
-import { createRequire } from "node:module";
 import {
   chmod,
   lstat,
@@ -16,7 +15,7 @@ import {
   unlink,
 } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const sourceRepositoryRoot = resolve(dirname(scriptPath), "..");
@@ -162,11 +161,14 @@ async function selectRepositoryRoot() {
     fail("pilot_gif.test_root");
   }
   await assertPlainDirectory(selected);
+  const [sourceGenerator, selectedGenerator] = await Promise.all([
+    readStableFile(scriptPath),
+    readStableFile(join(selected, "tools/render-pilot-workflow-gif.mjs")),
+  ]);
+  if (!sourceGenerator.equals(selectedGenerator)) {
+    fail("pilot_gif.test_generator");
+  }
   repositoryRoot = selected;
-}
-
-function repositoryRequire() {
-  return createRequire(join(repositoryRoot, "package.json"));
 }
 
 function sha256(bytes) {
@@ -195,15 +197,6 @@ function relativePath(absolutePath) {
 async function inspectInstalledDependency(expected) {
   const packageRoot = join(repositoryRoot, "node_modules", expected.name);
   const packageJsonPath = join(packageRoot, "package.json");
-  let resolvedEntry;
-  try {
-    resolvedEntry = repositoryRequire().resolve(expected.name);
-  } catch {
-    fail("pilot_gif.dependency_identity");
-  }
-  if (resolvedEntry !== join(packageRoot, expected.entry)) {
-    fail("pilot_gif.dependency_identity");
-  }
   await assertPlainDirectory(packageRoot);
 
   const pending = [packageRoot];
@@ -275,7 +268,8 @@ async function inspectInstalledDependency(expected) {
   if (
     records.length !== expected.installed_file_count ||
     totalBytes !== expected.installed_byte_length ||
-    treeDigest !== expected.installed_file_tree_sha256
+    treeDigest !== expected.installed_file_tree_sha256 ||
+    !records.some(([path]) => path === expected.entry)
   ) {
     fail("pilot_gif.dependency_identity");
   }
@@ -333,21 +327,28 @@ async function assertExactRuntime() {
   let canonicalizeModule;
   let pngModule;
   try {
-    const load = repositoryRequire();
-    canonicalizeModule = load("canonicalize");
-    pngModule = load("pngjs");
+    [canonicalizeModule, pngModule] = await Promise.all(
+      dependencyCatalog.map(
+        (expected) =>
+          import(
+            pathToFileURL(
+              join(repositoryRoot, "node_modules", expected.name, expected.entry),
+            ).href
+          ),
+      ),
+    );
   } catch {
     fail("pilot_gif.dependency_identity");
   }
   if (
-    typeof canonicalizeModule !== "function" ||
+    typeof canonicalizeModule.default !== "function" ||
     typeof pngModule.PNG !== "function" ||
     !isRecord(pngModule.PNG.sync) ||
     typeof pngModule.PNG.sync.read !== "function"
   ) {
     fail("pilot_gif.dependency_identity");
   }
-  canonicalizeRuntime = canonicalizeModule;
+  canonicalizeRuntime = canonicalizeModule.default;
   pngRuntime = pngModule.PNG;
 }
 

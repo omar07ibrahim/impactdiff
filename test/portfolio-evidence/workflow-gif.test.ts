@@ -433,6 +433,36 @@ test("test repository roots cannot escape the generated fixture boundary", () =>
   assert.equal(rejected.stderr, '{"code":"pilot_gif.test_root"}\n');
 });
 
+test("fixture overrides bind committed generator bytes to the invoked source CLI", async (t) => {
+  if (!pinnedWorkflowRuntime) {
+    t.skip("requires exact Node.js 22.23.1 on Linux x64");
+    return;
+  }
+  const root = await createProductionFixture(t);
+  await writeFile(
+    join(root, toolRelative),
+    Buffer.concat([await readFile(join(root, toolRelative)), Buffer.from("\n")]),
+  );
+  runGit(root, ["add", toolRelative]);
+  runGit(root, [
+    "-c",
+    "user.name=Omar Ibrahim",
+    "-c",
+    "user.email=31526072+omar07ibrahim@users.noreply.github.com",
+    "commit",
+    "--quiet",
+    "-m",
+    "mutate fixture generator",
+  ]);
+
+  const rejected = runTool(root, ["check"]);
+  assert.equal(rejected.error, undefined);
+  assert.equal(rejected.signal, null);
+  assert.equal(rejected.status, 1);
+  assert.equal(rejected.stdout, "");
+  assert.equal(rejected.stderr, '{"code":"pilot_gif.test_generator"}\n');
+});
+
 test("preview refuses a symlinked output parent before creating descendants", async (t) => {
   if (!pinnedWorkflowRuntime) {
     t.skip("requires exact Node.js 22.23.1 on Linux x64");
