@@ -585,7 +585,11 @@ test("production binds committed provenance and rejects dirty or mutated sources
   ];
   for (const invalidLock of invalidLocks) {
     await writeFile(packageLockPath, `${JSON.stringify(invalidLock)}\n`, "utf8");
-    const lockRejected = runTool(root, ["check"]);
+    const lockRejected = runTool(root, [
+      "preview",
+      "--output",
+      "artifacts/generated/invalid-lock.gif",
+    ]);
     assert.equal(lockRejected.status, 1);
     assert.equal(lockRejected.stdout, "");
     assert.equal(lockRejected.stderr, '{"code":"pilot_gif.dependency_identity"}\n');
