@@ -117,8 +117,8 @@ const currentCoverageGate = Object.freeze({
 });
 
 const expectedCliRun = Object.freeze({
-  sourceRevision: "296f4d384f3153d7df3972f4864e3ae344707f54",
-  sourceTree: "0a081752e83d5b0da516c272a0d5ef44876b8a4f",
+  sourceRevision: "de2920f126ef5e111c6afea25985822f8eb08a4f",
+  sourceTree: "97ee724728cd79464a00de490015ed4f1ba1aecd",
   argv: Object.freeze(["npm", "run", "--silent", "evidence:pilot:check"]),
   runtime: Object.freeze({
     node: "22.23.1",
@@ -130,7 +130,7 @@ const expectedCliRun = Object.freeze({
   stdout: Object.freeze({
     file: "pilot-evidence-check.stdout",
     mediaType: "application/jsonl; charset=utf-8",
-    sha256: "d5aceb78e7aa6b6a4588145e1887386ad93ecbcceba8a2c1df4d04c69ef96086",
+    sha256: "3ed07f62de7edf2c1369583c3037dbe6529442d3316fe896d7f1e7daeefa1527",
     byteLength: 163,
     lineCount: 1,
   }),
@@ -171,7 +171,7 @@ const expectedCliRun = Object.freeze({
     }),
     Object.freeze({
       path: "docs/images/pilot-portfolio-evidence/MANIFEST.json",
-      sha256: "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012",
+      sha256: "290878bcdfe8b150b15a79cdc535744b6a11cf9d8abfee991e4a0fae1e95b954",
       byteLength: 18508,
     }),
   ]),
