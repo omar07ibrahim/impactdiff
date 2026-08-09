@@ -5,8 +5,8 @@
   "generated_by": "tools/capture-pilot-cli-terminal.mjs",
   "network_observation": "not_observed",
   "source": {
-    "git_revision": "67d667e466fd4c98c0cee7e04a8de11546cfcd60",
-    "git_tree": "8a7ba0c74041e3119c18abea6fd89b84976bc32b"
+    "git_revision": "680a52ebfa818a585c85cf11885ade919095726f",
+    "git_tree": "fff5ce82612be93cd72e129a7050799b80839941"
   },
   "command": {
     "argv": [
@@ -27,7 +27,7 @@
   },
   "result": {
     "exit_code": 0,
-    "stdout_sha256": "d5aceb78e7aa6b6a4588145e1887386ad93ecbcceba8a2c1df4d04c69ef96086",
+    "stdout_sha256": "3ed07f62de7edf2c1369583c3037dbe6529442d3316fe896d7f1e7daeefa1527",
     "stdout_byte_length": 163,
     "stdout_line_count": 1,
     "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -56,19 +56,19 @@
     },
     {
       "path": "docs/images/pilot-portfolio-evidence/MANIFEST.json",
-      "sha256": "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012",
+      "sha256": "290878bcdfe8b150b15a79cdc535744b6a11cf9d8abfee991e4a0fae1e95b954",
       "byte_length": 18508,
       "line_count": 1
     },
     {
       "path": "docs/quality/pilot-evidence-check-run.json",
-      "sha256": "f6124a4520d57749d80869a423afc85cda4ac328b4d42481de0548bc398ecd3f",
+      "sha256": "c69116fc43ade5c0b025e9d1a3653e10b20fc84eceae1c19798dc8befbb9adfd",
       "byte_length": 2688,
       "line_count": 88
     },
     {
       "path": "docs/quality/pilot-evidence-check.stdout",
-      "sha256": "d5aceb78e7aa6b6a4588145e1887386ad93ecbcceba8a2c1df4d04c69ef96086",
+      "sha256": "3ed07f62de7edf2c1369583c3037dbe6529442d3316fe896d7f1e7daeefa1527",
       "byte_length": 163,
       "line_count": 1
     },
@@ -113,7 +113,7 @@
     {
       "file": "evidence-boundary.svg",
       "media_type": "image/svg+xml",
-      "sha256": "db3fbf765c31adae2df6c26a31329261c6c1f3146b4a79a239b48c754089c84b",
+      "sha256": "93bdb9c96d3999c58e54b39b7ae3e003ab524734e244655daebc749db5e5ee19",
       "byte_length": 2681,
       "source_bindings": [
         {
@@ -129,7 +129,7 @@
     {
       "file": "pilot-evidence-check.svg",
       "media_type": "image/svg+xml",
-      "sha256": "a0373713c13305ff8846c07be959e3f3fd70eeec71e1fa66ff9952a4a65d47b2",
+      "sha256": "ba1a5024857b906363543dd29257694b3e8216d8f7564aa479a12c9b214ee4f6",
       "byte_length": 2173,
       "source_bindings": [
         {
@@ -145,7 +145,7 @@
     {
       "file": "pilot-evidence-check.txt",
       "media_type": "text/plain; charset=utf-8",
-      "sha256": "83e9a9ce9827bf7be1ff80268a4438df135e8700470bbfe435c09249ddabb820",
+      "sha256": "f30ef60b9906e0915568fea86dcb9c1d21c6908a6e8d1bc648636e6c97cd1612",
       "byte_length": 203,
       "source_bindings": [
         {
