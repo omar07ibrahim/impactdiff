@@ -57,7 +57,7 @@ const exactRuntime = Object.freeze({
 const evidenceRelative = "docs/images/pilot-portfolio-evidence";
 const evidenceManifestRelative = `${evidenceRelative}/MANIFEST.json`;
 const evidenceManifestSha256 =
-  "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012";
+  "290878bcdfe8b150b15a79cdc535744b6a11cf9d8abfee991e4a0fae1e95b954";
 const outputRelative = "docs/images/pilot-workflow-demo";
 const outputName = "incident-command--acknowledge-alert.gif";
 const outputManifestName = "MANIFEST.json";
