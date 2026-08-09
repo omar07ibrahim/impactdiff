@@ -3,6 +3,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { constants } from "node:fs";
+import { createRequire } from "node:module";
 import {
   chmod,
   lstat,
@@ -18,7 +19,8 @@ import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptPath = fileURLToPath(import.meta.url);
-const repositoryRoot = resolve(dirname(scriptPath), "..");
+const sourceRepositoryRoot = resolve(dirname(scriptPath), "..");
+let repositoryRoot = sourceRepositoryRoot;
 const gitExecutable = "/usr/bin/git";
 const dependencyCatalog = Object.freeze([
   Object.freeze({
@@ -142,6 +144,31 @@ function fail(code) {
   throw new PilotWorkflowGifError(code);
 }
 
+async function selectRepositoryRoot() {
+  const override = process.env.IMPACTDIFF_PILOT_GIF_TEST_REPOSITORY_ROOT;
+  if (override === undefined) return;
+  const testParent = join(
+    sourceRepositoryRoot,
+    "artifacts/generated/workflow-gif-tests",
+  );
+  const selected = resolve(override);
+  const fixtureName = relative(testParent, selected);
+  if (
+    override !== selected ||
+    resolve(process.cwd()) !== selected ||
+    !selected.startsWith(`${testParent}${sep}`) ||
+    !/^repo-[A-Za-z0-9._-]+$/u.test(fixtureName)
+  ) {
+    fail("pilot_gif.test_root");
+  }
+  await assertPlainDirectory(selected);
+  repositoryRoot = selected;
+}
+
+function repositoryRequire() {
+  return createRequire(join(repositoryRoot, "package.json"));
+}
+
 function sha256(bytes) {
   return createHash("sha256").update(bytes).digest("hex");
 }
@@ -170,7 +197,7 @@ async function inspectInstalledDependency(expected) {
   const packageJsonPath = join(packageRoot, "package.json");
   let resolvedEntry;
   try {
-    resolvedEntry = fileURLToPath(import.meta.resolve(expected.name));
+    resolvedEntry = repositoryRequire().resolve(expected.name);
   } catch {
     fail("pilot_gif.dependency_identity");
   }
@@ -306,22 +333,21 @@ async function assertExactRuntime() {
   let canonicalizeModule;
   let pngModule;
   try {
-    [canonicalizeModule, pngModule] = await Promise.all([
-      import("canonicalize"),
-      import("pngjs"),
-    ]);
+    const load = repositoryRequire();
+    canonicalizeModule = load("canonicalize");
+    pngModule = load("pngjs");
   } catch {
     fail("pilot_gif.dependency_identity");
   }
   if (
-    typeof canonicalizeModule.default !== "function" ||
+    typeof canonicalizeModule !== "function" ||
     typeof pngModule.PNG !== "function" ||
     !isRecord(pngModule.PNG.sync) ||
     typeof pngModule.PNG.sync.read !== "function"
   ) {
     fail("pilot_gif.dependency_identity");
   }
-  canonicalizeRuntime = canonicalizeModule.default;
+  canonicalizeRuntime = canonicalizeModule;
   pngRuntime = pngModule.PNG;
 }
 
@@ -1516,6 +1542,7 @@ async function checkProduction() {
 }
 
 async function main() {
+  await selectRepositoryRoot();
   const arguments_ = process.argv.slice(2);
   if (
     arguments_.length === 3 &&

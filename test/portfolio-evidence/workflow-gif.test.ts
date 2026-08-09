@@ -97,13 +97,19 @@ function runTool(
   arguments_: readonly string[],
   environment: Readonly<Record<string, string>> = {},
 ): ToolResult {
-  return spawnSync(process.execPath, [join(root, toolRelative), ...arguments_], {
-    cwd: root,
-    env: { ...process.env, ...environment },
-    encoding: "utf8",
-    timeout: 30_000,
-    maxBuffer: 8 * 1024 * 1024,
-  });
+  const rootOverride =
+    root === repositoryRoot ? {} : { IMPACTDIFF_PILOT_GIF_TEST_REPOSITORY_ROOT: root };
+  return spawnSync(
+    process.execPath,
+    [join(repositoryRoot, toolRelative), ...arguments_],
+    {
+      cwd: root,
+      env: { ...process.env, ...rootOverride, ...environment },
+      encoding: "utf8",
+      timeout: 30_000,
+      maxBuffer: 8 * 1024 * 1024,
+    },
+  );
 }
 
 function runGit(root: string, arguments_: readonly string[]): string {
@@ -414,6 +420,17 @@ test("preview is deterministic on the pinned runtime and fails closed otherwise"
     assert.equal(sha256(source), expectedDigest);
     assert.deepEqual(frame.indices, expectedIndices(source));
   }
+});
+
+test("test repository roots cannot escape the generated fixture boundary", () => {
+  const rejected = runTool(repositoryRoot, ["check"], {
+    IMPACTDIFF_PILOT_GIF_TEST_REPOSITORY_ROOT: resolve(repositoryRoot, ".."),
+  });
+  assert.equal(rejected.error, undefined);
+  assert.equal(rejected.signal, null);
+  assert.equal(rejected.status, 1);
+  assert.equal(rejected.stdout, "");
+  assert.equal(rejected.stderr, '{"code":"pilot_gif.test_root"}\n');
 });
 
 test("preview refuses a symlinked output parent before creating descendants", async (t) => {
