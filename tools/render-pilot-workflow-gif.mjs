@@ -8,7 +8,6 @@ import {
   lstat,
   mkdir,
   open,
-  readFile,
   readdir,
   rename,
   rm,
@@ -426,46 +425,85 @@ function sameFileIdentity(left, right) {
   return (
     sameFilesystemObject(left, right) &&
     left.mode === right.mode &&
+    left.uid === right.uid &&
+    left.gid === right.gid &&
+    left.nlink === right.nlink &&
     left.size === right.size &&
-    left.mtimeMs === right.mtimeMs
+    left.mtimeMs === right.mtimeMs &&
+    left.ctimeMs === right.ctimeMs
   );
 }
 
-async function readStableFile(absolutePath, maximumBytes = maximumSourceBytes) {
-  await assertPlainDirectory(dirname(absolutePath));
-  let before;
-  try {
-    before = await lstat(absolutePath);
-  } catch {
-    fail("pilot_gif.source_file");
-  }
-  if (
-    !before.isFile() ||
-    before.isSymbolicLink() ||
-    before.nlink !== 1 ||
-    before.size < 1 ||
-    before.size > maximumBytes
-  ) {
-    fail("pilot_gif.source_file");
-  }
-  let bytes;
-  let after;
-  try {
-    bytes = await readFile(absolutePath);
-    after = await lstat(absolutePath);
-  } catch {
-    fail("pilot_gif.source_file");
-  }
-  if (
-    !after.isFile() ||
-    after.isSymbolicLink() ||
-    after.nlink !== 1 ||
-    !sameFileIdentity(before, after) ||
-    bytes.byteLength !== after.size
-  ) {
-    fail("pilot_gif.source_changed");
+async function readExactFile(handle, byteLength) {
+  const bytes = Buffer.allocUnsafe(byteLength);
+  let offset = 0;
+  while (offset < byteLength) {
+    const { bytesRead } = await handle.read(
+      bytes,
+      offset,
+      byteLength - offset,
+      offset,
+    );
+    if (bytesRead < 1) fail("pilot_gif.source_changed");
+    offset += bytesRead;
   }
   return bytes;
+}
+
+async function readStableFile(absolutePath, maximumBytes = maximumSourceBytes) {
+  const rootWithSeparator = `${repositoryRoot}${sep}`;
+  if (absolutePath !== repositoryRoot && !absolutePath.startsWith(rootWithSeparator)) {
+    fail("pilot_gif.path_boundary");
+  }
+
+  let handle;
+  let primaryError;
+  try {
+    handle = await open(
+      absolutePath,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+    const before = await handle.stat();
+    if (
+      !before.isFile() ||
+      before.isSymbolicLink() ||
+      before.nlink !== 1 ||
+      before.size < 1 ||
+      before.size > maximumBytes
+    ) {
+      fail("pilot_gif.source_file");
+    }
+
+    await assertPlainDirectory(dirname(absolutePath));
+    const pathAfterOpen = await lstat(absolutePath);
+    if (!sameFileIdentity(before, pathAfterOpen)) {
+      fail("pilot_gif.source_changed");
+    }
+
+    const bytes = await readExactFile(handle, before.size);
+    const after = await handle.stat();
+    const pathAfterRead = await lstat(absolutePath);
+    if (
+      !sameFileIdentity(before, after) ||
+      !sameFileIdentity(after, pathAfterRead) ||
+      bytes.byteLength !== after.size
+    ) {
+      fail("pilot_gif.source_changed");
+    }
+    return bytes;
+  } catch (error) {
+    primaryError = error;
+    if (error instanceof PilotWorkflowGifError) throw error;
+    fail("pilot_gif.source_file");
+  } finally {
+    if (handle !== undefined) {
+      try {
+        await handle.close();
+      } catch {
+        if (primaryError === undefined) fail("pilot_gif.source_file");
+      }
+    }
+  }
 }
 
 function parseJson(bytes, code) {

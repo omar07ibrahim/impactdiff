@@ -480,6 +480,11 @@ test("test repository roots cannot escape the generated fixture boundary", async
   await writeFile(generatorPath, Buffer.alloc(0));
   expectRejected(runTool(malformedRoot, ["check"]), "pilot_gif.source_file");
 
+  await rm(generatorPath);
+  await symlink(join(repositoryRoot, toolRelative), generatorPath);
+  expectRejected(runTool(malformedRoot, ["check"]), "pilot_gif.source_file");
+  await unlink(generatorPath);
+
   await writeFile(generatorPath, await readFile(join(repositoryRoot, toolRelative)));
   await link(generatorPath, `${generatorPath}.hardlink`);
   expectRejected(runTool(malformedRoot, ["check"]), "pilot_gif.source_file");

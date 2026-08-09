@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 import { createHash } from "node:crypto";
+import { constants } from "node:fs";
 import {
   lstat,
   mkdir,
-  readFile,
+  open,
   readdir,
   rename,
   rm,
@@ -401,6 +402,82 @@ function parseCoverageTotals(text, label) {
   });
 }
 
+function sameFileIdentity(left, right) {
+  return (
+    left.dev === right.dev &&
+    left.ino === right.ino &&
+    left.mode === right.mode &&
+    left.uid === right.uid &&
+    left.gid === right.gid &&
+    left.nlink === right.nlink &&
+    left.size === right.size &&
+    left.mtimeMs === right.mtimeMs &&
+    left.ctimeMs === right.ctimeMs
+  );
+}
+
+async function readOpenedBounded(path, maximumBytes, invalidMessage, changedMessage) {
+  let handle;
+  try {
+    handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
+  } catch {
+    fail(invalidMessage);
+  }
+
+  let primaryError;
+  try {
+    const before = await handle.stat();
+    if (
+      !before.isFile() ||
+      before.isSymbolicLink() ||
+      before.nlink !== 1 ||
+      before.size < 1 ||
+      before.size > maximumBytes
+    ) {
+      fail(invalidMessage);
+    }
+
+    const bytes = Buffer.allocUnsafe(before.size);
+    let offset = 0;
+    while (offset < before.size) {
+      const { bytesRead } = await handle.read(
+        bytes,
+        offset,
+        before.size - offset,
+        offset,
+      );
+      if (bytesRead < 1) fail(changedMessage);
+      offset += bytesRead;
+    }
+
+    const after = await handle.stat();
+    const pathAfter = await lstat(path);
+    if (
+      !sameFileIdentity(before, after) ||
+      !sameFileIdentity(after, pathAfter) ||
+      bytes.byteLength !== after.size
+    ) {
+      fail(changedMessage);
+    }
+    return bytes;
+  } catch (error) {
+    primaryError = error;
+    if (error instanceof Error && error.message.startsWith("readme visuals: ")) {
+      throw error;
+    }
+    fail(changedMessage);
+  } finally {
+    try {
+      await handle.close();
+    } catch {
+      if (primaryError === undefined) fail(changedMessage);
+    }
+  }
+}
+
 async function readBounded(relativePath, maximumBytes = maximumSourceBytes) {
   if (
     typeof relativePath !== "string" ||
@@ -411,20 +488,12 @@ async function readBounded(relativePath, maximumBytes = maximumSourceBytes) {
     fail("input path escaped the repository");
   }
   const absolutePath = join(repositoryRoot, relativePath);
-  const stats = await lstat(absolutePath);
-  if (
-    !stats.isFile() ||
-    stats.isSymbolicLink() ||
-    stats.size < 1 ||
-    stats.size > maximumBytes
-  ) {
-    fail(`${relativePath} is absent, linked, empty, or outside its byte budget`);
-  }
-  const bytes = await readFile(absolutePath);
-  if (bytes.byteLength !== stats.size) {
-    fail(`${relativePath} changed while it was read`);
-  }
-  return bytes;
+  return readOpenedBounded(
+    absolutePath,
+    maximumBytes,
+    `${relativePath} is absent, linked, empty, or outside its byte budget`,
+    `${relativePath} changed while it was read`,
+  );
 }
 
 function artifactReferences(manifest) {
@@ -2771,20 +2840,12 @@ async function readOutputBounded(name) {
     fail(`refused unknown generated output ${name}`);
   }
   const path = join(outputRoot, name);
-  const stats = await lstat(path);
-  if (
-    !stats.isFile() ||
-    stats.isSymbolicLink() ||
-    stats.size < 1 ||
-    stats.size > 4 * 1024 * 1024
-  ) {
-    fail(`${outputRelative}/${name} is absent, linked, empty, or oversized`);
-  }
-  const bytes = await readFile(path);
-  if (bytes.byteLength !== stats.size) {
-    fail(`${outputRelative}/${name} changed while it was read`);
-  }
-  return bytes;
+  return readOpenedBounded(
+    path,
+    4 * 1024 * 1024,
+    `${outputRelative}/${name} is absent, linked, empty, or oversized`,
+    `${outputRelative}/${name} changed while it was read`,
+  );
 }
 
 async function writeOutputs(outputs) {
