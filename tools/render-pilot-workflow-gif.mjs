@@ -438,12 +438,7 @@ async function readExactFile(handle, byteLength) {
   const bytes = Buffer.allocUnsafe(byteLength);
   let offset = 0;
   while (offset < byteLength) {
-    const { bytesRead } = await handle.read(
-      bytes,
-      offset,
-      byteLength - offset,
-      offset,
-    );
+    const { bytesRead } = await handle.read(bytes, offset, byteLength - offset, offset);
     if (bytesRead < 1) fail("pilot_gif.source_changed");
     offset += bytesRead;
   }

@@ -2,15 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { constants } from "node:fs";
-import {
-  lstat,
-  mkdir,
-  open,
-  readdir,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
+import { lstat, mkdir, open, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { format as formatWithPrettier } from "prettier";

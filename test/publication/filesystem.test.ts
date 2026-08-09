@@ -1,13 +1,5 @@
 import assert from "node:assert/strict";
-import {
-  chmod,
-  link,
-  mkdir,
-  mkdtemp,
-  rm,
-  symlink,
-  unlink,
-} from "node:fs/promises";
+import { chmod, link, mkdir, mkdtemp, rm, symlink, unlink } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import test from "node:test";
 
