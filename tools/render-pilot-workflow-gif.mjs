@@ -434,6 +434,20 @@ function sameFileIdentity(left, right) {
   );
 }
 
+// A successful rename may update ctime without changing the directory object,
+// ownership, mode, link count, contents, size, or mtime.
+function sameRenameStableIdentity(left, right) {
+  return (
+    sameFilesystemObject(left, right) &&
+    left.mode === right.mode &&
+    left.uid === right.uid &&
+    left.gid === right.gid &&
+    left.nlink === right.nlink &&
+    left.size === right.size &&
+    left.mtimeMs === right.mtimeMs
+  );
+}
+
 async function readExactFile(handle, byteLength) {
   const bytes = Buffer.allocUnsafe(byteLength);
   let offset = 0;
@@ -1245,7 +1259,7 @@ async function readDirectoryIdentity(path, code) {
 
 async function assertDirectoryIdentity(path, expected, code) {
   const actual = await readDirectoryIdentity(path, code);
-  if (!sameFileIdentity(actual, expected)) fail(code);
+  if (!sameRenameStableIdentity(actual, expected)) fail(code);
 }
 
 async function removeKnownDirectory(path, expected, code) {
@@ -1496,7 +1510,7 @@ async function refreshProduction() {
           output,
           provenance.git_revision,
         );
-        if (!sameFileIdentity(restored, previousIdentity)) {
+        if (!sameRenameStableIdentity(restored, previousIdentity)) {
           fail("pilot_gif.publication_restore");
         }
         await syncDirectory(parent);
