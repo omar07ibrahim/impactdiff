@@ -331,7 +331,7 @@ test("resolver rejects path-like digests and non-data references", async () => {
   }
 });
 
-test("length, hash, hardlink, and symlink tampering fail closed", async (t) => {
+test("length, hash, missing, hardlink, and symlink tampering fail closed", async (t) => {
   await t.test("appended bytes", async () => {
     const { root, store } = await temporaryStore();
     try {
@@ -360,6 +360,20 @@ test("length, hash, hardlink, and symlink tampering fail closed", async (t) => {
       await assert.rejects(
         store.readBytes(reference, jsonCodec),
         expectStoreError("cas.hash"),
+      );
+    } finally {
+      await removeStore(root);
+    }
+  });
+
+  await t.test("missing leaf", async () => {
+    const { root, store } = await temporaryStore();
+    try {
+      const reference = await store.put(document("missing"), jsonCodec);
+      await unlink(leafPath(root, reference.sha256));
+      await assert.rejects(
+        store.readBytes(reference, jsonCodec),
+        expectStoreError("cas.missing"),
       );
     } finally {
       await removeStore(root);

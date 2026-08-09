@@ -209,8 +209,12 @@ async function openPrivateDirectory(
 
   let handle: FileHandle | undefined;
   try {
-    const before = await lstat(path, { bigint: true });
-    assertPrivateDirectoryStats(before);
+    handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+    );
+    const opened = await handle.stat({ bigint: true });
+    assertPrivateDirectoryStats(opened);
     const canonicalPath = await realpath(path);
     if (canonicalPath !== path) {
       fail(
@@ -218,16 +222,9 @@ async function openPrivateDirectory(
         "publication directory cannot use symbolic path components",
       );
     }
-
-    handle = await open(
-      path,
-      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-    );
-    const opened = await handle.stat({ bigint: true });
-    assertPrivateDirectoryStats(opened);
-    const after = await lstat(path, { bigint: true });
-    assertPrivateDirectoryStats(after);
-    if (!sameDirectoryState(before, opened) || !sameDirectoryState(opened, after)) {
+    const pathAfterOpen = await lstat(path, { bigint: true });
+    assertPrivateDirectoryStats(pathAfterOpen);
+    if (!sameDirectoryState(opened, pathAfterOpen)) {
       fail(
         "publication.directory_changed",
         "publication directory changed while its identity was opened",
@@ -255,6 +252,13 @@ async function openPrivateDirectory(
     }
     if (error instanceof PairedPublicationError) {
       throw error;
+    }
+    if (errorCode(error) === "ELOOP" || errorCode(error) === "ENOTDIR") {
+      fail(
+        "publication.directory_type",
+        "publication directory must be a real directory",
+        { cause: error },
+      );
     }
     fail(
       "publication.directory",
@@ -669,12 +673,14 @@ export async function readStableImmutableFile(
   let handle: FileHandle | undefined;
   let primaryError: unknown;
   try {
-    const pathBefore = await lstat(path, { bigint: true });
-    assertImmutableFile(pathBefore, maximumBytes);
-    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
     const before = await handle.stat({ bigint: true });
     assertImmutableFile(before, maximumBytes);
-    if (!sameFileState(pathBefore, before)) {
+    const pathAfterOpen = await lstat(path, { bigint: true });
+    if (!sameFileState(before, pathAfterOpen)) {
       fail(
         "publication.file_changed",
         "published record changed while it was being opened",
@@ -704,11 +710,17 @@ export async function readStableImmutableFile(
     const failure =
       error instanceof PairedPublicationError
         ? error
-        : new PairedPublicationError(
-            "publication.file_read",
-            "published record could not be read safely",
-            { cause: error },
-          );
+        : errorCode(error) === "ELOOP"
+          ? new PairedPublicationError(
+              "publication.file_type",
+              "published record must be an owned immutable regular file",
+              { cause: error },
+            )
+          : new PairedPublicationError(
+              "publication.file_read",
+              "published record could not be read safely",
+              { cause: error },
+            );
     primaryError = failure;
     throw failure;
   } finally {

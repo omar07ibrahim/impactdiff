@@ -216,23 +216,21 @@ async function openRepositoryDirectory(
   const path = resolve(pathInput);
   let handle: FileHandle | undefined;
   try {
-    const before = await lstat(path, { bigint: true });
-    assertSafeDirectory(before);
+    handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
+    );
+    const opened = await handle.stat({ bigint: true });
+    assertSafeDirectory(opened);
     if ((await realpath(path)) !== path) {
       fail(
         "portfolio_evidence.directory_alias",
         "evidence directory cannot use symbolic path components",
       );
     }
-    handle = await open(
-      path,
-      constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW,
-    );
-    const opened = await handle.stat({ bigint: true });
-    const after = await lstat(path, { bigint: true });
-    assertSafeDirectory(opened);
-    assertSafeDirectory(after);
-    if (!sameDirectoryState(before, opened) || !sameDirectoryState(opened, after)) {
+    const pathAfterOpen = await lstat(path, { bigint: true });
+    assertSafeDirectory(pathAfterOpen);
+    if (!sameDirectoryState(opened, pathAfterOpen)) {
       fail(
         "portfolio_evidence.directory_changed",
         "evidence directory changed while being opened",
@@ -403,12 +401,14 @@ export async function readStableRepositoryFile(
   let handle: FileHandle | undefined;
   let primaryError: unknown;
   try {
-    const pathBefore = await lstat(path, { bigint: true });
-    assertSafeFile(pathBefore, maximumBytes);
-    handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+    handle = await open(
+      path,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
     const before = await handle.stat({ bigint: true });
     assertSafeFile(before, maximumBytes);
-    if (!sameFileState(pathBefore, before)) {
+    const pathAfterOpen = await lstat(path, { bigint: true });
+    if (!sameFileState(before, pathAfterOpen)) {
       fail(
         "portfolio_evidence.file_changed",
         "evidence file changed while being opened",
@@ -435,6 +435,13 @@ export async function readStableRepositoryFile(
   } catch (error) {
     primaryError = error;
     if (error instanceof PilotPortfolioEvidenceError) throw error;
+    if (errorCode(error) === "ELOOP") {
+      return fail(
+        "portfolio_evidence.file",
+        "evidence files must be owned, non-executable, non-linked regular files without special or group/world-write bits",
+        { cause: error },
+      );
+    }
     return fail(
       "portfolio_evidence.file_read",
       "evidence file could not be read safely",

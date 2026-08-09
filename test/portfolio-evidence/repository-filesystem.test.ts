@@ -97,6 +97,28 @@ test("repository evidence rejects unsafe files, inputs, budgets, and stages", as
     return true;
   });
 
+  const nestedDirectory = join(directory, "nested");
+  await mkdir(nestedDirectory, { mode: 0o755 });
+  await chmod(nestedDirectory, 0o755);
+  const directoryAlias = join(parent, "checkout-alias");
+  await symlink("checkout", directoryAlias, "dir");
+  await expectPortfolioCode(
+    inspectRepositoryDirectory(directoryAlias),
+    "portfolio_evidence.directory",
+  );
+  await expectPortfolioCode(
+    inspectRepositoryDirectory(join(directoryAlias, "nested")),
+    "portfolio_evidence.directory_alias",
+  );
+  await expectPortfolioCode(
+    readStableRepositoryFile(directory, 64),
+    "portfolio_evidence.file",
+  );
+  await expectPortfolioCode(
+    readStableRepositoryFile(join(directory, "missing.json"), 64),
+    "portfolio_evidence.file_read",
+  );
+
   const unsafeDirectory = join(parent, "unsafe");
   await mkdir(unsafeDirectory, { mode: 0o755 });
   await chmod(unsafeDirectory, 0o777);

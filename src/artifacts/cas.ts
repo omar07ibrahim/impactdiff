@@ -634,27 +634,22 @@ export class ArtifactStore {
     await this.#inspectArtifactDirectories(digest);
     const path = artifactPath(this.rootPath, digest);
 
-    let pathStats: BigIntStats;
-    try {
-      pathStats = await lstat(path, { bigint: true });
-    } catch (error) {
-      fail("cas.missing", "artifact leaf cannot be inspected", { cause: error });
-    }
-    if (pathStats.isSymbolicLink()) {
-      fail("cas.symlink", "artifact leaf cannot be a symbolic link");
-    }
-
     let handle: FileHandle | undefined;
     try {
-      handle = await open(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+      handle = await open(
+        path,
+        constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+      );
       const before = await handle.stat({ bigint: true });
-      if (before.dev !== pathStats.dev || before.ino !== pathStats.ino) {
+      assertRegularImmutableFile(before, byteLength);
+      const pathBefore = await lstat(path, { bigint: true });
+      if (!sameFileState(before, pathBefore)) {
         fail("cas.replaced", "artifact leaf changed while it was being opened");
       }
-      assertRegularImmutableFile(before, byteLength);
       const bytes = await readAll(handle, byteLength);
       const after = await handle.stat({ bigint: true });
-      if (!sameFileState(before, after)) {
+      const pathAfter = await lstat(path, { bigint: true });
+      if (!sameFileState(before, after) || !sameFileState(after, pathAfter)) {
         fail("cas.replaced", "artifact leaf changed while it was being read");
       }
       if (sha256(bytes) !== digest) {
@@ -664,6 +659,16 @@ export class ArtifactStore {
     } catch (error) {
       if (error instanceof ArtifactStoreError) {
         throw error;
+      }
+      if (errorCode(error) === "ELOOP") {
+        return fail("cas.symlink", "artifact leaf cannot be a symbolic link", {
+          cause: error,
+        });
+      }
+      if (errorCode(error) === "ENOENT") {
+        return fail("cas.missing", "artifact leaf cannot be inspected", {
+          cause: error,
+        });
       }
       return fail("cas.open", "artifact leaf cannot be resolved safely", {
         cause: error,
