@@ -5,6 +5,7 @@ import { existsSync } from "node:fs";
 import {
   cp,
   copyFile,
+  link,
   mkdir,
   mkdtemp,
   readFile,
@@ -422,15 +423,52 @@ test("preview is deterministic on the pinned runtime and fails closed otherwise"
   }
 });
 
-test("test repository roots cannot escape the generated fixture boundary", () => {
-  const rejected = runTool(repositoryRoot, ["check"], {
-    IMPACTDIFF_PILOT_GIF_TEST_REPOSITORY_ROOT: resolve(repositoryRoot, ".."),
+test("test repository roots cannot escape the generated fixture boundary", async (t) => {
+  const expectRejected = (result: ToolResult, code: string): void => {
+    assert.equal(result.error, undefined);
+    assert.equal(result.signal, null);
+    assert.equal(result.status, 1);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, `{"code":"${code}"}\n`);
+  };
+
+  expectRejected(runTool(repositoryRoot, []), "pilot_gif.arguments");
+
+  const relative = runTool(repositoryRoot, ["check"], {
+    IMPACTDIFF_PILOT_GIF_TEST_REPOSITORY_ROOT: "repo-relative",
   });
-  assert.equal(rejected.error, undefined);
-  assert.equal(rejected.signal, null);
-  assert.equal(rejected.status, 1);
-  assert.equal(rejected.stdout, "");
-  assert.equal(rejected.stderr, '{"code":"pilot_gif.test_root"}\n');
+  expectRejected(relative, "pilot_gif.test_root");
+
+  const outsideRoot = resolve(repositoryRoot, "..");
+  expectRejected(runTool(outsideRoot, ["check"]), "pilot_gif.test_root");
+
+  await mkdir(generatedTestRoot, { recursive: true });
+  const invalidName = await mkdtemp(join(generatedTestRoot, "outside-"));
+  t.after(async () => {
+    await rm(invalidName, { force: true, recursive: true });
+  });
+  expectRejected(runTool(invalidName, ["check"]), "pilot_gif.test_root");
+
+  const malformedRoot = await mkdtemp(join(generatedTestRoot, "repo-"));
+  t.after(async () => {
+    await rm(malformedRoot, { force: true, recursive: true });
+  });
+  const toolsRoot = join(malformedRoot, "tools");
+  const generatorPath = join(malformedRoot, toolRelative);
+  await mkdir(toolsRoot, { recursive: true });
+
+  expectRejected(runTool(malformedRoot, ["check"]), "pilot_gif.source_file");
+
+  await mkdir(generatorPath);
+  expectRejected(runTool(malformedRoot, ["check"]), "pilot_gif.source_file");
+  await rm(generatorPath, { recursive: true });
+
+  await writeFile(generatorPath, Buffer.alloc(0));
+  expectRejected(runTool(malformedRoot, ["check"]), "pilot_gif.source_file");
+
+  await writeFile(generatorPath, await readFile(join(repositoryRoot, toolRelative)));
+  await link(generatorPath, `${generatorPath}.hardlink`);
+  expectRejected(runTool(malformedRoot, ["check"]), "pilot_gif.source_file");
 });
 
 test("fixture overrides bind committed generator bytes to the invoked source CLI", async (t) => {
@@ -492,6 +530,68 @@ test("production binds committed provenance and rejects dirty or mutated sources
     return;
   }
   const root = await createProductionFixture(t);
+  const packageLockPath = join(root, "package-lock.json");
+  const packageLockBytes = await readFile(packageLockPath);
+  const packageLock = JSON.parse(packageLockBytes.toString("utf8")) as {
+    readonly lockfileVersion: number;
+    readonly packages: Readonly<
+      Record<
+        string,
+        {
+          readonly version?: string;
+          readonly resolved?: string;
+          readonly integrity?: string;
+        }
+      >
+    >;
+  };
+  const lockedCanonicalize = packageLock.packages["node_modules/canonicalize"];
+  assert.ok(lockedCanonicalize !== undefined);
+  const invalidLocks: readonly unknown[] = [
+    null,
+    { ...packageLock, lockfileVersion: 2 },
+    { ...packageLock, packages: [] },
+    { ...packageLock, packages: {} },
+    {
+      ...packageLock,
+      packages: {
+        ...packageLock.packages,
+        "node_modules/canonicalize": {
+          ...lockedCanonicalize,
+          version: "0.0.0",
+        },
+      },
+    },
+    {
+      ...packageLock,
+      packages: {
+        ...packageLock.packages,
+        "node_modules/canonicalize": {
+          ...lockedCanonicalize,
+          resolved: "https://example.invalid/canonicalize.tgz",
+        },
+      },
+    },
+    {
+      ...packageLock,
+      packages: {
+        ...packageLock.packages,
+        "node_modules/canonicalize": {
+          ...lockedCanonicalize,
+          integrity: "sha512-invalid",
+        },
+      },
+    },
+  ];
+  for (const invalidLock of invalidLocks) {
+    await writeFile(packageLockPath, `${JSON.stringify(invalidLock)}\n`, "utf8");
+    const lockRejected = runTool(root, ["check"]);
+    assert.equal(lockRejected.status, 1);
+    assert.equal(lockRejected.stdout, "");
+    assert.equal(lockRejected.stderr, '{"code":"pilot_gif.dependency_identity"}\n');
+  }
+  await writeFile(packageLockPath, packageLockBytes);
+
   await writeFile(join(root, "dirty.txt"), "uncommitted\n", "utf8");
   const dirty = runTool(root, ["write"]);
   assert.equal(dirty.status, 1);
@@ -519,8 +619,10 @@ test("production binds committed provenance and rejects dirty or mutated sources
       readonly git_tree: string;
       readonly committed_files: readonly {
         readonly path: string;
+        readonly git_mode: string;
         readonly git_blob_oid: string;
         readonly sha256: string;
+        readonly byte_length: number;
       }[];
     };
     readonly output: {
@@ -563,6 +665,73 @@ test("production binds committed provenance and rejects dirty or mutated sources
   assert.equal(check.signal, null);
   assert.equal(check.status, 0, check.stderr);
   assert.equal(check.stderr, "");
+
+  const manifestPath = join(outputRoot, "MANIFEST.json");
+  const expectManifestRejected = async (
+    value: unknown,
+    code: string,
+  ): Promise<void> => {
+    await writeFile(manifestPath, JSON.stringify(value), "utf8");
+    const manifestRejected = runTool(root, ["check"]);
+    assert.equal(manifestRejected.status, 1);
+    assert.equal(manifestRejected.stdout, "");
+    assert.equal(manifestRejected.stderr, `{"code":"${code}"}\n`);
+  };
+  const invalidTopLevelManifests: readonly unknown[] = [
+    null,
+    { ...manifest, source: null },
+    { ...manifest, source: { ...manifest.source, git_revision: null } },
+    { ...manifest, source: { ...manifest.source, committed_files: null } },
+    { ...manifest, source: { ...manifest.source, committed_files: [] } },
+  ];
+  for (const invalidManifest of invalidTopLevelManifests) {
+    await expectManifestRejected(invalidManifest, "pilot_gif.manifest_schema");
+  }
+
+  const firstSourceFile = manifest.source.committed_files[0];
+  assert.ok(firstSourceFile !== undefined);
+  const invalidSourceFiles: readonly unknown[] = [
+    null,
+    {},
+    { ...firstSourceFile, path: "unexpected" },
+    { ...firstSourceFile, git_mode: "100600" },
+    { ...firstSourceFile, git_blob_oid: 1 },
+    { ...firstSourceFile, git_blob_oid: "0" },
+    { ...firstSourceFile, sha256: 1 },
+    { ...firstSourceFile, sha256: "0" },
+    { ...firstSourceFile, byte_length: 1.5 },
+    { ...firstSourceFile, byte_length: 0 },
+    { ...firstSourceFile, byte_length: 32 * 1024 * 1024 },
+  ];
+  for (const invalidSourceFile of invalidSourceFiles) {
+    await expectManifestRejected(
+      {
+        ...manifest,
+        source: {
+          ...manifest.source,
+          committed_files: [
+            invalidSourceFile,
+            ...manifest.source.committed_files.slice(1),
+          ],
+        },
+      },
+      "pilot_gif.manifest_schema",
+    );
+  }
+  await expectManifestRejected(
+    {
+      ...manifest,
+      source: {
+        ...manifest.source,
+        committed_files: [
+          { ...firstSourceFile, git_mode: "100755" },
+          ...manifest.source.committed_files.slice(1),
+        ],
+      },
+    },
+    "pilot_gif.source_uncommitted",
+  );
+  await writeFile(manifestPath, manifestBytes);
 
   for (const relativePath of [
     "node_modules/canonicalize/lib/canonicalize.js",
