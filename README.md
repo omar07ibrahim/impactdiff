@@ -47,7 +47,7 @@ the capture and mutation pipeline. Its present scope is deliberately explicit:
 The committed evidence bundle contains 50 exact files: 12 screenshots, their
 accessibility and layout payloads, fixture/task metadata, runtime provenance, and one
 canonical manifest. Its manifest SHA-256 is
-`9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56`.
+`c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012`.
 
 There is **no released dataset, trained model, official pair, benchmark result, or
 accuracy claim**. The full implemented capability inventory and qualifications live in
@@ -90,7 +90,7 @@ node tools/render-readme-visuals.mjs check
 The primary evidence check returns this exact path-free, LF-terminated receipt:
 
 ```text
-{"official":false,"manifest_sha256":"9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56","fixture_count":2,"workflow_count":4,"checkpoint_count":12}
+{"official":false,"manifest_sha256":"c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012","fixture_count":2,"workflow_count":4,"checkpoint_count":12}
 ```
 
 <table>

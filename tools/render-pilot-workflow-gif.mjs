@@ -2,6 +2,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { constants } from "node:fs";
 import {
   chmod,
   lstat,
@@ -11,6 +12,7 @@ import {
   readdir,
   rename,
   rm,
+  unlink,
 } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,7 +57,7 @@ const exactRuntime = Object.freeze({
 const evidenceRelative = "docs/images/pilot-portfolio-evidence";
 const evidenceManifestRelative = `${evidenceRelative}/MANIFEST.json`;
 const evidenceManifestSha256 =
-  "9f275968958546a51d8d502bdc125ef67c66d8fef91517d259878e571e21db56";
+  "c9d915595c54f2bb16817ebaebce00336b618d1fabacf53909b077a20058f012";
 const outputRelative = "docs/images/pilot-workflow-demo";
 const outputName = "incident-command--acknowledge-alert.gif";
 const outputManifestName = "MANIFEST.json";
@@ -83,8 +85,8 @@ const frameCatalog = Object.freeze([
     checkpoint_id:
       "idck1_2dfb1a690d3705c9081fa96eca06c64009f6a2c758b80c58197624e16fc37513",
     file: "incident-command--acknowledge-alert--initial-state.png",
-    sha256: "41c1a07c4390e2fb38636e443a8004f38da45005bae6c129ea4e868f96a1760f",
-    byte_length: 109_460,
+    sha256: "3d1055dc241d248c0ebc2f7977e230660477a2513e9e18dac4afcd9fa189be48",
+    byte_length: 109_464,
     delay_centiseconds: 120,
     phase: "unacknowledged queue",
   }),
@@ -1142,6 +1144,111 @@ async function verifyOutputDirectory(directory, expectedGif, expectedManifest) {
   }
 }
 
+async function inspectReplaceableOutputDirectory(directory, revision) {
+  await assertPlainDirectory(directory);
+  const before = await lstat(directory);
+  const entries = (await readdir(directory)).sort();
+  if (!exactStrings(entries, [outputManifestName, outputName])) {
+    fail("pilot_gif.output_membership");
+  }
+  for (const name of entries) {
+    const path = join(directory, name);
+    const current = await readStableFile(
+      path,
+      name === outputName ? maximumGifBytes : 256 * 1024,
+    );
+    const committed = committedFileIdentity(revision, relativePath(path));
+    if (committed.git_mode !== "100644" || !current.equals(committed.bytes)) {
+      fail("pilot_gif.output_uncommitted");
+    }
+  }
+  const after = await lstat(directory);
+  if (!sameFileIdentity(before, after)) {
+    fail("pilot_gif.output_changed");
+  }
+  return before;
+}
+
+async function assertDirectoryIdentity(path, expected, code) {
+  let actual;
+  try {
+    actual = await lstat(path);
+  } catch {
+    fail(code);
+  }
+  if (
+    !actual.isDirectory() ||
+    actual.isSymbolicLink() ||
+    !sameFileIdentity(actual, expected)
+  ) {
+    fail(code);
+  }
+}
+
+async function removeKnownDirectory(path, expected, code) {
+  await assertDirectoryIdentity(path, expected, code);
+  await rm(path, { recursive: true, force: false });
+  let remains = true;
+  try {
+    await lstat(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") {
+      remains = false;
+    } else {
+      fail(code);
+    }
+  }
+  if (remains) fail(code);
+}
+
+async function openPublicationLock(parent) {
+  const path = join(parent, ".pilot-workflow-demo.lock");
+  let handle;
+  try {
+    handle = await open(
+      path,
+      constants.O_WRONLY |
+        constants.O_CREAT |
+        constants.O_EXCL |
+        constants.O_NOFOLLOW |
+        (constants.O_CLOEXEC ?? 0),
+      0o600,
+    );
+    const identity = await handle.stat();
+    if (!identity.isFile() || identity.nlink !== 1) {
+      fail("pilot_gif.locked");
+    }
+    return { path, handle, identity };
+  } catch (error) {
+    await handle?.close().catch(() => {});
+    if (error instanceof PilotWorkflowGifError) throw error;
+    fail("pilot_gif.locked");
+  }
+}
+
+async function closePublicationLock(lock) {
+  let failure;
+  try {
+    const current = await lstat(lock.path);
+    if (
+      !current.isFile() ||
+      current.isSymbolicLink() ||
+      !sameFileIdentity(current, lock.identity)
+    ) {
+      fail("pilot_gif.publication_cleanup");
+    }
+    await unlink(lock.path);
+  } catch (error) {
+    failure = error;
+  }
+  try {
+    await lock.handle.close();
+  } catch (error) {
+    failure ??= error;
+  }
+  if (failure !== undefined) fail("pilot_gif.publication_cleanup");
+}
+
 function previewPath(argument) {
   if (
     typeof argument !== "string" ||
@@ -1205,6 +1312,157 @@ async function writeProduction() {
   }
 }
 
+async function refreshProduction() {
+  const provenance = await inspectCommittedProvenance();
+  const { source, gifBytes } = await buildGif();
+  const manifestBytes = canonicalBytes(manifestFor(gifBytes, source, provenance));
+  const parent = join(repositoryRoot, dirname(outputRelative));
+  const output = join(repositoryRoot, outputRelative);
+  await assertPlainDirectory(parent);
+
+  const nonce = randomBytes(16).toString("hex");
+  const stage = join(parent, `.pilot-workflow-demo-stage-${nonce}`);
+  const backup = join(parent, `.pilot-workflow-demo-backup-${nonce}`);
+  let lock;
+  let stageIdentity;
+  let previousIdentity;
+  let stageCreated = false;
+  let previousMoved = false;
+  let published = false;
+  let primaryError;
+  const cleanupErrors = [];
+
+  try {
+    lock = await openPublicationLock(parent);
+    previousIdentity = await inspectReplaceableOutputDirectory(
+      output,
+      provenance.git_revision,
+    );
+    await assertMissing(stage, "pilot_gif.stage_exists");
+    await assertMissing(backup, "pilot_gif.backup_exists");
+    await mkdir(stage, { mode: 0o700 });
+    stageCreated = true;
+    await writeSyncedFile(join(stage, outputName), gifBytes);
+    await writeSyncedFile(join(stage, outputManifestName), manifestBytes);
+    await verifyOutputDirectory(stage, gifBytes, manifestBytes);
+    await syncDirectory(stage);
+    await chmod(stage, 0o755);
+    stageIdentity = await lstat(stage);
+    const currentIdentity = await inspectReplaceableOutputDirectory(
+      output,
+      provenance.git_revision,
+    );
+    if (!sameFileIdentity(currentIdentity, previousIdentity)) {
+      fail("pilot_gif.output_changed");
+    }
+    await rename(output, backup);
+    previousMoved = true;
+    await assertDirectoryIdentity(
+      backup,
+      previousIdentity,
+      "pilot_gif.output_changed",
+    );
+    if (process.env.IMPACTDIFF_PILOT_GIF_TEST_FAIL_AFTER_BACKUP === "1") {
+      fail("pilot_gif.test_failure_after_backup");
+    }
+    await rename(stage, output);
+    stageCreated = false;
+    published = true;
+    await assertDirectoryIdentity(
+      output,
+      stageIdentity,
+      "pilot_gif.publication_uncertain",
+    );
+    await syncDirectory(parent);
+    await verifyOutputDirectory(output, gifBytes, manifestBytes);
+    await removeKnownDirectory(
+      backup,
+      previousIdentity,
+      "pilot_gif.publication_cleanup",
+    );
+    previousMoved = false;
+  } catch (error) {
+    primaryError = error;
+    if (published && stageIdentity !== undefined) {
+      try {
+        await assertMissing(stage, "pilot_gif.publication_restore");
+        await assertDirectoryIdentity(
+          output,
+          stageIdentity,
+          "pilot_gif.publication_restore",
+        );
+        await rename(output, stage);
+        published = false;
+        stageCreated = true;
+      } catch (restoreError) {
+        cleanupErrors.push(restoreError);
+      }
+    }
+    if (previousMoved && previousIdentity !== undefined) {
+      try {
+        await assertDirectoryIdentity(
+          backup,
+          previousIdentity,
+          "pilot_gif.publication_restore",
+        );
+        await rename(backup, output);
+        previousMoved = false;
+        const restored = await inspectReplaceableOutputDirectory(
+          output,
+          provenance.git_revision,
+        );
+        if (!sameFileIdentity(restored, previousIdentity)) {
+          fail("pilot_gif.publication_restore");
+        }
+        await syncDirectory(parent);
+      } catch (restoreError) {
+        cleanupErrors.push(restoreError);
+      }
+    }
+  }
+
+  if (stageCreated && stageIdentity !== undefined) {
+    try {
+      await removeKnownDirectory(
+        stage,
+        stageIdentity,
+        "pilot_gif.publication_cleanup",
+      );
+      stageCreated = false;
+    } catch (cleanupError) {
+      cleanupErrors.push(cleanupError);
+    }
+  }
+  if (published && primaryError !== undefined) {
+    cleanupErrors.push(
+      new PilotWorkflowGifError("pilot_gif.publication_uncertain"),
+    );
+  }
+  if (previousMoved) {
+    cleanupErrors.push(
+      new PilotWorkflowGifError("pilot_gif.publication_restore"),
+    );
+  }
+  if (lock !== undefined) {
+    try {
+      await closePublicationLock(lock);
+    } catch (cleanupError) {
+      cleanupErrors.push(cleanupError);
+    }
+  }
+
+  if (primaryError !== undefined) {
+    if (cleanupErrors.length > 0) {
+      fail("pilot_gif.publication_uncertain");
+    }
+    throw primaryError;
+  }
+  if (cleanupErrors.length > 0) {
+    fail("pilot_gif.publication_cleanup");
+  }
+  receipt("refresh", gifBytes, manifestBytes);
+}
+
 async function checkProduction() {
   const output = join(repositoryRoot, outputRelative);
   const actualManifestBytes = await readStableFile(
@@ -1243,6 +1501,10 @@ async function main() {
   }
   if (arguments_.length === 1 && arguments_[0] === "write") {
     await writeProduction();
+    return;
+  }
+  if (arguments_.length === 1 && arguments_[0] === "refresh") {
+    await refreshProduction();
     return;
   }
   if (arguments_.length === 1 && arguments_[0] === "check") {

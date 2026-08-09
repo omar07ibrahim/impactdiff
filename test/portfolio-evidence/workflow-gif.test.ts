@@ -8,6 +8,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   rm,
   symlink,
   unlink,
@@ -44,7 +45,7 @@ const frameFiles = [
   "incident-command--acknowledge-alert--post-primary-action.png",
 ] as const;
 const expectedFrameDigests = [
-  "41c1a07c4390e2fb38636e443a8004f38da45005bae6c129ea4e868f96a1760f",
+  "3d1055dc241d248c0ebc2f7977e230660477a2513e9e18dac4afcd9fa189be48",
   "22d9c8130baaf3cb2493b46cc1112113a1510a48c9af506ae5d4ddd07c763715",
   "354dddadd5f87931801dfda1197a690b67a7fd32bfd269a67bb3a5e5d6cbcbdf",
 ] as const;
@@ -91,10 +92,14 @@ function sha256(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-function runTool(root: string, arguments_: readonly string[]): ToolResult {
+function runTool(
+  root: string,
+  arguments_: readonly string[],
+  environment: Readonly<Record<string, string>> = {},
+): ToolResult {
   return spawnSync(process.execPath, [join(root, toolRelative), ...arguments_], {
     cwd: root,
-    env: process.env,
+    env: { ...process.env, ...environment },
     encoding: "utf8",
     timeout: 30_000,
     maxBuffer: 8 * 1024 * 1024,
@@ -557,6 +562,89 @@ test("production binds committed provenance and rejects dirty or mutated sources
     "-m",
     "publish fixture",
   ]);
+  const publishedRevision = runGit(root, ["rev-parse", "HEAD"]);
+  const originalManifestBytes = await readFile(join(outputRoot, "MANIFEST.json"));
+  const originalGifBytes = await readFile(
+    join(outputRoot, "incident-command--acknowledge-alert.gif"),
+  );
+  const ignoredExtra = join(outputRoot, "unexpected.txt");
+  await writeFile(
+    join(root, ".git/info/exclude"),
+    "docs/images/pilot-workflow-demo/unexpected.txt\n",
+    { encoding: "utf8", flag: "a" },
+  );
+  await writeFile(ignoredExtra, "ignored but unsafe\n", "utf8");
+  const refusedRefresh = runTool(root, ["refresh"]);
+  assert.equal(refusedRefresh.status, 1);
+  assert.equal(refusedRefresh.stdout, "");
+  assert.equal(
+    refusedRefresh.stderr,
+    '{"code":"pilot_gif.output_membership"}\n',
+  );
+  assert.deepEqual(
+    await readFile(join(outputRoot, "MANIFEST.json")),
+    originalManifestBytes,
+  );
+  assert.deepEqual(
+    await readFile(join(outputRoot, "incident-command--acknowledge-alert.gif")),
+    originalGifBytes,
+  );
+  await unlink(ignoredExtra);
+
+  const rollbackFailure = runTool(root, ["refresh"], {
+    IMPACTDIFF_PILOT_GIF_TEST_FAIL_AFTER_BACKUP: "1",
+  });
+  assert.equal(rollbackFailure.status, 1);
+  assert.equal(rollbackFailure.stdout, "");
+  assert.equal(
+    rollbackFailure.stderr,
+    '{"code":"pilot_gif.test_failure_after_backup"}\n',
+  );
+  assert.deepEqual(
+    await readFile(join(outputRoot, "MANIFEST.json")),
+    originalManifestBytes,
+  );
+  assert.deepEqual(
+    await readFile(join(outputRoot, "incident-command--acknowledge-alert.gif")),
+    originalGifBytes,
+  );
+  assert.deepEqual((await readdir(outputRoot)).sort(), [
+    "MANIFEST.json",
+    "incident-command--acknowledge-alert.gif",
+  ]);
+  assert.deepEqual(
+    (await readdir(dirname(outputRoot))).filter((name) =>
+      name.startsWith(".pilot-workflow-demo-"),
+    ),
+    [],
+  );
+
+  const refresh = runTool(root, ["refresh"]);
+  assert.equal(refresh.error, undefined);
+  assert.equal(refresh.signal, null);
+  assert.equal(refresh.status, 0, refresh.stderr);
+  assert.equal(refresh.stderr, "");
+  const refreshedManifest = JSON.parse(
+    await readFile(join(outputRoot, "MANIFEST.json"), "utf8"),
+  ) as {
+    readonly source: {
+      readonly git_revision: string;
+      readonly git_tree: string;
+    };
+  };
+  assert.equal(refreshedManifest.source.git_revision, publishedRevision);
+  assert.equal(
+    refreshedManifest.source.git_tree,
+    runGit(root, ["rev-parse", "HEAD^{tree}"]),
+  );
+  assert.notEqual(
+    refreshedManifest.source.git_revision,
+    manifest.source.git_revision,
+  );
+  const refreshedCheck = runTool(root, ["check"]);
+  assert.equal(refreshedCheck.status, 0, refreshedCheck.stderr);
+  assert.equal(refreshedCheck.stderr, "");
+
   runGit(root, ["checkout", "--quiet", "--orphan", "squashed"]);
   runGit(root, ["add", "."]);
   runGit(root, [
