@@ -577,10 +577,7 @@ test("production binds committed provenance and rejects dirty or mutated sources
   const refusedRefresh = runTool(root, ["refresh"]);
   assert.equal(refusedRefresh.status, 1);
   assert.equal(refusedRefresh.stdout, "");
-  assert.equal(
-    refusedRefresh.stderr,
-    '{"code":"pilot_gif.output_membership"}\n',
-  );
+  assert.equal(refusedRefresh.stderr, '{"code":"pilot_gif.output_membership"}\n');
   assert.deepEqual(
     await readFile(join(outputRoot, "MANIFEST.json")),
     originalManifestBytes,
@@ -637,10 +634,7 @@ test("production binds committed provenance and rejects dirty or mutated sources
     refreshedManifest.source.git_tree,
     runGit(root, ["rev-parse", "HEAD^{tree}"]),
   );
-  assert.notEqual(
-    refreshedManifest.source.git_revision,
-    manifest.source.git_revision,
-  );
+  assert.notEqual(refreshedManifest.source.git_revision, manifest.source.git_revision);
   const refreshedCheck = runTool(root, ["check"]);
   assert.equal(refreshedCheck.status, 0, refreshedCheck.stderr);
   assert.equal(refreshedCheck.stderr, "");

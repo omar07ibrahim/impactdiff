@@ -1357,11 +1357,7 @@ async function refreshProduction() {
     }
     await rename(output, backup);
     previousMoved = true;
-    await assertDirectoryIdentity(
-      backup,
-      previousIdentity,
-      "pilot_gif.output_changed",
-    );
+    await assertDirectoryIdentity(backup, previousIdentity, "pilot_gif.output_changed");
     if (process.env.IMPACTDIFF_PILOT_GIF_TEST_FAIL_AFTER_BACKUP === "1") {
       fail("pilot_gif.test_failure_after_backup");
     }
@@ -1423,25 +1419,17 @@ async function refreshProduction() {
 
   if (stageCreated && stageIdentity !== undefined) {
     try {
-      await removeKnownDirectory(
-        stage,
-        stageIdentity,
-        "pilot_gif.publication_cleanup",
-      );
+      await removeKnownDirectory(stage, stageIdentity, "pilot_gif.publication_cleanup");
       stageCreated = false;
     } catch (cleanupError) {
       cleanupErrors.push(cleanupError);
     }
   }
   if (published && primaryError !== undefined) {
-    cleanupErrors.push(
-      new PilotWorkflowGifError("pilot_gif.publication_uncertain"),
-    );
+    cleanupErrors.push(new PilotWorkflowGifError("pilot_gif.publication_uncertain"));
   }
   if (previousMoved) {
-    cleanupErrors.push(
-      new PilotWorkflowGifError("pilot_gif.publication_restore"),
-    );
+    cleanupErrors.push(new PilotWorkflowGifError("pilot_gif.publication_restore"));
   }
   if (lock !== undefined) {
     try {
